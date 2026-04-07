@@ -1,0 +1,19 @@
+{
+	"Version": 3,
+	"FileReferences": {
+		"Moc": "Poblanc.moc3",
+		"Textures": [
+			"Poblanc.8192/texture_00.png",
+			"Poblanc.8192/texture_01.png"
+		],
+		"Physics": "Poblanc.physics3.json",
+		"DisplayInfo": "Poblanc.cdi3.json"
+	},
+	"Groups": [
+		{
+			"Target": "Parameter",
+			"Name": "EyeBlink",
+			"Ids": []
+		}
+	]
+}

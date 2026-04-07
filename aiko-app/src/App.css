@@ -1,0 +1,272 @@
+@import "tailwindcss";
+
+/* ── Spin slow animation for Live2D HUD ring ── */
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.animate-spin-slow { animation: spin-slow 12s linear infinite; }
+
+@layer theme {
+  :root {
+    /* Surfaces */
+    --bg-base: #0c0b0a;
+    --bg-sidebar: #111009;
+    --bg-elevated: #181612;
+    --bg-card: #1e1b16;
+    --bg-input: #161410;
+    --bg-hover: rgba(255, 255, 255, 0.04);
+    --bg-active: rgba(255, 220, 170, 0.07);
+
+    /* Text */
+    --t1: #ede8df;
+    --t2: #a89880;
+    --t3: #6b5e50;
+    --t4: #2e2820;
+
+    /* Accent — warm amber/gold */
+    --acc: #d4956a;
+    --acc2: #c4855a;
+    --acc-soft: rgba(212, 149, 106, 0.12);
+    --acc-glow: rgba(212, 149, 106, 0.25);
+
+    /* Borders */
+    --b1: rgba(255, 220, 170, 0.06);
+    --b2: rgba(255, 220, 170, 0.10);
+    --b3: rgba(255, 220, 170, 0.18);
+
+    /* Status */
+    --green: #4ade80;
+    --red: #f87171;
+
+    /* Fonts */
+    --font-ui: 'DM Sans', system-ui, sans-serif;
+    --font-brand: 'Pixelify Sans', cursive;
+    --font-mono: 'JetBrains Mono', monospace;
+
+    /* Layout */
+    --sidebar-w: 260px;
+    --chat-max: 700px;
+    --th: 38px;
+    --nh: 48px;
+
+    /* Legacy compatibility (bridging to components) */
+    --bg-dark: var(--bg-base);
+    --bg-pane: var(--bg-elevated);
+    --bg-glass: var(--bg-active);
+    --primary: var(--acc);
+    --primary-glow: var(--acc-glow);
+    --secondary: var(--acc2);
+    --accent: var(--green);
+    --border-light: var(--b1);
+    --border-accent: var(--b2);
+    --text-main: var(--t1);
+    --text-dim: var(--t2);
+  }
+}
+
+body {
+  background-color: var(--bg-base);
+  color: var(--t1);
+  margin: 0;
+  font-family: var(--font-ui);
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: default;
+}
+
+body.mascot-mode {
+  background: transparent !important;
+  background-color: transparent !important;
+  overflow: hidden !important;
+  border: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.mascot-container {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  position: relative;
+  overflow: visible; /* Allow umbrella to reach edges if needed */
+}
+
+.mascot-ui-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.selectable {
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: text;
+}
+
+input, textarea {
+  -webkit-user-select: text;
+  user-select: text;
+  font-family: var(--font-ui);
+  /* Kill every possible white box / outline / ring */
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+  border: none !important;
+  -webkit-tap-highlight-color: transparent;
+}
+input:focus, textarea:focus,
+input:focus-visible, textarea:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+  ring: 0 !important;
+}
+
+/* Tailwind v4 resets ring/border on focus for inputs inside containers */
+textarea.focus\:ring-0:focus { --tw-ring-shadow: none !important; box-shadow: none !important; }
+
+/* --- CLAUDE-LIKE DEPTHS --- */
+
+.glass-pane {
+  background: var(--bg-elevated);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--b1);
+}
+
+.chat-bubble-ai {
+  background: transparent;
+  border: none;
+}
+
+.chat-bubble-user {
+  background: var(--bg-card);
+  border: 1px solid var(--b2);
+  border-radius: 16px 16px 4px 16px;
+}
+
+.brand-text {
+  font-family: var(--font-brand);
+}
+
+/* --- CINEMATIC ANIMATIONS --- */
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.02); }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 4s ease-in-out infinite;
+}
+
+/* --- SCROLL SYSTEM --- */
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--b2);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--acc-glow);
+}
+
+/* --- TYPOGRAPHY --- */
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+.tracking-mega {
+  letter-spacing: 0.1em; /* Calmed down from 0.25em */
+}
+
+.text-dim {
+  color: var(--t2);
+}
+
+.obsidian-glass {
+  background: var(--bg-sidebar);
+  border: 1px solid var(--b1);
+  -webkit-backdrop-filter: blur(40px);
+  backdrop-filter: blur(40px);
+}
+
+/* ── Markdown Content Styles ─────────────────────────────── */
+.markdown-content p { margin-bottom: 0.85em; line-height: 1.78; }
+.markdown-content p:last-child { margin-bottom: 0; }
+.markdown-content strong { color: var(--t1); font-weight: 600; }
+.markdown-content em { color: var(--t2); font-style: italic; }
+.markdown-content h1, .markdown-content h2, .markdown-content h3 {
+  color: var(--t1); font-weight: 600; margin: 1em 0 0.4em;
+}
+.markdown-content h1 { font-size: 1.3em; }
+.markdown-content h2 { font-size: 1.15em; }
+.markdown-content h3 { font-size: 1.05em; }
+.markdown-content ul, .markdown-content ol {
+  padding-left: 1.4em; margin: 0.6em 0;
+}
+.markdown-content li { margin-bottom: 0.3em; line-height: 1.65; }
+.markdown-content code {
+  background: rgba(255,220,170,0.08);
+  border: 1px solid var(--b2);
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  color: #e2b06a;
+}
+.markdown-content pre {
+  background: var(--bg-card);
+  border: 1px solid var(--b2);
+  border-radius: 10px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  margin: 10px 0;
+  scrollbar-width: thin;
+}
+.markdown-content pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 13px;
+  color: #ccc;
+  line-height: 1.65;
+}
+.markdown-content blockquote {
+  border-left: 2px solid var(--acc);
+  padding-left: 12px;
+  margin: 8px 0;
+  color: var(--t2);
+  font-style: italic;
+}
+.markdown-content table {
+  width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px;
+}
+.markdown-content th {
+  background: var(--bg-card); color: var(--t1); font-weight: 600;
+  padding: 8px 12px; border: 1px solid var(--b2); text-align: left;
+}
+.markdown-content td {
+  padding: 7px 12px; border: 1px solid var(--b1); color: var(--t2);
+}
+.markdown-content tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+.markdown-content a { color: var(--acc); text-decoration: underline; text-decoration-color: var(--acc-soft); }
+.markdown-content a:hover { color: var(--acc2); }
+.markdown-content hr { border: none; border-top: 1px solid var(--b1); margin: 14px 0; }

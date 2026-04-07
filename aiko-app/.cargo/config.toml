@@ -1,0 +1,10 @@
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "link-arg=/DEBUG:NONE"]
+
+[profile.dev]
+opt-level = 0
+debug = false
+incremental = true
+
+[profile.dev.package."*"]
+opt-level = 3

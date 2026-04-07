@@ -1,0 +1,145 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Logs
+.logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE & Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Temporary files
+.tmp/
+tmp/
+temp/
+*.tmp
+*.bak
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Ruff
+.ruff_cache/
+
+# Tauri & Rust
+.tauri/
+target/
+**/target/
+**/target.debug/
+**/target.release/
+src-tauri/target/
+src-tauri/gen/
+*.lock
+
+# Node.js
+node_modules/
+**/node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Frontend builds
+aiko-app/dist/
+aiko-app/build/
+**/dist/
+**/build/
+
+# Live2D and model cache
+*.pk
+*.mf
+
+# FFmpeg (downloaded binaries)
+ffmpeg.exe
+ffmpeg.zip
+ffmpeg-master-latest-win64-gpl/
+
+# Audio & Voice files (generated)
+audio/
+voices/
+uploads/
+sandbox/
+
+# Data files (runtime generated)
+data/*.json
+data/*.db
+data/*.sqlite*
+data/*.json.backup
+data/chroma_db/
+data/darija_db/
+data/thoughts/
+data/file_links/
+data/logs/
+data/last_scan.png
+
+# Mobile (deprecated)
+aiko-mobile/
+mobile_app/
+
+# Hugging Face deployment (keep config, skip runtime)
+deploy-hf/audio/
+deploy-hf/voices/
+
+# External projects (not part of core Aiko)
+star_office_ui/
+
+# Model files (too large for git)
+modeles/
+knowledge/
+*.onnx
+*.bin
+*.safetensors
+
+# Certificates & SSL
+*.crt
+*.cer
+*.der
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Claude Code
+.claude/
+
+# User Personalized Persona
+core/persona.py

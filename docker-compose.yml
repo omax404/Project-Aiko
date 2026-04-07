@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  aiko-desktop:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aiko_elite_desktop
+    restart: unless-stopped
+    ports:
+      - "8550:8550" # Flet Web UI
+      - "8002:8002" # Callback Server for OpenClaw
+    environment:
+      - FLET_SERVER_PORT=8550
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - ENVIRONMENT=production
+      - CLAWDBOT_URL=http://clawdbot:8000/api/v1/webhook/
+    volumes:
+      - ./data/memory:/app/data/memory
+      - ./data/logs:/app/data/logs
+      - ./assets:/app/assets
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8550/" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      - clawdbot
+      - aiko-sandbox
+
+  aiko-sandbox:
+    build:
+      context: ./sandbox
+      dockerfile: Dockerfile
+    container_name: aiko_sandbox
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+
+  clawdbot:
+    # Assuming Clawdbot is running locally or as another service
+    image: python:3.11-slim
+    container_name: clawdbot_gateway
+    restart: on-failure
+    ports:
+      - "8000:8000"
+    command: >
+      bash -c "echo 'Mock Clawdbot Gateway Running' && sleep infinity"
+    # In a real setup, this would build the Clawdbot image and run its uvicorn server.

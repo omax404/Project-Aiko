@@ -1,0 +1,4 @@
+gradio==4.20.0
+pyTelegramBotAPI==4.16.1
+llama-cpp-python==0.2.56
+huggingface-hub

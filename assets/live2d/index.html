@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Aiko Live2D</title>
+<style>
+  * { margin: 0; padding: 0; }
+  html, body { 
+    width: 100%; height: 100%; 
+    background: transparent; 
+    overflow: hidden;
+    -webkit-app-region: drag;
+  }
+  canvas { 
+    display: block; 
+    -webkit-app-region: no-drag;
+  }
+</style>
+<script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/niconi1/pixi-live2d-display@v0.4.0/dist/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pixi.js@7.3.2/dist/pixi.min.js"></script>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script>
+const app = new PIXI.Application({
+  view: document.getElementById('canvas'),
+  autoStart: true,
+  transparent: true,
+  resizeTo: window,
+  backgroundAlpha: 0,
+});
+
+async function loadModel() {
+  try {
+    const model = await PIXI.live2d.Live2DModel.from('薇薇安.model3.json');
+    app.stage.addChild(model);
+    
+    // Fit to window
+    const scale = Math.min(window.innerWidth / model.width, window.innerHeight / model.height) * 0.9;
+    model.scale.set(scale);
+    model.x = (window.innerWidth - model.width * scale) / 2;
+    model.y = (window.innerHeight - model.height * scale) / 2;
+    
+    // Auto blink
+    model.internalModel.motionManager.startRandomMotion('Idle');
+    
+    // Mouse tracking
+    document.addEventListener('mousemove', (e) => {
+      model.focus(e.clientX, e.clientY);
+    });
+
+    // Tap interaction
+    model.on('hit', (hitAreas) => {
+      if (hitAreas.includes('Body')) {
+        model.motion('tap_body');
+      }
+    });
+    
+    console.log('Live2D model loaded successfully');
+  } catch(e) {
+    console.error('Failed to load model:', e);
+    document.body.innerHTML = '<div style="color:#E11D48;padding:20px;font-family:sans-serif">Model loading error: ' + e.message + '</div>';
+  }
+}
+
+loadModel();
+
+window.addEventListener('resize', () => {
+  app.renderer.resize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>

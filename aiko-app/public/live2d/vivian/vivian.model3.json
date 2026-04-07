@@ -1,0 +1,46 @@
+{
+	"Version": 3,
+	"FileReferences": {
+		"Moc": "vivian.moc3",
+		"Textures": [
+			"vivian.textures/texture_00.png",
+			"vivian.textures/texture_01.png",
+			"vivian.textures/texture_02.png",
+			"vivian.textures/texture_03.png",
+			"vivian.textures/texture_04.png",
+			"vivian.textures/texture_05.png",
+			"vivian.textures/texture_06.png",
+			"vivian.textures/texture_07.png",
+			"vivian.textures/texture_08.png",
+			"vivian.textures/texture_09.png",
+			"vivian.textures/texture_10.png"
+		],
+		"Physics": "vivian.physics3.json",
+		"DisplayInfo": "vivian.cdi3.json"
+	},
+	"Expressions": [
+		{ "Name": "伞关闭", "File": "伞关闭.exp3.json" },
+		{ "Name": "哭", "File": "哭.exp3.json" },
+		{ "Name": "害羞", "File": "害羞.exp3.json" },
+		{ "Name": "慌张", "File": "慌张.exp3.json" },
+		{ "Name": "白眼", "File": "白眼.exp3.json" },
+		{ "Name": "黑脸", "File": "黑脸.exp3.json" }
+	],
+	"Groups": [
+		{
+			"Target": "Parameter",
+			"Name": "EyeBlink",
+			"Ids": [
+				"ParamEyeLOpen",
+				"ParamEyeROpen"
+			]
+		},
+		{
+			"Target": "Parameter",
+			"Name": "LipSync",
+			"Ids": [
+				"ParamMouthOpenY"
+			]
+		}
+	]
+}
