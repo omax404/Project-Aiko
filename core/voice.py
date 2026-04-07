@@ -23,10 +23,13 @@ class VoiceEngine:
         try:
             logger.info("📡 Loading Pocket-TTS Model (this may take a moment)...")
             self.model = TTSModel.load_model()
-            # Loading CUSTOM CLONED AUDIO
-            clone_path = r"C:\Users\ousmo\.gemini\antigravity\scratch\Aiko-desktop\voice_preview_yuki.mp3"
+            # Loading CUSTOM CLONED AUDIO using the converted WAV format for Kyutai tensor compatibility
+            clone_path = os.path.join(os.getcwd(), "voice_preview_yuki.wav")
             logger.info(f"📡 Generating Voice State from clone: {clone_path}")
-            self.voice_state = self.model.get_state_for_audio_prompt(clone_path)
+            if os.path.exists(clone_path):
+                self.voice_state = self.model.get_state_for_audio_prompt(clone_path)
+            else:
+                self.voice_state = self.model.get_state_for_audio_prompt("alba")
             self.is_ready = True
             logger.info("✅ Pocket-TTS Engine Loaded & Ready with Yuki's Voice Clone.")
         except Exception as e:
@@ -45,6 +48,18 @@ class VoiceEngine:
         # Pocket-TTS works best with clean, plain text
         return " ".join(text.split()).strip()
 
+    def clear_old_cache(self):
+        """Removes audio files older than 1 hour to prevent hard drive saturation."""
+        try:
+            now = time.time()
+            for filename in os.listdir(self.output_dir):
+                if filename.endswith(".wav"):
+                    path = os.path.join(self.output_dir, filename)
+                    if os.path.isfile(path) and (now - os.path.getmtime(path)) > 3600:
+                        os.remove(path)
+        except Exception as e:
+            logger.error(f"Failed to clear cache: {e}")
+
     async def speak(self, text: str, emotion: str = "neutral", on_amplitude=None, on_audio=None):
         if not self.is_ready or not text: 
             return
@@ -55,6 +70,8 @@ class VoiceEngine:
 
         self.is_speaking = True
         try:
+            self.clear_old_cache()
+            
             filename = f"voice_{int(time.time() * 1000)}.wav"
             target_path = os.path.join(self.output_dir, filename)
             
