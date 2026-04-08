@@ -47,8 +47,8 @@ def start_aiko_tauri():
         subprocess.run(f'taskkill /F /IM python.exe /T /FI "PID ne {current_pid}"', shell=True, capture_output=True, creationflags=NO_WINDOW, check=False)
         subprocess.run('taskkill /F /IM ollama.exe /T', shell=True, capture_output=True, creationflags=NO_WINDOW, check=False)
         
-        # Kill whatever is on port 1422 (Vite) and 8000 (Hub)
-        for port in [1422, 1420, 8000, 8765]:
+        # Kill whatever is on port 1422 (Vite), 8080 (Hub), and 8000 (Pocket-TTS)
+        for port in [1422, 1420, 8080, 8000, 8765]:
             cmd = f'powershell -Command "Stop-Process -Id (Get-NetTCPConnection -LocalPort {port}).OwningProcess -Force -ErrorAction SilentlyContinue"'
             subprocess.run(cmd, shell=True, creationflags=NO_WINDOW, check=False)
             
@@ -83,7 +83,7 @@ def start_aiko_tauri():
         else:
             print(" [OK] LLM is now ready.")
 
-    # 2. Start Neural Hub — hidden, logs to file
+    # 2. Start Neural Hub (Now on 8080) — hidden, logs to file
     print(" Starting Neural Hub (Brain)...")
     hub_log = open(".logs/neural_hub.log", "w")
     subprocess.Popen(
@@ -92,11 +92,22 @@ def start_aiko_tauri():
         creationflags=NO_WINDOW
     )
 
+    # 3. Start Pocket-TTS Microservice (Port 8000)
+    print(" Starting Kyutai Voice Subsystem...")
+    tts_log = open(".logs/pocket_tts.log", "w")
+    # 'uvx' routes dynamically through the python resolver, shell=True helps find path easily on Windows
+    subprocess.Popen(
+        "uvx pocket-tts serve",
+        shell=True,
+        stdout=tts_log, stderr=tts_log,
+        creationflags=NO_WINDOW
+    )
+
     # Wait for Hub to be warm with active polling
     print(" Warming up the neural link (this might take a Few Seconds)...")
     hub_ready = False
     for i in range(120):
-        if check_hub_alive():
+        if check_hub_alive(port=8080):
             hub_ready = True
             break
         time.sleep(1)

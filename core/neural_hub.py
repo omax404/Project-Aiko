@@ -375,7 +375,7 @@ async def handle_chat_api(req):
         return web.json_response({
             "response": reply,
             "emotion": emotion,
-            "audio_url": f"http://127.0.0.1:8000/api/tts/audio/{audio_filename}" if audio_filename else None,
+            "audio_url": f"http://127.0.0.1:8080/api/tts/audio/{audio_filename}" if audio_filename else None,
             "audio_path": os.path.join(os.getcwd(), "data", "voices", audio_filename) if audio_filename else None,
             "timestamp": datetime.now().isoformat()
         })
@@ -781,7 +781,7 @@ def build_hub_app():
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", 8000)))
+    parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", 8080)))
     parser.add_argument("--host", type=str, default="0.0.0.0")
     args = parser.parse_args()
 
@@ -801,17 +801,17 @@ if __name__ == "__main__":
         web.run_app(build_hub_app(), host=args.host, port=args.port, print=lambda x: logger.info(x))
     except OSError as e:
         if e.errno == 10048:
-            logger.warning(" [!] Port 8000 is already in use. Neural Hub might be already running.")
+            logger.warning(" [!] Port 8080 is already in use. Neural Hub might be already running.")
             # Verify if it's actually alive
             import http.client
             try:
-                conn = http.client.HTTPConnection("127.0.0.1", 8000, timeout=5)
+                conn = http.client.HTTPConnection("127.0.0.1", 8080, timeout=5)
                 conn.request("GET", "/status")
                 if conn.getresponse().status == 200:
                     logger.info(" [OK] Confirmed existing Neural Hub is healthy. Exiting.")
                     sys.exit(0)
             except:
-                logger.warning(" [!] Port 8000 occupied. Assuming existing Hub is starting up. Exiting.")
+                logger.warning(" [!] Port 8080 occupied. Assuming existing Hub is starting up. Exiting.")
                 sys.exit(0)
         else:
             raise e
