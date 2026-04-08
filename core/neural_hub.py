@@ -7,6 +7,7 @@ Now with: Message Queue integration, Unified Memory, and Auto-restart
 """
 
 import os
+os.environ["PYTHONIOENCODING"] = "utf-8"
 import sys
 import json
 import asyncio
@@ -47,6 +48,7 @@ from core.startup_manager import startup_manager
 from core.message_queue import get_queue, send_response
 from core.unified_memory import get_unified_memory
 from core.proactive import ProactiveAgent
+from core.bot_manager import start_all_satellites
 
 # ═══════════════════════════════════════════════════════════════
 # UI UPDATES & BROADCASTING
@@ -527,13 +529,16 @@ async def on_startup(app):
     asyncio.create_task(memory_autosave_loop())
     logger.info("💾 Memory auto-save started")
 
+    # Start Consolidated Satellites (Discord/Telegram)
+    asyncio.create_task(start_all_satellites())
+
     # MemPalace Wake-up & Indexing
     if hasattr(rag, 'mempalace') and rag.mempalace.is_available():
         _loop = asyncio.get_running_loop()
         logger.info("🌅 Palace Wake-up sequence initiated...")
-        asyncio.create_task(_loop.run_in_executor(None, rag.mempalace.wake_up))
+        _loop.run_in_executor(None, rag.mempalace.wake_up)
         # Optional: Mine the project on startup to ensure latest files are indexed
-        asyncio.create_task(_loop.run_in_executor(None, rag.mempalace.mine_project, "./"))
+        _loop.run_in_executor(None, rag.mempalace.mine_project, "./")
 
     # Start proactive agent loop
     asyncio.create_task(proactive_agent.start_loop())
@@ -667,6 +672,38 @@ async def handle_bridge_status(req):
     except Exception as e:
         return web.json_response({"status": "disconnected", "error": str(e)})
 
+async def handle_latex_render(req):
+    """Render a LaTeX snippet to a high-res image."""
+    try:
+        data = await req.json()
+        snippet = data.get("snippet", "").strip()
+        if not snippet:
+             return web.json_response({"error": "No snippet provided"}, status=400)
+        
+        logger.info(f" [Latex] Rendering snippet: {snippet[:50]}...")
+        path, err = await latex.render_snippet(snippet)
+        if err:
+             logger.error(f" [Latex] Render Error: {err}")
+             return web.json_response({"error": err}, status=500)
+        
+        filename = os.path.basename(path)
+        logger.info(f" [Latex] Successfully rendered: {filename}")
+        return web.json_response({
+            "url": f"/api/latex/image/{filename}",
+            "path": path
+        })
+    except Exception as e:
+        logger.error(f" [Latex] Fatal Error: {e}")
+        return web.json_response({"error": str(e)}, status=500)
+
+async def handle_latex_image(req):
+    """Serve the rendered LaTeX image."""
+    filename = req.match_info['filename']
+    filepath = os.path.join(latex.output_dir, filename)
+    if not os.path.exists(filepath):
+        return web.HTTPNotFound()
+    return web.FileResponse(filepath)
+
 def build_hub_app():
     @web.middleware
     async def cors_middleware(request, handler):
@@ -699,6 +736,8 @@ def build_hub_app():
     app.router.add_post("/api/settings", handle_update_settings)
     app.router.add_get("/api/project/structure", handle_project_structure)
     app.router.add_get("/api/bridge/status", handle_bridge_status)
+    app.router.add_post("/api/latex/render", handle_latex_render)
+    app.router.add_get("/api/latex/image/{filename}", handle_latex_image)
     app.router.add_post("/api/upload", handle_upload)
     app.router.add_post("/api/store", lambda r: web.json_response({"ok": False, "msg": "Use RAG API"})) # Legacy
     app.router.add_get("/ws", handle_ws)

@@ -39,10 +39,10 @@ class MemPalaceRAG:
     def wake_up(self):
         """Invoke the MemPalace wake-up sequence to build the world context."""
         try:
-            from mempalace.cli import cmd_wake_up
+            from mempalace.cli import cmd_wakeup
             import argparse
-            args = argparse.Namespace(palace=self.palace_path)
-            cmd_wake_up(args)
+            args = argparse.Namespace(palace=self.palace_path, wing=self.wing)
+            cmd_wakeup(args)
             logger.info(" [MemPalace] 🌅 Palace Wake-up Sequence Complete.")
         except Exception as e:
             logger.error(f" [MemPalace] Wake-up Error: {e}")

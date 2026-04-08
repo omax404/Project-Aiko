@@ -54,6 +54,52 @@ class LatexEngine:
         except Exception as e:
             return f"I tried to compile it, but I got a headache... {str(e)}"
 
+    async def render_snippet(self, tex_snippet, filename=None):
+        """Render a LaTeX snippet (formula, table, etc) to a high-res PNG image."""
+        if not filename:
+             import time
+             filename = f"latex_{int(time.time()*1000)}"
+             
+        tex_path = os.path.join(self.output_dir, f"{filename}.tex")
+        pdf_path = os.path.join(self.output_dir, f"{filename}.pdf")
+        png_path = os.path.join(self.output_dir, f"{filename}.png")
+
+        # Minimal standalone wrapper
+        full_tex = f"\\documentclass[preview,border=10pt,varwidth]{{standalone}}\n\\usepackage{{amsmath,amssymb,amsfonts}}\n\\begin{{document}}\n{tex_snippet}\n\\end{{document}}"
+
+        try:
+            with open(tex_path, "w", encoding="utf-8") as f:
+                f.write(full_tex)
+
+            # Compile to PDF
+            process = await asyncio.create_subprocess_exec(
+                "pdflatex", "-interaction=nonstopmode", f"-output-directory={self.output_dir}", tex_path,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            await process.wait()
+
+            if not os.path.exists(pdf_path):
+                return None, "PDF generation failed."
+
+            # Convert PDF to PNG via PyMuPDF (fitz)
+            import fitz
+            doc = fitz.open(pdf_path)
+            page = doc[0]
+            pix = page.get_pixmap(matrix=fitz.Matrix(3.0, 3.0)) # 300% zoom for sharpness
+            pix.save(png_path)
+            doc.close()
+
+            # Cleanup temp files
+            for ext in [".tex", ".pdf", ".log", ".aux"]:
+                try: os.remove(os.path.join(self.output_dir, f"{filename}{ext}"))
+                except: pass
+
+            return png_path, None
+
+        except Exception as e:
+            return None, str(e)
+
     def format_math(self, expression, block=True):
         """Format a math expression for rendering."""
         if block:

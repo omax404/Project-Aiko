@@ -12,6 +12,7 @@ import os
 import asyncio
 import aiohttp
 import logging
+import re
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -49,6 +50,21 @@ async def on_ready():
         status=discord.Status.dnd, 
         activity=discord.Game(name="with Master's code ♡")
     )
+async def render_latex(snippet: str):
+    """Call the Hub to render LaTeX snippet."""
+    try:
+        async with aiohttp.ClientSession() as session:
+            payload = {"snippet": snippet}
+            async with session.post(f"{HUB_URL}/api/latex/render", json=payload, timeout=30) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    img_path = data.get("path")
+                    if img_path and os.path.exists(img_path):
+                        return img_path
+    except Exception as e:
+        logger.error(f"Latex render error: {e}")
+    return None
+
 @bot.event
 async def on_message(message):
     if message.author == bot.user or message.author.bot: return
@@ -64,33 +80,62 @@ async def on_message(message):
             if is_mentioned: clean_text = clean_text.replace(f"<@{bot.user.id}>", "").strip()
             
             # Metadata for persona recognition
-            meta_prefix = f"[DISCORD_METADATA: Handle: {message.author.name}, Name: {message.author.display_name}, Status: {'MASTER' if message.author.id == int(os.getenv('MASTER_ID',0)) else 'member'}] "
+            owner_id = os.getenv('MASTER_ID', '0')
+            status = 'MASTER' if str(message.author.id) == str(owner_id) else 'member'
+            meta_prefix = f"[DISCORD_METADATA: Handle: {message.author.name}, Name: {message.author.display_name}, Status: {status}] "
             
-            # 1. Download image attachments locally to pipe into Moondream Vision
+            full_msg = meta_prefix + clean_text
+
+            # 1. Download image attachments locally
             local_attachments = []
             os.makedirs("data/uploads", exist_ok=True)
             for a in message.attachments:
-                if 'image' in a.content_type:
+                if a.content_type and 'image' in a.content_type:
                     ext = a.filename.split('.')[-1]
-                    path = f"data/uploads/discord_{message.id}.{ext}"
+                    path = f"data/uploads/discord_{message.id}_{a.filename}"
                     await a.save(path)
                     local_attachments.append(os.path.abspath(path))
             
             response, emotion, audio_path = await get_hub_response(full_msg, message.author.id, local_attachments)
             
+            # --- LaTeX Detection & Rendering ---
+            latex_file = None
+            # 1. Look for block math $$...$$
+            block_math = re.findall(r"\$\$(.*?)\$\$", response, re.DOTALL)
+            # 2. Look for inline math $...$
+            inline_math = re.findall(r"\$([^\$]+)\$", response)
+            
+            render_target = None
+            if block_math:
+                render_target = block_math[0]
+            elif inline_math:
+                # Only render inline if it looks like a complex formula (has \, ^, _, or {)
+                for math in inline_math:
+                    if any(c in math for c in ['\\', '^', '_', '{']):
+                        render_target = math
+                        break
+            
+            if render_target:
+                img_path = await render_latex(render_target)
+                if img_path:
+                    latex_file = discord.File(img_path, filename="aiko_math.png")
+
+            # --- Audio Processing ---
             audio_file = None
             if audio_path and os.path.exists(audio_path):
-                # If Aiko is sitting in a Voice Channel on this server, speak mechanically to the channel!
                 voice_client = message.guild.voice_client if message.guild else None
                 if voice_client and voice_client.is_connected():
                     if not voice_client.is_playing():
                         voice_client.play(discord.FFmpegPCMAudio(audio_path))
-                
-                # Attach file mapping for text-channel
                 audio_file = discord.File(audio_path, filename="aiko_voice.wav")
             
-            if audio_file:
-                await message.reply(response, file=audio_file)
+            # --- Response Sending ---
+            files = []
+            if audio_file: files.append(audio_file)
+            if latex_file: files.append(latex_file)
+
+            if files:
+                await message.reply(response, files=files)
             else:
                 await message.reply(response)
 
