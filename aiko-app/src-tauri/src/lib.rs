@@ -58,13 +58,13 @@ fn log_error(app: tauri::AppHandle, message: String, stack: String) {
 /// Called by frontend to check if the Neural Hub is alive
 #[tauri::command]
 async fn check_hub_status() -> Result<bool, String> {
-    Ok(process_manager::check_hub_health("127.0.0.1", 8080).await)
+    Ok(process_manager::check_hub_health("127.0.0.1", 8000).await)
 }
 
 /// Called by frontend to get startup progress
 #[tauri::command]
 async fn get_startup_status() -> Result<String, String> {
-    if process_manager::check_hub_health("127.0.0.1", 8080).await {
+    if process_manager::check_hub_health("127.0.0.1", 8000).await {
         Ok("online".to_string())
     } else {
         Ok("starting".to_string())
@@ -143,7 +143,7 @@ pub fn run() {
                 let hub_already_alive = {
                     let rt = tokio::runtime::Runtime::new().unwrap();
                     rt.block_on(async {
-                        process_manager::check_hub_health("127.0.0.1", 8080).await
+                        process_manager::check_hub_health("127.0.0.1", 8000).await
                     })
                 };
 
@@ -181,7 +181,7 @@ pub fn run() {
                         let rt = tokio::runtime::Runtime::new().unwrap();
                         rt.block_on(async {
                             println!("[Aiko/Rust] Waiting for Neural Hub health...");
-                            let ready = process_manager::wait_for_hub("127.0.0.1", 8080, 150).await;
+                            let ready = process_manager::wait_for_hub("127.0.0.1", 8000, 150).await;
                             if ready {
                                 println!("[Aiko/Rust] Neural Hub ONLINE — starting satellites");
                                 pm_async.start_bridge();

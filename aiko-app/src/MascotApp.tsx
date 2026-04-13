@@ -35,7 +35,7 @@ export default function MascotApp() {
 
   // Connect to Neural Hub
   useEffect(() => {
-    try { connect('http://127.0.0.1:8080'); } catch (_) {}
+    try { connect('http://127.0.0.1:8000'); } catch (_) {}
     fetchBridgeStatus();
   }, []);
 

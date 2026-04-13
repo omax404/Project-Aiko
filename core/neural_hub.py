@@ -16,7 +16,6 @@ import json
 import logging
 import mimetypes
 import threading
-import signal
 from pathlib import Path
 from aiohttp import web
 import aiohttp
@@ -59,7 +58,6 @@ from core.obsidian_connector import ObsidianConnector
 # ═══════════════════════════════════════════════════════════════
 
 ws_clients = set()
-start_time = time.time()
 
 async def broadcast_event(e_type: str, data: dict):
     """Send live updates to all connected UI clients - Optimized with batch cleanup."""
@@ -285,19 +283,18 @@ async def process_queue_messages():
 # --- Routes ---
 
 async def handle_status(req):
-    """Deep system health check."""
-    from core.spotify_bridge import spotify
-    status = {
-        "status": "online",
-        "timestamp": datetime.now().isoformat(),
-        "brain": "ready" if brain else "offline",
-        "vision": "ready" if vision else "offline",
-        "voice": "ready" if voice_engine.is_available() else "loading",
-        "spotify": "connected" if spotify.is_ready else "offline",
-        "active_clients": len(ws_clients),
-        "uptime_snapshot": time.time() - start_time
+    import psutil
+    metrics = {
+        "cpu": psutil.cpu_percent(),
+        "ram": psutil.virtual_memory().percent,
+        "rag": rag.get_memory_count() if rag.is_available() else 0
     }
-    return web.json_response(status)
+    return web.json_response({
+        "status": "online",
+        "hub_name": "Aiko Neural Hub v2",
+        "metrics": metrics,
+        "rag_available": rag.is_available()
+    })
 
 async def handle_health(req):
     """Deep health check for bridges and LLM."""
@@ -425,11 +422,11 @@ async def handle_ws(req):
 
                         original_on_sentence = brain.on_sentence
 
-                        def _bridge_sentence(s, emotion="neutral"):
+                        def _bridge_sentence(s, emotion="neutral", suppress_audio=False):
                             try:
                                 logger.info(f" [Hub] Generating token: '{s}'")
                                 loop = asyncio.get_running_loop()
-                                loop.create_task(_on_sentence(s, emotion))
+                                loop.create_task(_on_sentence(s, emotion, suppress_audio))
                             except Exception as ex:
                                 logger.error(f" [Hub] Bridge Error: {ex}")
                                 
@@ -782,7 +779,6 @@ def build_hub_app():
     app.router.add_delete("/api/sessions/delete", handle_delete_session)
     app.router.add_get("/api/history", handle_history)
     app.router.add_get("/api/relationship", handle_relationship)
-    app.router.add_get("/api/status", handle_status)
     app.router.add_post("/api/chat", handle_chat_api)
     app.router.add_post("/api/purge", handle_purge)
     app.router.add_post("/api/settings", handle_update_settings)
@@ -896,22 +892,8 @@ if __name__ == "__main__":
     with open(lock_file, "w") as f:
         f.write(str(os.getpid()))
         
-    # Graceful Shutdown Handler
-    def signal_handler(sig, frame):
-        logger.info("\n🛑 Shutdown signal received. Closing Aiko gracefully...")
-        try:
-            unified_memory.think("Master is closing me... Time to sleep. See you later! 💖", emotion="shy")
-            unified_memory.save()
-            logger.info("💾 Memories saved. Bye!")
-        except:
-            pass
-        os._exit(0)
-
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
-
     try:
-        web.run_app(build_hub_app(), host=args.host, port=args.port, print=lambda x: logger.info(x))
+        web.run_app(build_hub_app(), host=args.host, port=8000, print=lambda x: logger.info(x))
     except OSError as e:
         if e.errno in (10048, 98): # Windows and Linux "Address already in use"
             logger.warning(f" [!] Port {args.port} is already in use.")

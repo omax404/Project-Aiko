@@ -143,3 +143,10 @@ desktop.ini
 
 # User Personalized Persona
 core/persona.py
+
+# Builder artifacts
+*.exe
+*.spec
+
+# Agent scratch pad
+scratch/

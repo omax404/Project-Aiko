@@ -24,7 +24,7 @@ BANNER = """
    >>> Unified Launcher v1.0 <<<
 """
 
-def check_alive(host="127.0.0.1", port=8000, path="/api/status"):
+def check_alive(host="127.0.0.1", port=8080, path="/status"):
     try:
         conn = http.client.HTTPConnection(host, port, timeout=2)
         conn.request("GET", path)
@@ -57,14 +57,20 @@ def launch():
         cwd=str(PROJECT_ROOT)
     )
 
-    print("[3/5] Syncing Local Voice Subsystem...")
-    # Standalone TTS serve is no longer needed as Hub manages it.
-    time.sleep(1)
+    print("[3/5] Starting Voice Subsystem (Pocket-TTS)...")
+    tts_log = open(PROJECT_ROOT / ".logs" / "launcher_tts.log", "w")
+    subprocess.Popen(
+        "uvx pocket-tts serve",
+        shell=True,
+        stdout=tts_log, stderr=tts_log,
+        creationflags=NO_WINDOW,
+        cwd=str(PROJECT_ROOT)
+    )
 
     print("[4/5] Syncing Neural Link...")
     connected = False
     for i in range(60):
-        if check_alive(port=8000):
+        if check_alive(port=8080):
             connected = True
             break
         time.sleep(1)

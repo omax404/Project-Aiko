@@ -8,8 +8,8 @@ class SandboxBridge:
     Bridge to the Isolated 'aiko-sandbox' Docker Container.
     Sends raw Python code for execution and returns the terminal stdout/stderr.
     """
-    def __init__(self, sandbox_url: str = "http://localhost:8080/execute"):
-        # In a real deployed docker network, this might be http://aiko-sandbox:8080/execute
+    def __init__(self, sandbox_url: str = "http://localhost:8000/execute"):
+        # In a real deployed docker network, this might be http://aiko-sandbox:8000/execute
         self.sandbox_url = sandbox_url
 
     async def execute_python(self, code: str) -> str:

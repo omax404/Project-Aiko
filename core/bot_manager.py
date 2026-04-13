@@ -11,19 +11,22 @@ import re
 
 logger = logging.getLogger("BotManager")
 
-HUB_URL = "http://127.0.0.1:8080"
+HUB_URL = "http://127.0.0.1:8000"
 
 # --- Shared Helpers ---
 async def get_hub_response(message: str, user_id: str, attachments: list = None):
     try:
         async with aiohttp.ClientSession() as session:
             payload = {"message": message, "user_id": str(user_id), "attachments": attachments or []}
-            async with session.post(f"{HUB_URL}/api/chat", json=payload, timeout=90) as resp:
+            # Extended timeout to 300s to support heavy vision analysis and TTS generation without dropping connection
+            async with session.post(f"{HUB_URL}/api/chat", json=payload, timeout=300) as resp:
                 if resp.status == 200:
                     data = await resp.json()
                     return data.get("response"), data.get("emotion"), data.get("audio_path")
+                else:
+                    logger.error(f"Hub returned error status: {resp.status}")
     except Exception as e:
-        logger.error(f"Hub connection error: {e}")
+        logger.error(f"Hub connection error: {e!r}")
     return "Master, my neural links are fuzzy...", "sad", None
 
 async def render_latex(snippet: str):
@@ -140,6 +143,7 @@ async def run_telegram_bot():
         
         local_attachments = []
         if update.message.photo:
+            os.makedirs("data/uploads", exist_ok=True)
             photo = update.message.photo[-1]
             file = await context.bot.get_file(photo.file_id)
             path = f"data/uploads/telegram_{update.message.message_id}.jpg"

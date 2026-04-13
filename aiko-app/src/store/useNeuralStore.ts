@@ -94,7 +94,7 @@ let socket: WebSocket | null = null;
 let reconnectTimer: any = null;
 let reconnectAttempts = 0;
 const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI__;
-let hubUrl = isTauri ? 'http://127.0.0.1:8080' : (typeof window !== 'undefined' ? window.location.origin : 'http://127.0.0.1:8080');
+let hubUrl = isTauri ? 'http://127.0.0.1:8000' : (typeof window !== 'undefined' ? window.location.origin : 'http://127.0.0.1:8000');
 let isConnecting = false;
 
 function scheduleReconnect() {
@@ -172,10 +172,16 @@ function connectSocket() {
             // Consolidated high-performance TTS audio & lip-sync handler
             const audioUrl = (data.url as string).startsWith('http')
               ? data.url
-              : `http://127.0.0.1:8080${data.url}`;
-              
+              : `http://127.0.0.1:8000${data.url}`;
             const audio = new Audio(audioUrl);
             audio.crossOrigin = "anonymous";
+            
+            // Mute the mascot window to prevent double playback echo,
+            // while still allowing WebAudio Analyser to capture lip-sync data.
+            const isMascot = typeof window !== 'undefined' && window.location.search.includes('mascot');
+            if (isMascot) {
+               audio.muted = true;
+            }
             
             try {
               const AudioContext = window.AudioContext || (window as any).webkitAudioContext;

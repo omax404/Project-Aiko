@@ -212,19 +212,6 @@ class AikoBrain:
             if rag_context:
                 system_prompt += f"\n\n<relevant_memory_context>\n{rag_context[:1000]}\n</relevant_memory_context>"
 
-            # Add "Vibe Context" (Time + Music)
-            now = datetime.now()
-            vibe = f"\n\n<vibe_context>\n- TIME: {now.strftime('%H:%M')} ({'Night' if now.hour < 5 or now.hour > 21 else 'Day'})\n"
-            try:
-                from .spotify_bridge import spotify
-                track = spotify.get_current_track()
-                if track:
-                    vibe += f"- CURRENT_MUSIC: \"{track['track']}\" by {track['artist']}\n"
-            except:
-                pass
-            vibe += "</vibe_context>"
-            system_prompt += vibe
-
             messages = [{"role": "system", "content": system_prompt}]
 
             # Map history - slice to last 20 only
@@ -260,8 +247,8 @@ class AikoBrain:
         from .emotion_engine import emotion_engine
         emotion_engine.process_text(final_response)
 
-        # Clean Tags - use safe and optimized pattern
-        cleaned_response = re.sub(r'<.*?>|\[[^\]]+?:[^\]]+?\]|\[SCAN\]|\[MCP\b[^\]]*?\]', '', final_response,
+        # Clean Tags - completely remove XML blocks like <emotion>*</emotion> and <think>*</think>
+        cleaned_response = re.sub(r'<([a-zA-Z0-9_]+)>.*?</\1>|<.*?>|\[[^\]]+?:[^\]]+?\]|\[SCAN\]|\[MCP\b[^\]]*?\]', '', final_response,
                                     flags=re.IGNORECASE | re.DOTALL)
         cleaned_response = re.sub(r'\n{3,}', '\n\n', cleaned_response).strip()
 

@@ -63,7 +63,10 @@ class VoiceEngine:
         text = re.sub(r'http\S+', 'link', text)
         text = re.sub(r'```.*?```', 'code block', text, flags=re.DOTALL)
         text = re.sub(r'<.*?>', '', text)
-        text = re.sub(r'[*_`]', '', text)
+        # Remove *actions* and purely symbolic (kaomoji) blocks
+        text = re.sub(r'\*.*?\*|\([^\w]*\)', '', text)
+        # Fallback to remove leftover single asterisks/ticks
+        text = re.sub(r'[*_`~]+', '', text)
         text = " ".join(text.split()).strip()
         if len(text) > 300:
             text = text[:300]

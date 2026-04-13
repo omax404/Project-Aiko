@@ -26,7 +26,7 @@ def check_hub_alive(host="127.0.0.1", port=8000):
     """Pings the Neural Hub status endpoint."""
     try:
         conn = http.client.HTTPConnection(host, port, timeout=5)
-        conn.request("GET", "/api/status")
+        conn.request("GET", "/status")
         resp = conn.getresponse()
         return resp.status == 200
     except:
@@ -37,20 +37,24 @@ def start_aiko_tauri():
 
     # Windows: CREATE_NO_WINDOW hides console windows completely
     NO_WINDOW = subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
+    
+    # Global environment with UTF-8 enforcement
+    ENV = os.environ.copy()
+    ENV["PYTHONUTF8"] = "1"
+    ENV["PYTHONIOENCODING"] = "utf-8"
 
     # 1. Kill old processes safely
     print(" Cleaning up old instances...")
     try:
         current_pid = os.getpid()
-        # Kill python, node, and specific dev ports - check=False to ignore if none exist
-        subprocess.run('taskkill /F /IM node.exe /T', shell=True, capture_output=True, creationflags=NO_WINDOW, check=False)
-        subprocess.run(f'taskkill /F /IM python.exe /T /FI "PID ne {current_pid}"', shell=True, capture_output=True, creationflags=NO_WINDOW, check=False)
-        subprocess.run('taskkill /F /IM ollama.exe /T', shell=True, capture_output=True, creationflags=NO_WINDOW, check=False)
+        # Kill python, node, and specific dev ports
+        subprocess.run('taskkill /F /IM node.exe /T', shell=True, capture_output=True, creationflags=NO_WINDOW, check=False, env=ENV)
+        subprocess.run(f'taskkill /F /IM python.exe /T /FI "PID ne {current_pid}"', shell=True, capture_output=True, creationflags=NO_WINDOW, check=False, env=ENV)
         
-        # Kill whatever is on port 1422 (Vite) and 8000 (Unified Hub)
-        for port in [1422, 1420, 8000, 8765]:
+        # Ports: 1422 (Vite), 8000 (Hub/TTS/Satellites)
+        for port in [1420, 1422, 8000, 8080, 8765]:
             cmd = f'powershell -Command "Stop-Process -Id (Get-NetTCPConnection -LocalPort {port}).OwningProcess -Force -ErrorAction SilentlyContinue"'
-            subprocess.run(cmd, shell=True, creationflags=NO_WINDOW, check=False)
+            subprocess.run(cmd, shell=True, creationflags=NO_WINDOW, check=False, env=ENV)
             
     except Exception as e:
         print(f" [!] Cleanup warning: {e}")
@@ -68,7 +72,8 @@ def start_aiko_tauri():
         subprocess.Popen(
             ["ollama", "serve"],
             stdout=ollama_log, stderr=ollama_log,
-            creationflags=NO_WINDOW
+            creationflags=NO_WINDOW,
+            env=ENV
         )
         # Wait for Ollama to be actually ready
         print(" Waiting for Ollama to wake up...")
@@ -83,28 +88,27 @@ def start_aiko_tauri():
         else:
             print(" [OK] LLM is now ready.")
 
-    # 2. Start Unified Neural Hub (Port 8000) — hidden, logs to file
-    print(" Starting Neural Hub (Brain + Voice)...")
+    # 2. Start Neural Hub (Host of Satellites and TTS)
+    print(" Starting Neural Hub (Brain)...")
     hub_log = open(".logs/neural_hub.log", "w")
     subprocess.Popen(
         [sys.executable, "core/neural_hub.py"],
         stdout=hub_log, stderr=hub_log,
-        creationflags=NO_WINDOW
+        creationflags=NO_WINDOW,
+        env=ENV
     )
 
-    # 3. Pocket-TTS is now managed INTERNALLY by the Hub for better stability and pre-warming.
-    print(" Syncing Internal Voice Subsystem...")
-    time.sleep(1)
+    # Note: Pocket-TTS is now integrated into voice.py/neural_hub.py natively.
+    # No external service launch required.
 
     # Wait for Hub to be warm with active polling
-    print(" Warming up the neural link (this might take a Few Seconds)...")
+    print(" Warming up the neural link (this might take a few seconds)...")
     hub_ready = False
     for i in range(120):
-        if check_hub_alive(port=8080):
+        if check_hub_alive(port=8000):
             hub_ready = True
             break
         time.sleep(1)
-        # SILENT WAIT
 
     if not hub_ready:
         print(" [ERROR] CRITICAL: Neural Hub failed to start. Aborting.")
@@ -119,15 +123,12 @@ def start_aiko_tauri():
     subprocess.Popen(
         [sys.executable, "-m", "core.openclaw_bridge_enhanced"],
         stdout=claw_log, stderr=claw_log,
-        creationflags=NO_WINDOW
+        creationflags=NO_WINDOW,
+        env=ENV
     )
     time.sleep(1)
 
-    # 4. Satellites are now handled internally by Neural Hub startup.
-    # No need to launch them separately here.
-    print(" Satellites (Discord/Telegram) managed by Neural Hub.")
-
-    # 5. Launch Tauri — this one gets a visible window (it IS the UI)
+    # 4. Launch Tauri UI
     print(" Opening Tauri Hero Dashboard UI...")
     tauri_log = open(".logs/tauri_dev.log", "w")
     subprocess.Popen(
@@ -135,13 +136,14 @@ def start_aiko_tauri():
         cwd="aiko-app",
         shell=True,
         stdout=tauri_log, stderr=tauri_log,
-        creationflags=NO_WINDOW  # npm/vite log to file, Tauri window handles itself
+        creationflags=NO_WINDOW,  # npm/vite log to file, Tauri window handles itself
+        env=ENV
     )
 
     print("\nALL SYSTEMS GO. (TAURI MODE)")
     print("All background processes are running silently.")
     print("Logs available in .logs/ folder.")
-    print("Tauri window will appear shortly (first compile ~3-5 min).")
+    print("Tauri window will appear shortly.")
 
 if __name__ == "__main__":
     start_aiko_tauri()
