@@ -117,15 +117,7 @@ def start_aiko_tauri():
 
     print(" [OK] Neural Link Established.")
 
-    # 3. Start OpenClaw Bridge — hidden
-    print(" Starting OpenClaw Bridge (PC Control)...")
-    claw_log = open(".logs/openclaw_bridge.log", "w")
-    subprocess.Popen(
-        [sys.executable, "-m", "core.openclaw_bridge_enhanced"],
-        stdout=claw_log, stderr=claw_log,
-        creationflags=NO_WINDOW,
-        env=ENV
-    )
+    # (OpenClaw Bridge is deprecated; PC Control now runs natively via pc_manager)
     time.sleep(1)
 
     # 4. Launch Tauri UI

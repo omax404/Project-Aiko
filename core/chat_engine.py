@@ -97,7 +97,6 @@ class AikoBrain:
         self.obsidian = obsidian
         self.sandbox = SandboxBridge()
         self.image_engine = ImageEngine()
-        self.comp_agent = None
         self.model = config.get("MODEL_NAME")
         self.using_fallback = False
         self.on_thinking = None
