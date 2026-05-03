@@ -2,3 +2,7 @@ gradio==4.20.0
 pyTelegramBotAPI==4.16.1
 llama-cpp-python==0.2.56
 huggingface-hub
+
+fastapi==0.111.0
+uvicorn[standard]==0.24.0
+python-multipart==0.0.20

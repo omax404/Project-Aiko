@@ -129,10 +129,11 @@ function TitleBar({ sessionLabel, showAnimatedAssets, onSettings, onProject, onT
 /* ── Right Dashboard (with Live2D inside) ────────────────── */
 function DashboardStats({ 
   bridgeStatus, isThinking, isTalking, currentEmotion,
-  avatarScale, setAvatarScale, amplitude
+  avatarScale, setAvatarScale, amplitude, chemicals
 }: {
   bridgeStatus: any; isThinking: boolean; isTalking: boolean; currentEmotion: string;
   avatarScale: number; setAvatarScale: (s: number) => void; amplitude: number;
+  chemicals: any;
 }) {
   const { apiConfig } = useNeuralStore();
   return (
@@ -148,6 +149,7 @@ function DashboardStats({
           height={600}
           scale={avatarScale}
           amplitude={amplitude}
+          chemicals={chemicals}
         />
         {/* Online dot */}
         <div className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,1)]" />
@@ -258,7 +260,7 @@ function App() {
     isThinking, triggerPurge, loadSessions, fetchBridgeStatus,
     bridgeStatus, currentEmotion, isSidebarOpen, toggleSidebar, themeColor,
     dynamicsIntensity, showAnimatedAssets, isTalking, avatarScale, setAvatarScale,
-    amplitude, apiConfig
+    amplitude, apiConfig, chemicals
   } = useNeuralStore();
 
   const maskUnclosedLatex = (text: string) => {
@@ -444,6 +446,7 @@ function App() {
           avatarScale={avatarScale}
           setAvatarScale={setAvatarScale}
           amplitude={amplitude}
+          chemicals={chemicals}
         />
       </div>
 

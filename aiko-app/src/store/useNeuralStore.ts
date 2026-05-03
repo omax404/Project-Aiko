@@ -38,6 +38,14 @@ interface NeuralState {
   isTalking: boolean;
   amplitude: number;
   projectStructure: any[];
+  chemicals: {
+    dopamine: number;
+    serotonin: number;
+    cortisol: number;
+    adrenaline: number;
+  };
+  isFlushing: boolean;
+  
   
   apiConfig: {
     provider: string;
@@ -272,6 +280,12 @@ function connectSocket() {
           case 'tts_amplitude':
             useNeuralStore.setState({ amplitude: data.amplitude || 0 });
             break;
+          case 'biological_sync':
+            useNeuralStore.setState({ 
+              chemicals: data.chemicals,
+              isFlushing: data.is_flushing || false
+            });
+            break;
           case 'stt_result':
             const sttText = data.text || '';
             if (sttText.trim()) {
@@ -301,6 +315,13 @@ export const useNeuralStore = create<NeuralState>()(
       currentEmotion: "neutral",
       isTalking: false,
       amplitude: 0,
+      chemicals: {
+        dopamine: 0.5,
+        serotonin: 0.5,
+        cortisol: 0.2,
+        adrenaline: 0.1
+      },
+      isFlushing: false,
       projectStructure: [],
       fetchProjectStructure: async () => {
         try {

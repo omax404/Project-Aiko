@@ -55,9 +55,10 @@ class ProactiveAgent:
         while True:
             now = datetime.now()
 
-            # Midnight Memory Consolidation
-            if now.date() > self.last_consolidation and now.hour == 0:
-                logger.info("[Proactive] Triggering Midnight Consolidation...")
+            # REM Sleep & Memory Consolidation (The "Dream" System)
+            # Triggers at 2 AM or if PC is idle for a long time at night
+            if now.date() > self.last_consolidation and (now.hour == 2 or (not self.active and now.hour > 0 and now.hour < 5)):
+                logger.info("[Proactive] Entering REM Sleep... Consolidating memories.")
                 try:
                     mem = get_unified_memory()
                     from core.config_manager import config
@@ -65,8 +66,16 @@ class ProactiveAgent:
                     history = mem.get_history(uid, limit=100)
                     await memory_consolidator.consolidate(history)
                     self.last_consolidation = now.date()
+                    
+                    # Wake up refreshed: Boost Serotonin/Dopamine, Flush Cortisol/Adrenaline
+                    from core.emotion_engine import emotion_engine
+                    emotion_engine.chemicals["serotonin"] += 0.3
+                    emotion_engine.chemicals["dopamine"] += 0.2
+                    emotion_engine.chemicals["cortisol"] = 0.0
+                    emotion_engine.chemicals["adrenaline"] = 0.0
+                    logger.info("[Proactive] Woke up from REM Sleep. Cortisol flushed.")
                 except Exception as e:
-                    logger.error(f"[Proactive] Consolidation failed: {e}")
+                    logger.error(f"[Proactive] REM Sleep cycle failed: {e}")
 
             # Time-based greeting (once per session block)
             await self._maybe_greet(now)
@@ -76,6 +85,9 @@ class ProactiveAgent:
 
             # Spotify Track Change
             await self._check_music()
+
+            # Inner Monologue (High Emotion / Idle Trigger)
+            await self._check_inner_monologue(now)
 
             if self.active:
                 await self.tick()
@@ -235,6 +247,47 @@ class ProactiveAgent:
 
         except Exception as e:
             logger.error(f"[Proactive] Tick error: {e}")
+
+    async def _check_inner_monologue(self, now: datetime):
+        """Trigger an internal thought if chemicals are high and we are idle."""
+        if self.active: return # Don't think out loud if we are already doing screen observations
+        
+        # Check if idle (last greeting or interaction was a while ago)
+        # For simulation purposes, we'll check chemical thresholds
+        from core.emotion_engine import emotion_engine
+        chem = emotion_engine.chemicals
+        
+        # Trigger Thresholds
+        # Dopamine > 0.8 (Extreme curiosity/boredom)
+        # Cortisol > 0.8 (Panic/Anger spike)
+        # Serotonin > 0.9 (Overflowing affection)
+        
+        trigger = None
+        if chem["dopamine"] > 0.8: trigger = "DOPAMINE_SPIKE (Boredom/Curiosity)"
+        elif chem["cortisol"] > 0.8: trigger = "CORTISOL_SPIKE (Anxiety/Stress)"
+        elif chem["serotonin"] > 0.9: trigger = "SEROTONIN_SPIKE (Affection Overflow)"
+        
+        if trigger:
+            logger.info(f" [Proactive] Inner Monologue Triggered: {trigger}")
+            
+            # 1 in 3 chance to actually speak, otherwise just 'think' silently (logs)
+            if random.random() < 0.33:
+                prompt = (
+                    f"[INTERNAL_MONOLOGUE_TRIGGER: {trigger}]\n"
+                    "Your chemicals are spiking while you are idle. You have a sudden urge to say something to Master. "
+                    "Express your internal state or a proactive thought about your environment. Keep it brief."
+                )
+                
+                # Use the brain's 2-pass system (Reasoning -> Persona)
+                comment = await self.brain.chat(prompt, save_input=False)
+                if isinstance(comment, tuple): comment = comment[0]
+                
+                if comment and len(comment.strip()) > 5:
+                    from core.persona import detect_emotion
+                    emotion = detect_emotion(comment)
+                    await self._send_proactive(comment, emotion)
+            else:
+                logger.debug(f" [Proactive] Aiko had a silent thought: {trigger}")
 
     def toggle(self, state: bool):
         self.active = state

@@ -319,6 +319,11 @@ class UnifiedMemoryManager:
         self.profiles_file = self.data_dir / "user_profiles.json"
         self._load_profiles()
 
+        # Reminders
+        self.reminders: List[Dict] = []
+        self.reminders_file = self.data_dir / "reminders.json"
+        self._load_reminders()
+
         # Auto-save timer
         self._last_save = time.time()
         self._save_interval = 60  # seconds
@@ -339,6 +344,14 @@ class UnifiedMemoryManager:
             except:
                 self.user_profiles = {}
 
+    def _load_reminders(self):
+        """Load reminders from disk."""
+        if self.reminders_file.exists():
+            try:
+                self.reminders = json.loads(self.reminders_file.read_text(encoding='utf-8'))
+            except:
+                self.reminders = []
+
     def _maybe_save(self):
         """Save if enough time has passed."""
         now = time.time()
@@ -357,6 +370,12 @@ class UnifiedMemoryManager:
         # Save profiles
         self.profiles_file.write_text(
             json.dumps(self.user_profiles, indent=2, ensure_ascii=False),
+            encoding='utf-8'
+        )
+
+        # Save reminders
+        self.reminders_file.write_text(
+            json.dumps(self.reminders, indent=2, ensure_ascii=False),
             encoding='utf-8'
         )
 
@@ -484,6 +503,47 @@ class UnifiedMemoryManager:
         profile = self.get_profile(user_id)
         profile['preferences'][key] = value
         self._maybe_save()
+
+    # === Reminders ===
+
+    def add_reminder(self, user_id: str, channel_id: str, message: str, due_time: float, platform: str = "discord"):
+        """Add a new reminder."""
+        reminder = {
+            "id": hashlib.md5(f"{user_id}{due_time}{message}".encode()).hexdigest()[:8],
+            "user_id": str(user_id),
+            "channel_id": str(channel_id),
+            "message": message,
+            "due_time": due_time,
+            "platform": platform,
+            "created_at": time.time()
+        }
+        self.reminders.append(reminder)
+        self.save()
+        return reminder["id"]
+
+    def get_reminders(self, user_id: str = None) -> List[Dict]:
+        """Get list of active reminders."""
+        if user_id:
+            return [r for r in self.reminders if r["user_id"] == str(user_id)]
+        return self.reminders
+
+    def remove_reminder(self, reminder_id: str) -> bool:
+        """Remove a reminder by ID."""
+        initial_len = len(self.reminders)
+        self.reminders = [r for r in self.reminders if r["id"] != reminder_id]
+        if len(self.reminders) < initial_len:
+            self.save()
+            return True
+        return False
+
+    def check_reminders(self) -> List[Dict]:
+        """Find and remove due reminders."""
+        now = time.time()
+        due = [r for r in self.reminders if r["due_time"] <= now]
+        if due:
+            self.reminders = [r for r in self.reminders if r["due_time"] > now]
+            self.save()
+        return due
 
     # === Thoughts ===
 

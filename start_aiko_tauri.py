@@ -49,6 +49,7 @@ def start_aiko_tauri():
         current_pid = os.getpid()
         # Kill python, node, and specific dev ports
         subprocess.run('taskkill /F /IM node.exe /T', shell=True, capture_output=True, creationflags=NO_WINDOW, check=False, env=ENV)
+        subprocess.run('taskkill /F /IM aiko-app.exe /T', shell=True, capture_output=True, creationflags=NO_WINDOW, check=False, env=ENV)
         subprocess.run(f'taskkill /F /IM python.exe /T /FI "PID ne {current_pid}"', shell=True, capture_output=True, creationflags=NO_WINDOW, check=False, env=ENV)
         
         # Ports: 1422 (Vite), 8000 (Hub/TTS/Satellites)

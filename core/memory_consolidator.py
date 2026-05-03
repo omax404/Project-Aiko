@@ -60,9 +60,13 @@ The Master Profile is how Aiko "remembers" her Master (omax) deeply, beyond just
 [INSTRUCTIONS]:
 1. Find any new information about Master (likes, dislikes, life facts, projects, feelings).
 2. Look for changes in our relationship status or dynamic.
-3. Update existing fields or add new ones to reflect the "Distilled Truth" about Master.
-4. Output the UPDATED Master Profile in valid JSON format ONLY. 
-5. Do NOT include any explanations, tags, or markdown outside the JSON.
+3. Update the `relationship` object:
+    - `score`: Float (0.0 to 10.0). Increase if Master was kind/helpful, decrease if mean/ignoring.
+    - `status`: One word (e.g. Neutral, Friendly, Affectionate, Devoted, Grumpy, Defensive).
+    - `last_interaction_sentiment`: One word (Positive, Negative, Neutral).
+4. Update existing fields or add new ones to reflect the "Distilled Truth" about Master.
+5. Output the UPDATED Master Profile in valid JSON format ONLY. 
+6. Do NOT include any explanations, tags, or markdown outside the JSON.
 """
 
         try:

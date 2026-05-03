@@ -85,6 +85,22 @@ async def broadcast_event(e_type: str, data: dict):
     if dead:
         ws_clients.difference_update(dead)
 
+async def biological_broadcast_loop():
+    """Periodically sync Aiko's chemical state with all UI clients."""
+    while True:
+        try:
+            emotion_engine.update() # Update simulation
+            data = {
+                "chemicals": emotion_engine.chemicals,
+                "is_flushing": getattr(emotion_engine, 'is_flushing', False),
+                "baselines": emotion_engine.baselines
+            }
+            await broadcast_event("biological_sync", data)
+        except Exception as e:
+            logger.error(f" [Sync] ❌ Broadcast error: {e}")
+        
+        await asyncio.sleep(0.5) # 2Hz sync for smooth visuals
+
 # ═══════════════════════════════════════════════════════════════
 # SINGLE INSTANCE INITIALIZATION
 # ═══════════════════════════════════════════════════════════════
@@ -845,28 +861,66 @@ def build_hub_app():
         knowledge_dir = BASE / "data" / "knowledge"
         knowledge_dir.mkdir(parents=True, exist_ok=True)
         
+        # Persistent tracking
         ingested_files = set()
+        track_file = BASE / "data" / "ingested_files.json"
+        if track_file.exists():
+            try: ingested_files.update(json.loads(track_file.read_text()))
+            except: pass
+
         logger.info("[RAG] 📚 Knowledge Ingestion Task Started.")
         
         while True:
             try:
+                _loop = asyncio.get_running_loop()
                 for file in knowledge_dir.iterdir():
                     if file.is_file() and file.name not in ingested_files:
                         logger.info(f"[RAG] 📖 Ingesting: {file.name}")
-                        if rag.ingest_document(str(file)):
-                            ingested_files.add(file.name)
-                            logger.info(f"[RAG] ✅ Ingested {file.name}")
+                        ingested_files.add(file.name) # Mark BEFORE to prevent loop on crash
+                        
+                        try:
+                            # Move to executor to prevent blocking the main loop
+                            success = await _loop.run_in_executor(None, rag.ingest_document, str(file))
+                            if success:
+                                logger.info(f"[RAG] ✅ Ingested {file.name}")
+                            else:
+                                logger.warning(f"[RAG] ⚠️ RAG returned False for {file.name}")
+                        except Exception as ingest_err:
+                            logger.error(f"[RAG] 💥 Crash during ingestion of {file.name}: {ingest_err}")
+                        
+                        # Save progress
+                        track_file.write_text(json.dumps(list(ingested_files)))
             except Exception as e:
-                logger.error(f"[RAG] ❌ Ingestion error: {e}")
+                logger.error(f"[RAG] ❌ Loop error: {e}")
             
             await asyncio.sleep(60) # Check every minute
+            
+    async def reminder_check_loop():
+        """Periodically check for due reminders and notify satellites."""
+        while True:
+            try:
+                due = unified_memory.check_reminders()
+                for r in due:
+                    logger.info(f"[Reminder] ⏰ Due for {r['user_id']}: {r['message']}")
+                    await broadcast_event("reminder_due", r)
+                    # Also send to message queue if satellites are listening
+                    from .message_queue import send_response
+                    send_response(r['platform'], r['user_id'], f"⏰ **Reminder:** {r['message']}")
+            except Exception as e:
+                logger.error(f"[Reminder] ❌ Check error: {e}")
+            
+            await asyncio.sleep(10) # Check every 10 seconds
 
     async def start_background_tasks(app):
         app['knowledge_task'] = asyncio.create_task(knowledge_ingestion_loop())
+        app['bio_sync_task'] = asyncio.create_task(biological_broadcast_loop())
+        app['reminder_task'] = asyncio.create_task(reminder_check_loop())
     
     async def cleanup_background_tasks(app):
         app['knowledge_task'].cancel()
-        await app['knowledge_task']
+        app['bio_sync_task'].cancel()
+        app['reminder_task'].cancel()
+        await asyncio.gather(app['knowledge_task'], app['bio_sync_task'], app['reminder_task'], return_exceptions=True)
         
     app.on_startup.append(start_background_tasks)
     app.on_cleanup.append(cleanup_background_tasks)

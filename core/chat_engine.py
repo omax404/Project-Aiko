@@ -15,7 +15,7 @@ import mimetypes
 from datetime import datetime
 from functools import lru_cache
 from dotenv import load_dotenv
-from .persona import get_system_prompt, detect_emotion
+from .persona import get_persona_prompt, get_core_brain_prompt, detect_emotion
 from .gifs import get_emotion_category, get_random_gif
 from .game_bridge import game_manager
 from .orchestrator import orchestrator
@@ -124,7 +124,7 @@ class AikoBrain:
             self._cache_timestamp = now
 
         if cache_key not in self._cached_prompts:
-            self._cached_prompts[cache_key] = get_system_prompt(is_master=is_master)
+            self._cached_prompts[cache_key] = get_persona_prompt(is_master=is_master)
 
         return self._cached_prompts[cache_key]
 
@@ -201,9 +201,9 @@ class AikoBrain:
         logger.info(f" [Brain] Started thinking for user {user_id}: {message[:50]}...")
 
         for turn in range(5):
-            # Use cached prompt
+            # --- 1. CORE BRAIN (REASONING LAYER) ---
             is_master = str(user_id) in ("omax", os.getenv("MASTER_ID", "766774147832873012"))
-            system_prompt = self._get_cached_prompt(is_master)
+            system_prompt = get_core_brain_prompt()
 
             if self.pc:
                 system_prompt += self._get_tools_prompt()
@@ -223,7 +223,7 @@ class AikoBrain:
                 messages.append({"role": "system", "content": f"[OBSERVATIONS]:\n{obs_text}"})
 
             # Call LLM
-            orchestrator.emit_reasoning_step("AI_THINKING", "Generating contextual response...", 0.90)
+            orchestrator.emit_reasoning_step("AI_THINKING", "Core Engine Reasoning...", 0.90)
             text = await self._call_llm(messages, self.model, images=images_data if images_data else None)
 
             preview = text[:40].replace('\n', ' ') + "..." if len(text) > 40 else text
@@ -234,9 +234,35 @@ class AikoBrain:
                 "[OPEN:", "[SCAN]", "[TYPE:", "[CLICK:", "[PRESS:", "[TASK:", "[LATEX:",
                 "[GAME:", "[RUN_PYTHON:", "[MCP:", "[IMAGE:", "[BIO_REGISTER]", "[MUSIC:"
             ])
+            
             if not has_tool:
+                # --- 2. CONTROLLER (SELF-CHECK LAYER) ---
+                orchestrator.emit_reasoning_step("SELF_CHECK", "Checking draft for errors...", 0.96)
+                review_prompt = f"Check the following draft for factual errors, hallucinations, or broken logic. Output 'OK' if fine, or 'ERROR:' followed by the issue.\n\nDraft:\n{text}"
+                review = await self._call_llm([{"role": "user", "content": review_prompt}], self.model)
+                
+                if "error" in review.lower() or "incorrect" in review.lower():
+                    orchestrator.emit_reasoning_step("SELF_CHECK", "Fixing errors in draft...", 0.97)
+                    fix_prompt = f"Fix this draft based on the review. Output ONLY the corrected text.\nDraft:\n{text}\nReview:\n{review}"
+                    text = await self._call_llm([
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": fix_prompt}
+                    ], self.model)
+
+                # --- 3. PERSONALITY LAYER (AIKO OVERLAY) ---
+                orchestrator.emit_reasoning_step("PERSONA", "Applying emotional matrix...", 0.98)
+                persona_prompt = self._get_cached_prompt(is_master)
+                overlay_msg = f"User Message: {message}\n\nCore Engine Draft (Factual Output):\n{text}\n\nInstructions: Rewrite the above draft in your exact persona. Keep the meaning EXACTLY the same, but add personality, tone, and emotions. Do NOT alter facts or add new information. Respond directly with the styled speech."
+                
+                overlay_history = [{"role": "system", "content": persona_prompt}]
+                for h in history[-10:]:
+                    role = "user" if h["role"] == "system" else h["role"]
+                    overlay_history.append({"role": role, "content": h["content"]})
+                overlay_history.append({"role": "user", "content": overlay_msg})
+
+                final_response = await self._call_llm(overlay_history, self.model, apply_neuromodulators=True)
+                
                 orchestrator.emit_tool_result("Text_Reply", "Message complete.")
-                final_response = text
                 break
 
             final_response = text
@@ -520,7 +546,7 @@ Use MCP tools whenever Master asks about his PC state, files, or wants you to re
 
         return images, "\n".join(context_parts)
 
-    async def _call_llm(self, messages, model=None, images=None):
+    async def _call_llm(self, messages, model=None, images=None, apply_neuromodulators=False):
         """
         Call LLM with automatic fallback and connection pooling.
         Optimized for streaming with sentence-level emission.
@@ -542,12 +568,27 @@ Use MCP tools whenever Master asks about his PC state, files, or wants you to re
                 headers["HTTP-Referer"] = "https://aiko-desktop.local"
                 headers["X-Title"] = "Aiko Desktop"
 
+            if apply_neuromodulators:
+                from core.emotion_engine import emotion_engine
+                modifiers = emotion_engine.get_inference_modifiers()
+            else:
+                modifiers = {
+                    "temperature": 0.1,
+                    "top_p": 0.9,
+                    "presence_penalty": 0.0,
+                    "frequency_penalty": 0.0,
+                    "max_tokens": 2000
+                }
+
             payload = {
                 "model": mdl,
                 "messages": msgs,
                 "stream": True,
-                "temperature": 0.85,
-                "top_p": 0.9,
+                "temperature": modifiers["temperature"],
+                "top_p": modifiers["top_p"],
+                "presence_penalty": modifiers["presence_penalty"],
+                "frequency_penalty": modifiers["frequency_penalty"],
+                "max_tokens": modifiers["max_tokens"]
             }
 
             try:
@@ -613,12 +654,31 @@ Use MCP tools whenever Master asks about his PC state, files, or wants you to re
                     om["images"] = imgs
                 ollama_msgs.append(om)
 
+            if apply_neuromodulators:
+                from core.emotion_engine import emotion_engine
+                modifiers = emotion_engine.get_inference_modifiers()
+            else:
+                modifiers = {
+                    "temperature": 0.1,
+                    "top_p": 0.9,
+                    "presence_penalty": 0.0,
+                    "frequency_penalty": 0.0,
+                    "max_tokens": 2000
+                }
+
             payload = {
                 "model": mdl,
                 "messages": ollama_msgs,
                 "stream": True,
                 "think": False,
-                "options": {"temperature": 1.0, "top_p": 0.92, "num_ctx": 4096}
+                "options": {
+                    "temperature": modifiers["temperature"], 
+                    "top_p": modifiers["top_p"],
+                    "presence_penalty": modifiers["presence_penalty"],
+                    "frequency_penalty": modifiers["frequency_penalty"],
+                    "num_ctx": 4096,
+                    "num_predict": modifiers["max_tokens"]
+                }
             }
 
             try:

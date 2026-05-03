@@ -9,6 +9,12 @@ interface Live2DAvatarProps {
   height?: number;
   scale?: number;
   amplitude?: number;
+  chemicals?: {
+    dopamine: number;
+    serotonin: number;
+    cortisol: number;
+    adrenaline: number;
+  };
 }
 
 export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
@@ -20,6 +26,7 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
   height = 500,
   scale: externalScale = 1.0,
   amplitude = 0,
+  chemicals = { dopamine: 0.5, serotonin: 0.5, cortisol: 0, adrenaline: 0 }
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const appRef = useRef<any>(null);
@@ -37,6 +44,9 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
   });
 
   // Keep track of props in refs to avoid re-running initialization effect
+  const chemicalsRef = useRef(chemicals);
+  useEffect(() => { chemicalsRef.current = chemicals; }, [chemicals]);
+
   useEffect(() => {
     animationState.current.isTalking = !!isTalking;
   }, [isTalking]);
@@ -282,6 +292,46 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
                 const mouthOpen = Math.min((amplitude / 60), 1.0); 
                 core.setParameterValueById('ParamMouthOpenY', mouthOpen);
                 core.setParameterValueById('ParamMouthForm', Math.sin(time * 8) * 0.2); 
+            }
+
+            // 6. Embodied Cognition Chemical Mapping
+            const chem = chemicalsRef.current;
+            if (chem) {
+                const { dopamine, serotonin, cortisol, adrenaline } = chem;
+                const aState = animationState.current;
+
+                // Dopamine: Smiling Eyes & Happy Mouth
+                const eyeSmile = dopamine * 0.8;
+                core.setParameterValueById('ParamEyeLSmile', eyeSmile);
+                core.setParameterValueById('ParamEyeRSmile', eyeSmile);
+                if (!isTalking) {
+                    core.setParameterValueById('ParamMouthForm', (dopamine - 0.5) * 2);
+                }
+
+                // Serotonin: Relaxed Gaze (half-lidded)
+                const relaxedEyes = 1.0 - (serotonin * 0.3);
+                if (aState.blinkTimer < aState.nextBlink) {
+                    core.setParameterValueById('ParamEyeLOpen', relaxedEyes);
+                    core.setParameterValueById('ParamEyeROpen', relaxedEyes);
+                }
+
+                // Adrenaline: Wide Eyes & Blush
+                if (adrenaline > 0.6) {
+                    const wideEyes = 1.0 + (adrenaline - 0.6) * 0.5;
+                    core.setParameterValueById('ParamEyeLOpen', wideEyes);
+                    core.setParameterValueById('ParamEyeROpen', wideEyes);
+                    core.setParameterValueById('ParamCheek', adrenaline * 1.0);
+                }
+
+                // Cortisol: Furrowed Brows (Stress)
+                const browStress = (cortisol * -1.0);
+                core.setParameterValueById('ParamBrowLY', browStress);
+                core.setParameterValueById('ParamBrowRY', browStress);
+                
+                // Breath rate increases with Adrenaline/Cortisol
+                const breathFreq = 1.5 + (adrenaline * 2.0) + (cortisol * 1.0);
+                const somaticBreath = (Math.sin(aState.time * breathFreq) * 0.5 + 0.5) * 0.02;
+                core.setParameterValueById('ParamBodyAngleY', somaticBreath * 2);
             }
         } catch(e) {}
     };

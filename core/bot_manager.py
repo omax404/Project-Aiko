@@ -8,10 +8,15 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters, CommandHandler
 import aiohttp
 import re
+import json
+import time
 
 logger = logging.getLogger("BotManager")
 
 HUB_URL = "http://127.0.0.1:8000"
+
+# --- Pause Logic ---
+pause_states = {} # channel_id -> end_timestamp
 
 # --- Shared Helpers ---
 async def get_hub_response(message: str, user_id: str, attachments: list = None):
@@ -43,6 +48,8 @@ async def render_latex(snippet: str):
         logger.error(f"Latex render error: {e}")
     return None
 
+from discord import app_commands
+
 # --- Discord Bot Core ---
 async def run_discord_bot():
     token = os.getenv("DISCORD_TOKEN")
@@ -58,20 +65,297 @@ async def run_discord_bot():
     async def on_ready():
         logger.info(f"💖 Discord Satellite online: {bot.user}")
         await bot.change_presence(status=discord.Status.dnd, activity=discord.Game(name="with Master's code ♡"))
+        try:
+            synced = await bot.tree.sync()
+            logger.info(f"Synced {len(synced)} slash commands.")
+        except Exception as e:
+            logger.error(f"Failed to sync slash commands: {e}")
+
+    @bot.tree.command(name="state", description="Check Aiko's current biological and chemical telemetry.")
+    async def aiko_state(interaction: discord.Interaction):
+        try:
+            from core.emotion_engine import emotion_engine
+            telemetry = emotion_engine.get_biological_telemetry()
+            mods = emotion_engine.get_inference_modifiers()
+            
+            brain_str = (
+                f"[LIVE NEURAL PARAMETERS]\n"
+                f"Temperature : {mods['temperature']:.2f}\n"
+                f"Top-P       : {mods['top_p']:.2f}\n"
+                f"Pres. Pnlty : {mods['presence_penalty']:.2f}\n"
+                f"Freq. Pnlty : {mods['frequency_penalty']:.2f}\n"
+                f"Max Tokens  : {mods['max_tokens']}\n"
+            )
+
+            embed = discord.Embed(title="Aiko Neural & Somatic State 🫀", color=discord.Color.brand_red())
+            embed.description = f"```\n{telemetry}\n\n{brain_str}```"
+            await interaction.response.send_message(embed=embed)
+        except Exception as e:
+            await interaction.response.send_message(f"Neural link failed: {e}", ephemeral=True)
+
+    @bot.tree.command(name="flush", description="Reset Aiko's neural cache and return her chemicals to baseline.")
+    async def aiko_flush(interaction: discord.Interaction):
+        try:
+            from core.emotion_engine import emotion_engine
+            emotion_engine.flush_chemicals()
+            await interaction.response.send_message("🌊 **Neural Cache Flushed.** All chemicals have been reset to your personalized biological baselines.")
+        except Exception as e:
+            await interaction.response.send_message(f"Flush failed: {e}", ephemeral=True)
+
+    @bot.tree.command(name="profile", description="Check what Aiko remembers about you.")
+    @app_commands.describe(action="The action to perform")
+    @app_commands.choices(action=[
+        app_commands.Choice(name="show", value="show"),
+        app_commands.Choice(name="set_name", value="set_name"),
+        app_commands.Choice(name="clear_name", value="clear_name")
+    ])
+    async def aiko_profile(interaction: discord.Interaction, action: str, name: str = None):
+        try:
+            from core.unified_memory import get_unified_memory
+            mem = get_unified_memory()
+            uid = str(interaction.user.id)
+            
+            if action == "show":
+                profile = mem.get_profile(uid)
+                # For Master, also show master_profile
+                master_str = ""
+                if str(interaction.user.id) == os.getenv('MASTER_ID', '0'):
+                    from core.memory_consolidator import PROFILE_FILE
+                    if os.path.exists(PROFILE_FILE):
+                        with open(PROFILE_FILE, "r", encoding="utf-8") as f:
+                            master_str = f"\n\n**Master Context:**\n{f.read()[:500]}"
+
+                pref_str = json.dumps(profile.get('preferences', {}), indent=2)
+                embed = discord.Embed(title=f"Neural Profile: {interaction.user.display_name}", color=discord.Color.blue())
+                embed.description = f"**Affection:** {profile['affection']}/100\n**Preferences:**\n```json\n{pref_str}``` {master_str}"
+                await interaction.response.send_message(embed=embed)
+            
+            elif action == "set_name":
+                if not name:
+                    return await interaction.response.send_message("Please provide a name!", ephemeral=True)
+                mem.update_preference(uid, "display_name", name)
+                await interaction.response.send_message(f"Neural mapping updated. I will now call you **{name}**.")
+            
+            elif action == "clear_name":
+                mem.update_preference(uid, "display_name", None)
+                await interaction.response.send_message("Display name reset.")
+        except Exception as e:
+            await interaction.response.send_message(f"Profile error: {e}", ephemeral=True)
+
+    @bot.tree.command(name="debug_state", description="Show full internal neural state (Admin Only).")
+    async def aiko_debug(interaction: discord.Interaction):
+        if str(interaction.user.id) != os.getenv('MASTER_ID', '0'):
+            return await interaction.response.send_message("Access Denied. You are not my Master.", ephemeral=True)
+        
+        try:
+            from core.emotion_engine import emotion_engine
+            chems = json.dumps(emotion_engine.chemicals, indent=2)
+            history_len = 0
+            from core.unified_memory import get_unified_memory
+            mem = get_unified_memory()
+            history_len = len(mem.get_history(str(interaction.user.id)))
+            
+            debug_info = f"Chemicals:\n{chems}\nHistory Length: {history_len}\nLoop: Active"
+            await interaction.response.send_message(f"```\n{debug_info}\n```", ephemeral=True)
+        except Exception as e:
+            await interaction.response.send_message(f"Debug failed: {e}", ephemeral=True)
+
+    @bot.tree.command(name="birthday", description="Manage your birthday in Aiko's memory.")
+    @app_commands.choices(action=[
+        app_commands.Choice(name="set", value="set"),
+        app_commands.Choice(name="show", value="show"),
+        app_commands.Choice(name="clear", value="clear")
+    ])
+    async def aiko_birthday(interaction: discord.Interaction, action: str, day: int = None, month: int = None, year: int = None):
+        from core.unified_memory import get_unified_memory
+        mem = get_unified_memory()
+        uid = str(interaction.user.id)
+        
+        if action == "set":
+            if not day or not month:
+                return await interaction.response.send_message("Please provide at least day and month!", ephemeral=True)
+            bday = {"day": day, "month": month, "year": year}
+            mem.update_preference(uid, "birthday", bday)
+            await interaction.response.send_message(f"Saved! I'll remember your birthday on {day}/{month}! 🎂")
+        elif action == "show":
+            profile = mem.get_profile(uid)
+            bday = profile.get("preferences", {}).get("birthday")
+            if bday:
+                await interaction.response.send_message(f"Your saved birthday is {bday['day']}/{bday['month']}" + (f"/{bday['year']}" if bday.get('year') else ""))
+            else:
+                await interaction.response.send_message("I don't know your birthday yet! Use `/birthday set`.")
+        elif action == "clear":
+            mem.update_preference(uid, "birthday", None)
+            await interaction.response.send_message("Birthday forgotten.")
+
+    @bot.tree.command(name="timezone", description="Set your timezone for reminders and time awareness.")
+    @app_commands.choices(action=[
+        app_commands.Choice(name="set", value="set"),
+        app_commands.Choice(name="show", value="show")
+    ])
+    async def aiko_timezone(interaction: discord.Interaction, action: str, tz: str = None):
+        from core.unified_memory import get_unified_memory
+        mem = get_unified_memory()
+        uid = str(interaction.user.id)
+        
+        if action == "set":
+            if not tz: return await interaction.response.send_message("Provide a timezone (e.g. UTC+1, EST)!", ephemeral=True)
+            mem.update_preference(uid, "timezone", tz)
+            await interaction.response.send_message(f"Timezone set to **{tz}**.")
+        elif action == "show":
+            profile = mem.get_profile(uid)
+            tz_val = profile.get("preferences", {}).get("timezone", "Not set")
+            await interaction.response.send_message(f"Your current timezone is: **{tz_val}**")
+
+    @bot.tree.command(name="reminder", description="Manage your neural reminders.")
+    @app_commands.choices(action=[
+        app_commands.Choice(name="set", value="set"),
+        app_commands.Choice(name="list", value="list"),
+        app_commands.Choice(name="clear", value="clear")
+    ])
+    async def aiko_reminder(interaction: discord.Interaction, action: str, amount: int = None, unit: str = "minutes", message: str = None, reminder_id: str = None):
+        from core.unified_memory import get_unified_memory
+        mem = get_unified_memory()
+        uid = str(interaction.user.id)
+        
+        if action == "set":
+            if not amount or not message:
+                return await interaction.response.send_message("Provide amount and message!", ephemeral=True)
+            
+            multipliers = {"minutes": 60, "hours": 3600, "days": 86400}
+            seconds = amount * multipliers.get(unit.lower(), 60)
+            due = time.time() + seconds
+            rid = mem.add_reminder(uid, str(interaction.channel.id), message, due, "discord")
+            await interaction.response.send_message(f"Reminder set! I'll ping you about \"{message}\" in {amount} {unit}. (ID: {rid})")
+            
+        elif action == "list":
+            rems = mem.get_reminders(uid)
+            if not rems:
+                return await interaction.response.send_message("No active reminders.")
+            lines = [f"- **{r['id']}**: {r['message']} (Due <t:{int(r['due_time'])}:R>)" for r in rems]
+            await interaction.response.send_message("Your active reminders:\n" + "\n".join(lines))
+            
+        elif action == "clear":
+            if not reminder_id: return await interaction.response.send_message("Provide a reminder ID!", ephemeral=True)
+            if mem.remove_reminder(reminder_id):
+                await interaction.response.send_message(f"Reminder {reminder_id} cleared.")
+            else:
+                await interaction.response.send_message("Reminder not found.", ephemeral=True)
+
+    @bot.tree.command(name="reset", description="Reset specific parts of Aiko's state.")
+    @app_commands.choices(target=[
+        app_commands.Choice(name="memory", value="memory"),
+        app_commands.Choice(name="emotions", value="emotions"),
+        app_commands.Choice(name="all", value="all")
+    ])
+    async def aiko_reset(interaction: discord.Interaction, target: str):
+        # Admin only for server, everyone for DM
+        is_dm = isinstance(interaction.channel, discord.DMChannel)
+        is_admin = interaction.user.guild_permissions.administrator if not is_dm else True
+        if not is_admin and str(interaction.user.id) != os.getenv('MASTER_ID', '0'):
+            return await interaction.response.send_message("Only admins or my Master can do that here.", ephemeral=True)
+        
+        try:
+            from core.unified_memory import get_unified_memory
+            from core.emotion_engine import emotion_engine
+            uid = str(interaction.user.id)
+            
+            if target in ["memory", "all"]:
+                get_unified_memory().clear_history(uid)
+            if target in ["emotions", "all"]:
+                emotion_engine.flush_chemicals()
+            
+            await interaction.response.send_message(f"Neural cleanup complete. Target: **{target}**")
+        except Exception as e:
+            await interaction.response.send_message(f"Reset failed: {e}", ephemeral=True)
+
+    @bot.tree.command(name="pause", description="Pause Aiko's conversation in this channel for 1 minute.")
+    async def aiko_pause(interaction: discord.Interaction):
+        cid = str(interaction.channel.id)
+        pause_states[cid] = time.time() + 60
+        await interaction.response.send_message("💤 Paused. I'll stay quiet for 60 seconds unless you use a command.")
+
+
+
+    @bot.tree.command(name="set_action_style", description="Set how often Aiko uses action text (Admin Only).")
+    async def aiko_action_style(interaction: discord.Interaction, frequency: float):
+        if str(interaction.user.id) != os.getenv('MASTER_ID', '0'):
+            return await interaction.response.send_message("Unauthorized.", ephemeral=True)
+        await interaction.response.send_message(f"Action frequency set to {frequency}.")
+
+    # --- Passive General Chat Scanner ---
+    import random
+    channel_buffers = {}  # channel_id -> list of recent messages (rolling window)
+    SCAN_BUFFER_SIZE = 15  # How many messages Aiko "remembers" per channel
+    PASSIVE_REPLY_CHANCE = 0.05  # 5% chance to jump into a conversation she wasn't called into
 
     @bot.event
     async def on_message(message):
+        logger.info(f"Received Discord message: {message.content} from {message.author}")
         if message.author == bot.user or message.author.bot: return
+        
+        # Process slash commands first
+        await bot.process_commands(message)
+
+        # Check Pause
+        cid = str(message.channel.id)
+        if cid in pause_states:
+            if time.time() < pause_states[cid]:
+                return # Still paused
+            else:
+                del pause_states[cid]
+
+        # --- PASSIVE SCAN: Store every message in a rolling buffer ---
+        if cid not in channel_buffers:
+            channel_buffers[cid] = []
+        channel_buffers[cid].append({
+            "author": message.author.display_name,
+            "content": message.content,
+            "ts": time.time()
+        })
+        # Keep only the last N messages
+        if len(channel_buffers[cid]) > SCAN_BUFFER_SIZE:
+            channel_buffers[cid] = channel_buffers[cid][-SCAN_BUFFER_SIZE:]
+
         is_mentioned = bot.user in message.mentions
         is_dm = isinstance(message.channel, discord.DMChannel)
         
-        if is_mentioned or is_dm or message.content.lower().startswith("aiko"):
+        # Suitable Reply Context
+        reply_context = ""
+        if message.reference:
+            try:
+                ref_msg = await message.channel.fetch_message(message.reference.message_id)
+                if bot.user in message.mentions or ref_msg.author == bot.user:
+                    reply_context = f"[REPLYING_TO: {ref_msg.author.display_name}: \"{ref_msg.content}\"]\n"
+            except: pass
+
+        # --- Determine if Aiko should respond ---
+        name_mentioned = any(kw in message.content.lower() for kw in ["aiko", "アイコ"])
+        directly_addressed = is_mentioned or is_dm or name_mentioned or reply_context
+        
+        # Passive scan: small chance to jump in even when not called
+        passive_trigger = False
+        if not directly_addressed and not is_dm:
+            # Only trigger in channels with enough activity
+            if len(channel_buffers.get(cid, [])) >= 5:
+                passive_trigger = random.random() < PASSIVE_REPLY_CHANCE
+        if directly_addressed or passive_trigger:
             async with message.channel.typing():
                 clean_text = message.content
                 if is_mentioned: clean_text = clean_text.replace(f"<@{bot.user.id}>", "").strip()
+                if is_mentioned: clean_text = clean_text.replace(f"<@!{bot.user.id}>", "").strip()
                 
-                meta_prefix = f"[DISCORD_METADATA: Handle: {message.author.name}, Name: {message.author.display_name}, Status: {'MASTER' if str(message.author.id) == os.getenv('MASTER_ID','0') else 'member'}] "
-                full_msg = meta_prefix + clean_text
+                # Build chat context from the rolling buffer
+                chat_context = ""
+                buf = channel_buffers.get(cid, [])
+                if len(buf) > 1:
+                    recent = buf[-10:]  # last 10 messages for context
+                    chat_lines = [f"{m['author']}: {m['content']}" for m in recent]
+                    chat_context = f"[GENERAL_CHAT_CONTEXT (last {len(recent)} messages)]:\n" + "\n".join(chat_lines) + "\n\n"
+                
+                trigger_type = "PASSIVE_SCAN" if passive_trigger else "DIRECT"
+                meta_prefix = f"[DISCORD_METADATA: Handle: {message.author.name}, Name: {message.author.display_name}, Status: {'MASTER' if str(message.author.id) == os.getenv('MASTER_ID','0') else 'member'}, Trigger: {trigger_type}] "
+                full_msg = meta_prefix + chat_context + reply_context + clean_text
 
                 local_attachments = []
                 os.makedirs("data/uploads", exist_ok=True)
@@ -120,7 +404,33 @@ async def run_discord_bot():
                         await message.reply("I had something to say but Discord cut me off... 😤")
                     except: pass
 
+    async def proactive_polling_loop():
+        """Poll the message queue for proactive messages (reminders, etc)."""
+        await bot.wait_until_ready()
+        from core.message_queue import get_queue
+        q = get_queue()
+        while not bot.is_closed():
+            try:
+                msg = q.dequeue_one("discord_out", processor_id="discord_satellite")
+                if msg:
+                    payload = msg['payload']
+                    uid = int(payload['user_id'])
+                    text = payload['response']
+                    
+                    user = await bot.fetch_user(uid)
+                    if user:
+                        try:
+                            await user.send(text)
+                            q.acknowledge(msg['id'])
+                        except Exception as dm_err:
+                            logger.warning(f"Failed to DM user {uid}: {dm_err}")
+                            # Could try to find a public channel where user is present
+            except Exception as e:
+                logger.error(f"Proactive poll error: {e}")
+            await asyncio.sleep(5)
+
     try:
+        asyncio.create_task(proactive_polling_loop())
         await bot.start(token)
     except Exception as e:
         logger.error(f"Discord crash: {e}")

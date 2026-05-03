@@ -142,7 +142,7 @@ desktop.ini
 .claude/
 
 # User Personalized Persona
-core/persona.py
+# core/persona.py (unignored for sync)
 
 # Builder artifacts
 *.exe
