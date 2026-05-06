@@ -14,7 +14,6 @@ pip install -r requirements.txt
 # Download from https://ollama.ai
 
 # Pull a model (optional - can also use cloud providers)
-ollama pull deepseek-r1:1.5b
 ```
 
 ### Environment Setup
