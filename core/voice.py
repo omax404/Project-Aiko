@@ -13,6 +13,8 @@ import time
 import logging
 import threading
 import numpy as np
+from pydub import AudioSegment
+import io
 
 logger = logging.getLogger("Voice")
 
@@ -33,14 +35,26 @@ def _warmup_tts():
         _tts_model = TTSModel.load_model()
 
         # Voice selection: try cloning first, fall back to built-in
-        # Check for voice sample in multiple formats
+        # Check for voice samples in order of priority
         clone_path = None
-        for ext in [".mp3", ".wav", ".ogg", ".flac"]:
-            candidate = os.path.join(os.getcwd(), f"voice_preview_yuki{ext}")
+        # Priority 1: New vivian.wav
+        # Priority 2: Previous yuki samples
+        potential_samples = [
+            "vivian.wav",
+            "voice_preview_yuki.mp3",
+            "voice_preview_yuki.wav",
+            "voice_preview_yuki.ogg",
+            "voice_preview_yuki.flac"
+        ]
+        
+        for sample_name in potential_samples:
+            candidate = os.path.join(os.getcwd(), sample_name)
             if os.path.exists(candidate):
                 clone_path = candidate
                 break
+
         if clone_path:
+            logger.info(f"🎤 Voice clone sample found: {clone_path}")
             try:
                 _voice_state = _tts_model.get_state_for_audio_prompt(clone_path)
                 logger.info(f"✅ Pocket-TTS ready (clone: {os.path.basename(clone_path)})")
@@ -232,10 +246,27 @@ class VoiceEngine:
 
                 # Concatenate all segments into one audio file
                 full_audio = np.concatenate(audio_segments)
-                scipy.io.wavfile.write(target_path, _tts_model.sample_rate, full_audio)
+                
+                # --- SPEED UP (VOICE DEBIT ADJUSTMENT) ---
+                # Convert numpy array (float32) to pydub AudioSegment
+                # Scale to int16 for pydub
+                audio_int16 = (full_audio * 32767).astype(np.int16)
+                segment = AudioSegment(
+                    audio_int16.tobytes(), 
+                    frame_rate=_tts_model.sample_rate,
+                    sample_width=2, 
+                    channels=1
+                )
+                
+                # Speed up by 0.9x (slower, more natural)
+                # chunk_size and crossfade help reduce artifacts
+                faster_segment = segment.speedup(playback_speed=0.9, chunk_size=150, crossfade=25)
+                
+                # Export to target path
+                faster_segment.export(target_path, format="wav")
 
-                duration_s = len(full_audio) / _tts_model.sample_rate
-                logger.info(f"✅ Audio saved: {filename} ({duration_s:.1f}s, {len(chunks)} chunks)")
+                duration_s = faster_segment.duration_seconds
+                logger.info(f"✅ Audio saved: {filename} ({duration_s:.1f}s, 0.9x speed, {len(chunks)} chunks)")
                 return filename
 
             except Exception as e:

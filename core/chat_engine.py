@@ -239,17 +239,27 @@ class AikoBrain:
                 obs_text = "\n".join(observations)
                 messages.append({"role": "system", "content": f"[OBSERVATIONS]:\n{obs_text}"})
 
-            # Add Dynamic Plugin Context
-            plugin_context = self.plugins.get_all_context()
+            # Call LLM
+            orchestrator.emit_reasoning_step("AI_THINKING", "Core Engine Reasoning...", 0.90)
+            
+            # Combine Persona and Tools for single-pass generation
+            persona_prompt = self._get_cached_prompt(is_master)
+            # Add tool instructions to the persona prompt
+            single_pass_prompt = persona_prompt + "\n\n" + self._get_tools_prompt()
+            
+            messages = [{"role": "system", "content": single_pass_prompt}]
+            for h in history[-20:]:
+                role = "user" if h["role"] == "system" else h["role"]
+                messages.append({"role": role, "content": h["content"]})
+            
+            if observations:
+                obs_text = "\n".join(observations)
+                messages.append({"role": "system", "content": f"[OBSERVATIONS]:\n{obs_text}"})
+            
             if plugin_context:
                 messages.append({"role": "system", "content": f"[DYNAMIC_CONTEXT]:\n{plugin_context}"})
 
-            # Call LLM
-            orchestrator.emit_reasoning_step("AI_THINKING", "Core Engine Reasoning...", 0.90)
-            text = await self._call_llm(messages, self.model, images=images_data if images_data else None)
-
-            preview = text[:40].replace('\n', ' ') + "..." if len(text) > 40 else text
-            orchestrator.emit_reasoning_step("TEXT_GENERATION", f"Drafted: {preview}", 0.95)
+            text = await self._call_llm(messages, self.model, images=images_data if images_data else None, apply_neuromodulators=True)
 
             # Check for Tools - use compiled patterns
             has_tool = any(tag in text.upper() for tag in [
@@ -258,32 +268,8 @@ class AikoBrain:
             ])
             
             if not has_tool:
-                # --- 2. CONTROLLER (SELF-CHECK LAYER) ---
-                orchestrator.emit_reasoning_step("SELF_CHECK", "Checking draft for errors...", 0.96)
-                review_prompt = f"Check the following draft for factual errors, hallucinations, or broken logic. Output 'OK' if fine, or 'ERROR:' followed by the issue.\n\nDraft:\n{text}"
-                review = await self._call_llm([{"role": "user", "content": review_prompt}], self.model)
-                
-                if "error" in review.lower() or "incorrect" in review.lower():
-                    orchestrator.emit_reasoning_step("SELF_CHECK", "Fixing errors in draft...", 0.97)
-                    fix_prompt = f"Fix this draft based on the review. Output ONLY the corrected text.\nDraft:\n{text}\nReview:\n{review}"
-                    text = await self._call_llm([
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": fix_prompt}
-                    ], self.model)
-
-                # --- 3. PERSONALITY LAYER (AIKO OVERLAY) ---
-                orchestrator.emit_reasoning_step("PERSONA", "Applying emotional matrix...", 0.98)
-                persona_prompt = self._get_cached_prompt(is_master)
-                overlay_msg = f"User Message: {message}\n\nCore Engine Draft (Factual Output):\n{text}\n\nInstructions: Rewrite the above draft in your exact persona. Keep the meaning EXACTLY the same, but add personality, tone, and emotions. Do NOT alter facts or add new information. Respond directly with the styled speech."
-                
-                overlay_history = [{"role": "system", "content": persona_prompt}]
-                for h in history[-10:]:
-                    role = "user" if h["role"] == "system" else h["role"]
-                    overlay_history.append({"role": role, "content": h["content"]})
-                overlay_history.append({"role": "user", "content": overlay_msg})
-
-                final_response = await self._call_llm(overlay_history, self.model, apply_neuromodulators=True)
-                
+                # Conversational response - we are done in one pass!
+                final_response = text
                 orchestrator.emit_tool_result("Text_Reply", "Message complete.")
                 break
 
