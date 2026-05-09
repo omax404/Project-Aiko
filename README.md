@@ -1,4 +1,4 @@
-# Aiko Desktop v3.5 — Multimodal Edition 👁️🎙️
+# Aiko Desktop v3.5 — Multimodal Edition 
 
 > Your devoted AI assistant with emotional intelligence, high-fidelity voice synthesis, and real-time vision.
 
@@ -67,12 +67,7 @@ Aiko supports **OpenRouter**, **Ollama**, and **Gemini**.
 }
 ```
 
-### Vision Support
-Ensure your model supports vision (like `gemma4` or `moondream`). Images sent to the Discord bot are automatically passed to Aiko's visual cortex.
 
-### Voice Support
-- `Pocket` - Local offline TTS (Cloning requires HF login).
-- `Gemini` - Cloud-based high-quality TTS.
 
 ---
 
