@@ -646,6 +646,13 @@ async def handle_update_settings(req):
         return web.json_response({"status": "success"})
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
+
+async def handle_get_settings(req):
+    """Retrieve current system settings."""
+    try:
+        return web.json_response(config.get_all())
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
     
 async def handle_upload(req):
     """Handle multipart file uploads."""
@@ -798,6 +805,7 @@ def build_hub_app():
     app.router.add_post("/api/chat", handle_chat_api)
     app.router.add_post("/api/purge", handle_purge)
     app.router.add_post("/api/settings", handle_update_settings)
+    app.router.add_get("/api/settings", handle_get_settings)
     app.router.add_get("/api/project/structure", handle_project_structure)
     app.router.add_get("/api/bridge/status", handle_bridge_status)
     app.router.add_post("/api/latex/render", handle_latex_render)

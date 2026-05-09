@@ -236,10 +236,10 @@ pub fn run() {
                 })
                 .build(app)?;
 
-            // Global Shortcut: Ctrl+Shift+A to toggle visibility
+            // Global Shortcut: Ctrl+Alt+A to toggle visibility
             app.handle().plugin(
               tauri_plugin_global_shortcut::Builder::new()
-                .with_shortcut("ctrl+shift+alt+a")?
+                .with_shortcut("ctrl+alt+a")?
                 .with_handler(|app, _shortcut, event| {
                   if event.state == ShortcutState::Pressed {
                     if let Some(win) = app.get_webview_window("main") {

@@ -96,6 +96,7 @@ interface NeuralState {
   setDynamicsIntensity: (intensity: number) => void;
   setAvatarScale: (scale: number) => void;
   setShowAnimatedAssets: (show: boolean) => void;
+  fetchSettings: () => Promise<void>;
 }
 
 let socket: WebSocket | null = null;
@@ -616,8 +617,24 @@ export const useNeuralStore = create<NeuralState>()(
       },
 
       setDynamicsIntensity: (intensity) => set({ dynamicsIntensity: intensity }),
-      setAvatarScale: (scale) => set({ avatarScale: scale }),
-      setShowAnimatedAssets: (show) => set({ showAnimatedAssets: show }),
+      setAvatarScale: (scale: number) => set({ avatarScale: scale }),
+      setShowAnimatedAssets: (show: boolean) => set({ showAnimatedAssets: show }),
+      fetchSettings: async () => {
+        try {
+          const res = await fetch(`${hubUrl}/api/settings`);
+          const data = await res.json();
+          set((state) => ({
+            apiConfig: {
+              ...state.apiConfig,
+              provider: data.PROVIDER || state.apiConfig.provider,
+              apiKey: data.API_KEY || data.DEEPSEEK_API_KEY || data.GEMINI_API_KEY || state.apiConfig.apiKey,
+              model: data.MODEL_NAME || state.apiConfig.model,
+            }
+          }));
+        } catch (e) {
+          console.error("Failed to fetch settings", e);
+        }
+      },
     }),
     {
       name: 'neural-storage',

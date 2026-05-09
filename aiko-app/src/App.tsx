@@ -257,7 +257,7 @@ export function WelcomeScreen({ onRecall }: { onRecall: () => void }) {
 function App() {
   const {
     messages, streamingContent, connect, activeSessionId, sessions,
-    isThinking, triggerPurge, loadSessions, fetchBridgeStatus,
+    isThinking, triggerPurge, loadSessions, fetchBridgeStatus, fetchSettings,
     bridgeStatus, currentEmotion, isSidebarOpen, toggleSidebar, themeColor,
     dynamicsIntensity, showAnimatedAssets, isTalking, avatarScale, setAvatarScale,
     amplitude, apiConfig, chemicals
@@ -297,9 +297,13 @@ function App() {
     document.documentElement.style.setProperty('--acc-glow', `${themeColor}40`);
 
     try { connect('http://127.0.0.1:8000'); } catch (e) { }
+    fetchSettings();
     fetchBridgeStatus();
     loadSessions();
-    const t = setInterval(() => fetchBridgeStatus(), 30000);
+    const t = setInterval(() => {
+      fetchBridgeStatus();
+      fetchSettings();
+    }, 30000);
     return () => clearInterval(t);
   }, []);
 
