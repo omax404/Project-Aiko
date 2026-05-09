@@ -187,8 +187,8 @@ export default function MobileApp() {
               display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px',
               borderRadius: 8, background: 'rgba(212,149,106,0.1)', border: '1px solid rgba(212,149,106,0.2)'
           }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#d4956a' }} />
-              <span style={{ fontSize: 9, color: '#d4956a', fontWeight: 'bold', textTransform: 'uppercase' }}>Neural Online</span>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#ec4899' }} />
+              <span style={{ fontSize: 9, color: '#ec4899', fontWeight: 'bold', textTransform: 'uppercase' }}>Neural Online</span>
           </div>
           <button onClick={() => setShowSettings(true)} style={{
             width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.05)',
@@ -232,14 +232,14 @@ export default function MobileApp() {
               background: 'rgba(212,149,106,0.1)', border: '1px solid rgba(212,149,106,0.3)',
               display: 'flex', alignItems: 'center', justifyContent: 'center'
             }}>
-              <Zap size={14} style={{ color: '#d4956a' }} />
+              <Zap size={14} style={{ color: '#ec4899' }} />
             </div>
             <div style={{ fontSize: 14, lineHeight: 1.7, color: 'rgba(237,232,223,0.9)' }}
               className="markdown-content selectable">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{streaming}</ReactMarkdown>
               <span style={{
                 display: 'inline-block', width: 2, height: 14,
-                background: '#d4956a', marginLeft: 2, verticalAlign: 'middle',
+                background: '#ec4899', marginLeft: 2, verticalAlign: 'middle',
                 animation: 'pulse 1s infinite'
               }} />
             </div>
@@ -376,7 +376,7 @@ export default function MobileApp() {
                                     width: '100%', padding: '16px', borderRadius: 16, marginBottom: 10,
                                     background: apiConfig.model === m ? 'rgba(212,149,106,0.1)' : 'rgba(255,255,255,0.03)',
                                     border: `1px solid ${apiConfig.model === m ? 'rgba(212,149,106,0.4)' : 'rgba(255,255,255,0.07)'}`,
-                                    cursor: 'pointer', textAlign: 'left', color: apiConfig.model === m ? '#d4956a' : 'rgba(255,255,255,0.5)',
+                                    cursor: 'pointer', textAlign: 'left', color: apiConfig.model === m ? '#ec4899' : 'rgba(255,255,255,0.5)',
                                     fontSize: 13, fontFamily: "'JetBrains Mono', monospace"
                                 }}>
                                 {m}

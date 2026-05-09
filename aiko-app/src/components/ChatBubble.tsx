@@ -66,7 +66,7 @@ export function ChatBubble({
         className="flex justify-center w-full mb-8"
       >
         <div className="flex items-center gap-3 px-5 py-2 rounded-full bg-white/[0.02] border border-white/5 text-[9px] uppercase tracking-[0.3em] font-bold text-[var(--t3)]">
-          <div className="w-1 h-1 rounded-full bg-amber-500/50 shadow-[0_0_8px_#d4956a]" />
+          <div className="w-1 h-1 rounded-full bg-pink-500/50 shadow-[0_0_8px_#ec4899]" />
           <span>{content}</span>
         </div>
       </motion.div>
@@ -93,12 +93,12 @@ export function ChatBubble({
             "w-9 h-9 rounded-xl flex items-center justify-center border transition-all duration-500",
             isUser 
               ? "bg-[var(--bg-card)] border-[var(--b2)]" 
-              : "bg-amber-600/10 border-amber-500/30 shadow-[0_0_15px_rgba(212,149,106,0.1)]"
+              : "bg-pink-600/10 border-pink-500/30 shadow-[0_0_15px_rgba(212,149,106,0.1)]"
           )}>
             {isUser ? (
                <div className="w-3.5 h-3.5 bg-[var(--t3)] rounded-sm opacity-40" />
             ) : (
-               <Zap size={16} className="text-amber-400 group-hover:scale-110 transition-transform" />
+               <Zap size={16} className="text-pink-400 group-hover:scale-110 transition-transform" />
             )}
           </div>
         </div>
@@ -111,7 +111,7 @@ export function ChatBubble({
           <div className="flex items-center gap-3 px-1">
              <span className={clsx(
                "text-[10px] font-bold uppercase tracking-widest",
-               isUser ? "text-[var(--t3)]" : "text-amber-500"
+               isUser ? "text-[var(--t3)]" : "text-pink-500"
              )}>
                {isUser ? "Identity_Author" : "Aiko_Intelligence"}
              </span>
@@ -139,7 +139,7 @@ export function ChatBubble({
                     autoFocus
                     title="Edit message content"
                     placeholder="Edit your message..."
-                    className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-[14px] text-[var(--t1)] focus:outline-none focus:border-amber-500/50 min-h-[100px]"
+                    className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-[14px] text-[var(--t1)] focus:outline-none focus:border-pink-500/50 min-h-[100px]"
                     value={editValue}
                     onChange={(e) => setEditValue(e.target.value)}
                   />
@@ -152,7 +152,7 @@ export function ChatBubble({
                     </button>
                     <button 
                       onClick={handleSaveEdit}
-                      className="px-3 py-1 bg-amber-500/20 border border-amber-500/30 rounded text-[10px] font-bold uppercase tracking-wider text-amber-500 hover:bg-amber-500/30"
+                      className="px-3 py-1 bg-pink-500/20 border border-pink-500/30 rounded text-[10px] font-bold uppercase tracking-wider text-pink-500 hover:bg-pink-500/30"
                     >
                       Save Changes
                     </button>
@@ -193,7 +193,7 @@ export function ChatBubble({
                                 className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors text-[12px] text-slate-300"
                               >
                                 <div className="p-2 rounded-lg bg-white/5">
-                                  <FileText size={14} className="text-amber-500" />
+                                  <FileText size={14} className="text-pink-500" />
                                 </div>
                                 <span className="truncate font-medium">{filename}</span>
                               </a>
@@ -209,7 +209,7 @@ export function ChatBubble({
             
             {/* User Glow Effect */}
             {isUser && (
-              <div className="absolute inset-0 bg-amber-500/5 blur-xl -z-10 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+              <div className="absolute inset-0 bg-pink-500/5 blur-xl -z-10 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
             )}
           </div>
 
@@ -224,20 +224,20 @@ export function ChatBubble({
             >
                <Copy size={13} />
             </button>
-            <button title="Reaction" className="p-1.5 hover:text-amber-500 transition-colors text-[var(--t4)]">
+            <button title="Reaction" className="p-1.5 hover:text-pink-500 transition-colors text-[var(--t4)]">
                <Smile size={13} />
             </button>
             {!isUser ? (
                <>
                  <button 
                    onClick={() => retryMessage()}
-                   title="Retry" className="p-1.5 hover:text-amber-400 transition-colors text-[var(--t4)]"
+                   title="Retry" className="p-1.5 hover:text-pink-400 transition-colors text-[var(--t4)]"
                  >
                     <RotateCcw size={13} />
                  </button>
                  <button 
                    onClick={() => playTTS(content)}
-                   title="Speech" className="p-1.5 hover:text-amber-400 transition-colors text-[var(--t4)]"
+                   title="Speech" className="p-1.5 hover:text-pink-400 transition-colors text-[var(--t4)]"
                  >
                     <Volume2 size={13} />
                  </button>
@@ -246,7 +246,7 @@ export function ChatBubble({
                <>
                  <button 
                    onClick={() => setIsEditing(true)}
-                   title="Edit" className="p-1.5 hover:text-amber-400 transition-colors text-[var(--t4)]"
+                   title="Edit" className="p-1.5 hover:text-pink-400 transition-colors text-[var(--t4)]"
                  >
                     <Edit3 size={13} />
                  </button>

@@ -76,15 +76,15 @@ export function InputDock({ onOpenProject }: InputDockProps) {
   return (
     <div className="w-full max-w-4xl mx-auto px-4 pb-2">
       <div className="relative">
-        <div className="absolute -inset-2 bg-amber-600/5 blur-2xl rounded-3xl opacity-0 group-focus-within:opacity-100 transition-opacity" />
+        <div className="absolute -inset-2 bg-pink-600/5 blur-2xl rounded-3xl opacity-0 group-focus-within:opacity-100 transition-opacity" />
         
-        <div className="relative flex flex-col gap-2 p-1.5 glass-pane rounded-3xl shadow-2xl focus-within:border-amber-500/30 transition-all duration-500">
+        <div className="relative flex flex-col gap-2 p-1.5 glass-pane rounded-3xl shadow-2xl focus-within:border-pink-500/30 transition-all duration-500">
           
           <div className="flex items-center justify-between px-4 py-2 border-b border-white/5 mb-1">
              <div className="flex items-center gap-2.5">
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-600/10 border border-amber-500/20">
-                   <Sparkles size={11} className="text-amber-400" />
-                   <span className="text-[9px] font-bold text-amber-400 uppercase tracking-widest">{apiConfig.model}</span>
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-pink-600/10 border border-pink-500/20">
+                   <Sparkles size={11} className="text-pink-400" />
+                   <span className="text-[9px] font-bold text-pink-400 uppercase tracking-widest">{apiConfig.model}</span>
                 </div>
                 <div className="h-4 w-px bg-white/5" />
                 <button 
@@ -102,7 +102,7 @@ export function InputDock({ onOpenProject }: InputDockProps) {
                   onClick={() => setTtsEnabled(!ttsEnabled)}
                   className={clsx(
                     "p-2 rounded-xl transition-all",
-                    ttsEnabled ? "text-amber-400 bg-amber-400/5 shadow-[0_0_10px_rgba(212,149,106,0.1)]" : "hover:text-white hover:bg-white/5"
+                    ttsEnabled ? "text-pink-400 bg-pink-400/5 shadow-[0_0_10px_rgba(212,149,106,0.1)]" : "hover:text-white hover:bg-white/5"
                   )}
                 >
                   {ttsEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
@@ -150,7 +150,7 @@ export function InputDock({ onOpenProject }: InputDockProps) {
                   </div>
                 ))}
                 {isUploading && (
-                  <div className="w-10 h-10 flex items-center justify-center animate-spin text-amber-500">
+                  <div className="w-10 h-10 flex items-center justify-center animate-spin text-pink-500">
                     <Sparkles size={16} />
                   </div>
                 )}
@@ -181,7 +181,7 @@ export function InputDock({ onOpenProject }: InputDockProps) {
                  title="Animated Assets" 
                  className={clsx(
                    "p-3 rounded-2xl transition-all",
-                   showGifPicker ? "text-amber-400 bg-amber-400/5" : "text-slate-500 hover:text-[var(--acc)] hover:bg-[var(--acc)]/5"
+                   showGifPicker ? "text-pink-400 bg-pink-400/5" : "text-slate-500 hover:text-[var(--acc)] hover:bg-[var(--acc)]/5"
                  )}
                >
                  <ImageIcon size={18} strokeWidth={2.5} className={clsx(showGifPicker && "animate-pulse")} />
@@ -225,7 +225,7 @@ export function InputDock({ onOpenProject }: InputDockProps) {
                 "w-11 h-11 rounded-2xl flex items-center justify-center transition-all shadow-xl mb-1",
                 (!text.trim() && pendingFiles.length === 0) || isThinking || isUploading 
                   ? "bg-white/[0.02] text-slate-700 cursor-not-allowed border border-white/5" 
-                  : "bg-white text-black hover:bg-amber-400 hover:text-white"
+                  : "bg-white text-black hover:bg-pink-400 hover:text-white"
               )}
             >
               <Send size={16} strokeWidth={2.5} className={clsx("transition-transform", isThinking && "animate-pulse")} />

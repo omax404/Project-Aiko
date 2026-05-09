@@ -50,7 +50,7 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean, onClose: (
   };
 
   const themes = [
-    { name: 'Amber', color: '#d4956a' },
+    { name: 'Amber', color: '#ec4899' },
     { name: 'Emerald', color: '#10b981' },
     { name: 'Azure', color: '#3b82f6' },
     { name: 'Rose', color: '#f43f5e' },

@@ -49,7 +49,7 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasErr
           </pre>
           <button 
             onClick={() => window.location.reload()}
-            style={{ marginTop: 20, padding: '10px 20px', background: '#d4956a', border: 'none', borderRadius: 8, color: '#000', fontWeight: 'bold', cursor: 'pointer' }}
+            style={{ marginTop: 20, padding: '10px 20px', background: '#ec4899', border: 'none', borderRadius: 8, color: '#000', fontWeight: 'bold', cursor: 'pointer' }}
           >
             Reconnect Neural Interface
           </button>

@@ -46,7 +46,7 @@ const SessionItem = ({ id, title, preview, timestamp, active, pinned, onSelect, 
       className={clsx(
         "group relative px-4 py-3 rounded-xl transition-all duration-200 cursor-pointer border-l-2",
         active 
-          ? "bg-[var(--bg-active)] border-amber-500/50" 
+          ? "bg-[var(--bg-active)] border-pink-500/50" 
           : "hover:bg-[var(--bg-hover)] border-transparent"
       )}
     >
@@ -64,7 +64,7 @@ const SessionItem = ({ id, title, preview, timestamp, active, pinned, onSelect, 
                 e.stopPropagation();
               }}
               onClick={(e) => e.stopPropagation()}
-              className="flex-1 bg-transparent border-b border-amber-500/50 text-[12px] text-[var(--t1)] outline-none mr-2"
+              className="flex-1 bg-transparent border-b border-pink-500/50 text-[12px] text-[var(--t1)] outline-none mr-2"
             />
           ) : (
             <h3 className={clsx(
@@ -103,7 +103,7 @@ const SessionItem = ({ id, title, preview, timestamp, active, pinned, onSelect, 
                 onClick={(e) => { e.stopPropagation(); onPin(id); setShowMenu(false); }}
                 className="w-full flex items-center gap-2 px-3 py-1.5 text-[10px] text-[var(--t2)] hover:bg-[var(--bg-hover)] hover:text-white"
               >
-                <Pin size={10} className={pinned ? "fill-amber-500 text-amber-500" : ""} />
+                <Pin size={10} className={pinned ? "fill-pink-500 text-pink-500" : ""} />
                 {pinned ? "Unpin" : "Pin"}
               </button>
               <button 
@@ -161,15 +161,15 @@ export function Sidebar({ onOpenSettings, onOpenProject }: { onOpenSettings: () 
       {/* Profile & Affection */}
       <div className="flex flex-col gap-4 px-1 py-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-600/10 border border-amber-500/20 flex items-center justify-center shadow-lg shadow-amber-900/10 overflow-hidden">
+          <div className="w-10 h-10 rounded-xl bg-pink-600/10 border border-pink-500/20 flex items-center justify-center shadow-lg shadow-pink-900/10 overflow-hidden">
              {/* Small Live2D avatar would go here or a placeholder */}
-             <Bot size={22} className="text-amber-500" />
+             <Bot size={22} className="text-pink-500" />
           </div>
           <div className="flex flex-col">
             <h1 className="text-sm font-bold text-[var(--t1)] brand-text uppercase tracking-wider">Aiko Core</h1>
             <div className="flex items-center gap-1.5">
-              {showAnimatedAssets ? <NeuralPulse /> : <div className="w-1.5 h-1.5 rounded-full bg-amber-500/50" />}
-              <p className="text-[9px] text-amber-500/80 font-mono font-bold">Synchronized</p>
+              {showAnimatedAssets ? <NeuralPulse /> : <div className="w-1.5 h-1.5 rounded-full bg-pink-500/50" />}
+              <p className="text-[9px] text-pink-500/80 font-mono font-bold">Synchronized</p>
             </div>
           </div>
         </div>
@@ -177,13 +177,13 @@ export function Sidebar({ onOpenSettings, onOpenProject }: { onOpenSettings: () 
         <div className="flex flex-col gap-1.5">
           <div className="flex justify-between items-center px-0.5">
              <span className="text-[9px] font-bold text-[var(--t3)] uppercase tracking-wider">Affection Level</span>
-             <span className="text-[9px] font-mono font-bold text-amber-500">{relationship.affection}%</span>
+             <span className="text-[9px] font-mono font-bold text-pink-500">{relationship.affection}%</span>
           </div>
           <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
             <motion.div 
               initial={{ width: 0 }}
               animate={{ width: `${relationship.affection}%` }}
-              className="h-full bg-amber-500" 
+              className="h-full bg-pink-500" 
             />
           </div>
         </div>
@@ -191,7 +191,7 @@ export function Sidebar({ onOpenSettings, onOpenProject }: { onOpenSettings: () 
 
       <button 
         onClick={createNewSession}
-        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-600/10 border border-amber-500/20 text-[11px] font-bold text-amber-500 uppercase tracking-widest hover:bg-amber-600/20 transition-all"
+        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-pink-600/10 border border-pink-500/20 text-[11px] font-bold text-pink-500 uppercase tracking-widest hover:bg-pink-600/20 transition-all"
       >
         <Plus size={14} />
         New Neural Link
@@ -199,13 +199,13 @@ export function Sidebar({ onOpenSettings, onOpenProject }: { onOpenSettings: () 
 
       {/* Search */}
       <div className="relative group">
-        <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--t3)] group-focus-within:text-amber-500 transition-colors" />
+        <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--t3)] group-focus-within:text-pink-500 transition-colors" />
         <input 
           type="text" 
           placeholder="Search sessions..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full bg-[var(--bg-input)] border border-[var(--b1)] rounded-xl py-2 pl-9 pr-4 text-[11px] text-[var(--t1)] placeholder-[var(--t3)] focus:outline-none focus:border-amber-500/30 transition-all"
+          className="w-full bg-[var(--bg-input)] border border-[var(--b1)] rounded-xl py-2 pl-9 pr-4 text-[11px] text-[var(--t1)] placeholder-[var(--t3)] focus:outline-none focus:border-pink-500/30 transition-all"
         />
       </div>
 

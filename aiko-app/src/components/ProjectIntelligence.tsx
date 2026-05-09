@@ -41,12 +41,12 @@ export function ProjectIntelligence({ isOpen, onClose }: ProjectIntelligenceProp
             className="w-full max-w-4xl h-[75vh] bg-[var(--bg-elevated)] border border-[var(--b2)] rounded-[40px] flex flex-col overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] relative"
           >
             {/* Header */}
-            <div className="h-28 px-10 border-b border-[var(--b1)] flex items-center justify-between bg-gradient-to-br from-amber-600/5 to-transparent">
+            <div className="h-28 px-10 border-b border-[var(--b1)] flex items-center justify-between bg-gradient-to-br from-pink-600/5 to-transparent">
               <div className="flex flex-col gap-1.5">
                 <h2 className="text-[10px] font-bold text-[var(--t3)] uppercase tracking-[0.25em]">Neural Module Workspace</h2>
                 <div className="flex items-center gap-4">
                    <h1 className="text-2xl font-bold text-[var(--t1)] tracking-widest uppercase brand-text">Workspace Intelligence</h1>
-                   <div className="px-2.5 py-1 rounded-full bg-amber-600/10 border border-amber-500/20 text-[9px] font-bold text-amber-500 uppercase tracking-tight">Active_Indexing</div>
+                   <div className="px-2.5 py-1 rounded-full bg-pink-600/10 border border-pink-500/20 text-[9px] font-bold text-pink-500 uppercase tracking-tight">Active_Indexing</div>
                 </div>
               </div>
               
@@ -56,7 +56,7 @@ export function ProjectIntelligence({ isOpen, onClose }: ProjectIntelligenceProp
                   onClick={() => fetchProjectStructure?.()}
                   className="w-11 h-11 rounded-2xl bg-white/[0.02] border border-white/10 flex items-center justify-center hover:bg-white/5 transition-all group shadow-inner"
                 >
-                  <RefreshCw size={18} className="text-[var(--t3)] group-hover:text-amber-500 transition-all" />
+                  <RefreshCw size={18} className="text-[var(--t3)] group-hover:text-pink-500 transition-all" />
                 </button>
                 <button 
                   title="Close Workspace"
@@ -71,13 +71,13 @@ export function ProjectIntelligence({ isOpen, onClose }: ProjectIntelligenceProp
             {/* Search Bar */}
             <div className="p-6 px-10 border-b border-[var(--b1)] bg-black/10">
               <div className="relative group">
-                 <Search size={14} className="absolute left-6 top-1/2 -translate-y-1/2 text-[var(--t4)] group-focus-within:text-amber-500 transition-colors" />
+                 <Search size={14} className="absolute left-6 top-1/2 -translate-y-1/2 text-[var(--t4)] group-focus-within:text-pink-500 transition-colors" />
                  <input 
                    type="text" 
                    placeholder="SCAN NEURAL NODES & FILES..."
                    value={searchQuery}
                    onChange={(e) => setSearchQuery(e.target.value)}
-                   className="w-full h-14 bg-[var(--bg-input)] border border-[var(--b1)] rounded-2xl pl-14 pr-6 text-[12px] font-bold text-[var(--t1)] uppercase tracking-wider focus:outline-none focus:border-amber-500/30 transition-all placeholder:text-[var(--t4)]"
+                   className="w-full h-14 bg-[var(--bg-input)] border border-[var(--b1)] rounded-2xl pl-14 pr-6 text-[12px] font-bold text-[var(--t1)] uppercase tracking-wider focus:outline-none focus:border-pink-500/30 transition-all placeholder:text-[var(--t4)]"
                  />
               </div>
             </div>
@@ -91,15 +91,15 @@ export function ProjectIntelligence({ isOpen, onClose }: ProjectIntelligenceProp
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.02 }}
-                    className="group relative flex flex-col items-center justify-center p-6 rounded-[32px] bg-[var(--bg-input)] border border-[var(--b1)] hover:bg-amber-600/5 hover:border-amber-500/20 transition-all cursor-pointer overflow-hidden shadow-lg hover:shadow-amber-900/10"
+                    className="group relative flex flex-col items-center justify-center p-6 rounded-[32px] bg-[var(--bg-input)] border border-[var(--b1)] hover:bg-pink-600/5 hover:border-pink-500/20 transition-all cursor-pointer overflow-hidden shadow-lg hover:shadow-pink-900/10"
                   >
-                     <div className="absolute top-0 right-0 w-16 h-16 bg-amber-600/5 blur-2xl group-hover:bg-amber-600/10 transition-colors" />
+                     <div className="absolute top-0 right-0 w-16 h-16 bg-pink-600/5 blur-2xl group-hover:bg-pink-600/10 transition-colors" />
                      
-                     <div className="w-14 h-14 rounded-2xl bg-black/40 flex items-center justify-center mb-4 border border-white/5 group-hover:scale-105 group-hover:border-amber-500/30 transition-all shadow-inner">
+                     <div className="w-14 h-14 rounded-2xl bg-black/40 flex items-center justify-center mb-4 border border-white/5 group-hover:scale-105 group-hover:border-pink-500/30 transition-all shadow-inner">
                        {item.type === 'folder' ? (
-                         <Folder size={22} className="text-amber-500/80 group-hover:text-amber-400" />
+                         <Folder size={22} className="text-pink-500/80 group-hover:text-pink-400" />
                        ) : (
-                         <File size={22} className="text-amber-400/60 group-hover:text-amber-300" />
+                         <File size={22} className="text-pink-400/60 group-hover:text-pink-300" />
                        )}
                      </div>
                      
@@ -108,7 +108,7 @@ export function ProjectIntelligence({ isOpen, onClose }: ProjectIntelligenceProp
                      </span>
                      
                      <div className="mt-2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <span className="text-[8px] text-amber-500 font-bold uppercase tracking-widest">Linked_Entity</span>
+                        <span className="text-[8px] text-pink-500 font-bold uppercase tracking-widest">Linked_Entity</span>
                      </div>
                   </motion.div>
                 ))}
@@ -135,7 +135,7 @@ export function ProjectIntelligence({ isOpen, onClose }: ProjectIntelligenceProp
                   <span className="text-[9px] font-bold text-[var(--t4)] uppercase tracking-widest">{structure.length} Entities Subscribed</span>
                </div>
                
-               <span className="text-[9px] font-bold text-amber-500/60 uppercase tracking-widest italic brand-text">Aiko Neural Link // v3.0 stable</span>
+               <span className="text-[9px] font-bold text-pink-500/60 uppercase tracking-widest italic brand-text">Aiko Neural Link // v3.0 stable</span>
             </div>
           </motion.div>
         </motion.div>

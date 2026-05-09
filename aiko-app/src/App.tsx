@@ -205,7 +205,7 @@ function DashboardStats({
         <div className="bg-[rgba(212,149,106,0.03)] border border-[rgba(212,149,106,0.1)] rounded-lg p-2.5 px-3 flex flex-col gap-1.5">
           <div className="text-[8px] text-[rgba(212,149,106,0.6)] font-semibold uppercase">Active Model</div>
           <div className="flex items-center gap-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+            <div className="w-1.5 h-1.5 rounded-full bg-pink-500 animate-pulse" />
             <span className="text-[9px] text-white font-bold font-mono uppercase truncate">{apiConfig.model}</span>
           </div>
           <div className="text-[7px] text-slate-500 font-bold tracking-widest uppercase">
@@ -237,8 +237,8 @@ export function WelcomeScreen({ onRecall }: { onRecall: () => void }) {
       className="flex-1 flex flex-col items-center justify-center text-center p-12 gap-8"
     >
       <div className="max-w-md">
-        <div className="w-16 h-16 rounded-2xl bg-amber-600/10 border border-amber-500/20 flex items-center justify-center mx-auto mb-8">
-          <Zap size={32} className="text-amber-400" />
+        <div className="w-16 h-16 rounded-2xl bg-pink-600/10 border border-pink-500/20 flex items-center justify-center mx-auto mb-8">
+          <Zap size={32} className="text-pink-400" />
         </div>
         <h1 className="text-2xl font-bold text-white uppercase brand-text tracking-widest">Aiko</h1>
         <p className="text-[13px] text-slate-500 mt-3 leading-relaxed font-light px-4">
@@ -380,11 +380,11 @@ function App() {
                       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                         className="flex w-full mb-12">
                         <div className="flex gap-6 max-w-[85%]">
-                          <div className="w-9 h-9 rounded-xl bg-amber-600/10 border border-amber-500/30 flex items-center justify-center flex-shrink-0 mt-1">
-                            <Zap size={16} className="text-amber-400 animate-pulse" />
+                          <div className="w-9 h-9 rounded-xl bg-pink-600/10 border border-pink-500/30 flex items-center justify-center flex-shrink-0 mt-1">
+                            <Zap size={16} className="text-pink-400 animate-pulse" />
                           </div>
                           <div className="flex flex-col gap-1">
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-amber-500 px-1">Aiko</span>
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-pink-500 px-1">Aiko</span>
                             <div className="text-[15px] leading-[1.8] text-[var(--t1)] selectable markdown-content">
                               <ReactMarkdown 
                                 remarkPlugins={[remarkGfm, remarkMath]}
@@ -392,7 +392,7 @@ function App() {
                               >
                                 {maskUnclosedLatex(streamingContent)}
                               </ReactMarkdown>
-                              <span className="inline-block w-0.5 h-4 bg-amber-400 ml-0.5 animate-pulse align-middle" />
+                              <span className="inline-block w-0.5 h-4 bg-pink-400 ml-0.5 animate-pulse align-middle" />
                             </div>
                           </div>
                         </div>
@@ -414,7 +414,7 @@ function App() {
                         </div>
                         <div className="flex flex-col gap-2.5 flex-1">
                           <div className="flex items-center gap-3">
-                            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-500/60">Neural_Synthesis</span>
+                            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-pink-500/60">Neural_Synthesis</span>
                             <ThinkingDots />
                           </div>
                           <SkeletonLoader />
@@ -480,9 +480,9 @@ function App() {
 function NeuralNode() {
   return (
     <div className="relative w-6 h-6">
-      <div className="absolute inset-0 bg-amber-500/20 blur-[6px] rounded-full animate-pulse" />
-      <div className="relative w-full h-full rounded-full border border-amber-500/40 flex items-center justify-center">
-        <div className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
+      <div className="absolute inset-0 bg-pink-500/20 blur-[6px] rounded-full animate-pulse" />
+      <div className="relative w-full h-full rounded-full border border-pink-500/40 flex items-center justify-center">
+        <div className="w-1.5 h-1.5 bg-pink-500 rounded-full" />
       </div>
     </div>
   );
@@ -496,7 +496,7 @@ function ThinkingDots() {
           key={i}
           animate={{ scale: [1, 1.5, 1], opacity: [0.3, 1, 0.3] }}
           transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
-          className="w-1 h-1 rounded-full bg-amber-500"
+          className="w-1 h-1 rounded-full bg-pink-500"
         />
       ))}
     </div>

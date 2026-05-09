@@ -16,10 +16,10 @@ export const NeuralPulse = () => (
           delay: i * 0.6,
           ease: "easeInOut"
         }}
-        className="absolute inset-0 rounded-full border border-amber-500/30"
+        className="absolute inset-0 rounded-full border border-pink-500/30"
       />
     ))}
-    <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_#d4956a]" />
+    <div className="w-1.5 h-1.5 rounded-full bg-pink-500 shadow-[0_0_8px_#ec4899]" />
   </div>
 );
 
@@ -38,7 +38,7 @@ export const DataStream = () => (
           delay: i * 0.2,
           ease: "linear"
         }}
-        className="w-1 bg-amber-500/40 rounded-full"
+        className="w-1 bg-pink-500/40 rounded-full"
       />
     ))}
   </div>
@@ -49,14 +49,14 @@ export const RotatingOrbital = () => (
     <motion.div
       animate={{ rotate: 360 }}
       transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-      className="absolute inset-0 border border-dashed border-amber-500/20 rounded-full"
+      className="absolute inset-0 border border-dashed border-pink-500/20 rounded-full"
     />
     <motion.div
       animate={{ rotate: -360 }}
       transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-      className="absolute inset-2 border border-dotted border-amber-500/10 rounded-full"
+      className="absolute inset-2 border border-dotted border-pink-500/10 rounded-full"
     />
-    <div className="w-2 h-2 rounded-full bg-amber-500/20 blur-[2px]" />
+    <div className="w-2 h-2 rounded-full bg-pink-500/20 blur-[2px]" />
   </div>
 );
 
@@ -75,7 +75,7 @@ export const ThinkingDots = () => (
           delay: i * 0.2,
           ease: "easeInOut"
         }}
-        className="w-1.5 h-1.5 rounded-full bg-amber-500/60"
+        className="w-1.5 h-1.5 rounded-full bg-pink-500/60"
       />
     ))}
   </div>
@@ -90,8 +90,8 @@ export const NeuralNode = () => (
          rotate: [0, 90, 0]
        }}
        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-       className="absolute inset-0 border border-amber-500/20 rounded-lg rotate-45"
+       className="absolute inset-0 border border-pink-500/20 rounded-lg rotate-45"
      />
-     <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_10px_#d4956a]" />
+     <div className="w-1.5 h-1.5 rounded-full bg-pink-500 shadow-[0_0_10px_#ec4899]" />
   </div>
 );

@@ -24,9 +24,9 @@
     --t3: #6b5e50;
     --t4: #2e2820;
 
-    /* Accent — warm amber/gold */
-    --acc: #d4956a;
-    --acc2: #c4855a;
+    /* Accent — warm pink/gold */
+    --acc: #ec4899;
+    --acc2: #c084fc;
     --acc-soft: rgba(212, 149, 106, 0.12);
     --acc-glow: rgba(212, 149, 106, 0.25);
 
@@ -132,7 +132,7 @@ body.mascot-mode {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--acc, #d4956a);
+  background: var(--acc, #ec4899);
   animation: mascot-bounce 1.2s ease-in-out infinite;
 }
 .mascot-thinking span:nth-child(2) { animation-delay: 0.15s; }
@@ -218,7 +218,7 @@ body.mascot-mode {
 }
 .mascot-btn-primary:hover {
   background: rgba(212, 149, 106, 0.2);
-  color: #d4956a;
+  color: #ec4899;
 }
 .mascot-btn-danger:hover {
   background: rgba(248, 113, 113, 0.15);
@@ -275,7 +275,7 @@ body.mascot-mode {
   box-shadow: 0 0 6px rgba(74, 222, 128, 0.4);
 }
 .mascot-dot.thinking {
-  background: #d4956a;
+  background: #ec4899;
   animation: mascot-pulse 1.5s ease-in-out infinite;
 }
 
@@ -357,7 +357,7 @@ body.mascot-mode {
   display: inline-block;
   width: 2px;
   height: 13px;
-  background: var(--acc, #d4956a);
+  background: var(--acc, #ec4899);
   margin-left: 2px;
   vertical-align: text-bottom;
   animation: mascot-blink 0.8s step-end infinite;
@@ -422,7 +422,7 @@ body.mascot-mode {
   height: 32px;
   border: none;
   border-radius: 10px;
-  background: var(--acc, #d4956a);
+  background: var(--acc, #ec4899);
   color: #0c0b0a;
   cursor: pointer;
   transition: all 0.15s ease;

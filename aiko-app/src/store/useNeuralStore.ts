@@ -352,7 +352,7 @@ export const useNeuralStore = create<NeuralState>()(
         points: 1250
       },
       isSidebarOpen: true,
-      themeColor: '#d4956a',
+      themeColor: '#ec4899',
       dynamicsIntensity: 80,
       showAnimatedAssets: true,
       avatarScale: 1.0,
