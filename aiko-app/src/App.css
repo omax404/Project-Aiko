@@ -151,8 +151,8 @@ body.mascot-mode {
   max-width: 220px;
   padding: 10px 14px;
   background: rgba(30, 27, 22, 0.92);
-  backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
   border: 1px solid rgba(216, 180, 254, 0.12);
   border-radius: 14px 14px 14px 4px;
   pointer-events: auto;
@@ -192,8 +192,8 @@ body.mascot-mode {
   gap: 4px;
   padding: 4px;
   background: rgba(17, 16, 9, 0.88);
-  backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
   border: 1px solid rgba(216, 180, 254, 0.08);
   border-radius: 12px;
   pointer-events: auto;
@@ -234,8 +234,8 @@ body.mascot-mode {
   width: 300px;
   max-height: 360px;
   background: rgba(17, 16, 9, 0.94);
-  backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
   border: 1px solid rgba(216, 180, 254, 0.1);
   border-radius: 16px;
   display: flex;

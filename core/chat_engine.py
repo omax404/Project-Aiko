@@ -24,6 +24,9 @@ from .mcp_bridge import mcp_bridge
 from .image_engine import ImageEngine
 from .utils import retry
 from .config_manager import config
+from .plugins import PluginManager
+from .plugins.game_plugin import GamePlugin
+from .plugins.spotify_plugin import SpotifyPlugin
 
 
 load_dotenv()
@@ -43,11 +46,9 @@ READ_PATTERN = re.compile(r'\[READ\s*:\s*(.*?)\]', re.IGNORECASE)
 WRITE_PATTERN = re.compile(r'\[WRITE\s*:\s*([^|\]]+?)\s*\|\s*(.*?)\]', re.IGNORECASE | re.DOTALL)
 DRAW_PATTERN = re.compile(r'\[DRAW\s*:\s*(.*?)\]', re.IGNORECASE)
 VIDEO_PATTERN = re.compile(r'\[VIDEO\s*:\s*(.*?)\]', re.IGNORECASE)
-GAME_PATTERN = re.compile(r'\[GAME\s*:\s*(\w+)\s*\|\s*(.*?)\]', re.IGNORECASE)
 MCP_PATTERN  = re.compile(r'\[MCP\s*:\s*(\w+)\s*(?:\|\s*(.*?))?\]', re.IGNORECASE | re.DOTALL)
 IMAGE_PATTERN = re.compile(r'\[IMAGE\s*:\s*(.*?)\]', re.IGNORECASE)
 RECALL_PATTERN = re.compile(r'\[RECALL\s*:\s*(.*?)(?:\s*\|\s*(.*?))?\]', re.IGNORECASE)
-MUSIC_PATTERN = re.compile(r'\[MUSIC\s*:\s*(.*?)\]', re.IGNORECASE)
 BIO_REGISTER_PATTERN = re.compile(r'\[BIO_REGISTER\]', re.IGNORECASE)
 
 # Connection pool - shared across all instances
@@ -102,6 +103,15 @@ class AikoBrain:
         self.on_thinking = None
         self.app_callback = None
         self.on_sentence = None
+
+        # --- PLUGIN ARCHITECTURE ---
+        self.plugins = PluginManager()
+        asyncio.create_task(self._init_plugins())
+
+    async def _init_plugins(self):
+        """Initialize and register plugins."""
+        await self.plugins.register_plugin(GamePlugin())
+        await self.plugins.register_plugin(SpotifyPlugin())
 
         # OPTIMIZATION: Cache system prompts per user type
         self._cached_prompts = {}
@@ -222,6 +232,11 @@ class AikoBrain:
                 obs_text = "\n".join(observations)
                 messages.append({"role": "system", "content": f"[OBSERVATIONS]:\n{obs_text}"})
 
+            # Add Dynamic Plugin Context
+            plugin_context = self.plugins.get_all_context()
+            if plugin_context:
+                messages.append({"role": "system", "content": f"[DYNAMIC_CONTEXT]:\n{plugin_context}"})
+
             # Call LLM
             orchestrator.emit_reasoning_step("AI_THINKING", "Core Engine Reasoning...", 0.90)
             text = await self._call_llm(messages, self.model, images=images_data if images_data else None)
@@ -341,17 +356,33 @@ Use MCP tools whenever Master asks about his PC state, files, or wants you to re
                 observations.append(f"[TOOL_RESULT]: {res}")
                 orchestrator.emit_tool_result("BIO_REGISTER", res)
 
-            # --- [MUSIC: action] ---
-            for match in MUSIC_PATTERN.finditer(text):
-                action = match.group(1).strip()
-                orchestrator.emit_tool_call("MUSIC", f"Executing: {action}")
-                try:
-                    from .spotify_bridge import spotify
-                    res = spotify.execute_command(action)
-                except Exception as e:
-                    res = f"Music error: {e}"
-                observations.append(f"[TOOL_RESULT]: {res}")
-                orchestrator.emit_tool_result("MUSIC", res)
+            # --- PLUGIN TOOL EXECUTION ---
+            # Try to route through plugins first
+            for tag in re.findall(r'\[([A-Z0-9_]+)\b.*?\]', text, re.I):
+                # Check if this tag looks like a tool name
+                # (Simple check: if it's in our plugin tools list)
+                for tool in self.plugins.get_all_tools():
+                    if tool["function"]["name"].upper() == tag.upper():
+                        # Extract arguments (simple regex for now)
+                        # [TOOL_NAME: arg1 | arg2] or [TOOL_NAME: arg]
+                        arg_match = re.search(rf'\[{tag}\s*:\s*(.*?)\]', text, re.I)
+                        args = {}
+                        if arg_match:
+                            val = arg_match.group(1).strip()
+                            # Basic heuristic for plugins: use 'action', 'command', etc.
+                            # Better: use the JSON schema if the LLM followed it.
+                            # For now, we support the [TAG: value] format.
+                            if tag == "SPOTIFY_CONTROL": args = {"action": val}
+                            elif tag == "CONNECT_GAME": args = {"game": val}
+                            elif tag == "MINECRAFT_COMMAND": args = {"command": val}
+                            elif tag == "FACTORIO_COMMAND": args = {"command": val}
+                            else: args = {"query": val} # Default
+
+                        orchestrator.emit_tool_call(tag, f"Plugin execution: {tag}")
+                        res = await self.plugins.execute_tool(tag.lower(), args)
+                        if res:
+                            observations.append(f"[{tag}_RESULT]: {res}")
+                            orchestrator.emit_tool_result(tag, "Success")
 
             for match in RUN_PYTHON_PATTERN.finditer(text):
                 code = match.group(1).strip()
@@ -448,14 +479,6 @@ Use MCP tools whenever Master asks about his PC state, files, or wants you to re
                     observations.append(f"[System: Pressed key(s) '{key}']")
                 except Exception as e:
                     observations.append(f"[System Error: Key press failed: {e}]")
-
-            for match in GAME_PATTERN.finditer(text):
-                game_name = match.group(1).strip().lower()
-                command = match.group(2).strip()
-                if game_name in game_manager.games:
-                    await game_manager.connect_game(game_name)
-                    result = await game_manager.games[game_name].send_command(command)
-                    observations.append(f"{game_name.title()} Execution: {result}")
 
             # MCP Tool Calls
             for match in MCP_PATTERN.finditer(text):
