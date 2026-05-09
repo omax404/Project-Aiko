@@ -22,8 +22,7 @@ logger = logging.getLogger("MCPBridge")
 
 # ── Safety: restrict to these base directories by default ────────────────────
 ALLOWED_ROOTS = [
-    Path(__file__).parent.parent.resolve(), # Project Root
-    Path.home().resolve(),
+    Path.home(),
     Path.home() / ".gemini",
     Path.home() / "Desktop",
     Path.home() / "Documents",

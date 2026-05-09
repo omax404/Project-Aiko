@@ -25,26 +25,6 @@ export interface Relationship {
   points: number;
 }
 
-export interface SystemStats {
-  hardware: {
-    cpu: { usage: number; cores: number; temp: number };
-    ram: { total: number; used: number; percent: number };
-    disk: { total: number; used: number; percent: number };
-  };
-  neural: {
-    memories: number;
-    thoughts: number;
-    uptime: number;
-    synapses: number;
-  };
-  activity: {
-    commits: number;
-    prs: number;
-    issues: number;
-    last_push: string;
-  };
-}
-
 interface NeuralState {
   // Chat State
   messages: Message[];
@@ -87,7 +67,6 @@ interface NeuralState {
   dynamicsIntensity: number;
   showAnimatedAssets: boolean;
   avatarScale: number;
-  systemStats: SystemStats | null;
 
   // Actions
   toggleSidebar: () => void;
@@ -117,7 +96,6 @@ interface NeuralState {
   setDynamicsIntensity: (intensity: number) => void;
   setAvatarScale: (scale: number) => void;
   setShowAnimatedAssets: (show: boolean) => void;
-  fetchSystemStats: () => Promise<void>;
 }
 
 let socket: WebSocket | null = null;
@@ -378,7 +356,6 @@ export const useNeuralStore = create<NeuralState>()(
       dynamicsIntensity: 80,
       showAnimatedAssets: true,
       avatarScale: 1.0,
-      systemStats: null,
 
       toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
       
@@ -562,16 +539,6 @@ export const useNeuralStore = create<NeuralState>()(
           const data = await res.json();
           set({ bridgeStatus: data.bridge || get().bridgeStatus });
         } catch (e) {}
-      },
-
-      fetchSystemStats: async () => {
-        try {
-          const res = await fetch(`${hubUrl}/api/system/stats`);
-          const data = await res.json();
-          set({ systemStats: data });
-        } catch (e) {
-          console.error("Failed to fetch system stats", e);
-        }
       },
 
       fetchRelationship: async () => {
