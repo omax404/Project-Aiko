@@ -635,7 +635,7 @@ if __name__ == "__main__":
 
     # Test file links
     mem.link_file(
-        "C:/Users/ousmo/.gemini/antigravity/scratch/Aiko-desktop/core/chat_engine.py",
+        "./core/chat_engine.py",
         file_type="python",
         tags=["core", "intelligence", "important"],
         summary="My brain! This is where I think and process.",
@@ -644,7 +644,7 @@ if __name__ == "__main__":
     )
 
     mem.link_file(
-        "C:/Users/ousmo/.gemini/antigravity/scratch/Aiko-desktop/data/config.json",
+        "./data/config.json",
         file_type="config",
         tags=["settings", "personality"],
         summary="My configuration. Contains my API keys and preferences.",

@@ -330,7 +330,7 @@ Use these tags to interact with Master's PC directly:
 - [MCP: read_file | C:/path/to/file.txt] → Read a text file (first 200 lines)
 - [MCP: write_file | C:/path/to/file.txt | content here] → Write/create a file
 - [MCP: find_files | *.py]               → Search for files by pattern
-- [MCP: run_cmd | dir /b C:/Users/ousmo/Desktop] → Run a safe shell command
+- [MCP: run_cmd | dir /b C:/Users/Master/Desktop] → Run a safe shell command
 - [MCP: clipboard]                        → Read clipboard content
 - [MCP: set_clipboard | text to copy]    → Write to clipboard
 - [MCP: kill_proc | 1234]                → Kill a process by PID
@@ -372,10 +372,11 @@ Use MCP tools whenever Master asks about his PC state, files, or wants you to re
                             # Basic heuristic for plugins: use 'action', 'command', etc.
                             # Better: use the JSON schema if the LLM followed it.
                             # For now, we support the [TAG: value] format.
-                            if tag == "SPOTIFY_CONTROL": args = {"action": val}
-                            elif tag == "CONNECT_GAME": args = {"game": val}
-                            elif tag == "MINECRAFT_COMMAND": args = {"command": val}
-                            elif tag == "FACTORIO_COMMAND": args = {"command": val}
+                            t_upper = tag.upper()
+                            if t_upper == "SPOTIFY_CONTROL": args = {"action": val}
+                            elif t_upper == "CONNECT_GAME": args = {"game": val}
+                            elif t_upper == "MINECRAFT_COMMAND": args = {"command": val}
+                            elif t_upper == "FACTORIO_COMMAND": args = {"command": val}
                             else: args = {"query": val} # Default
 
                         orchestrator.emit_tool_call(tag, f"Plugin execution: {tag}")

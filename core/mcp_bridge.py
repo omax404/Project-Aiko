@@ -22,12 +22,12 @@ logger = logging.getLogger("MCPBridge")
 
 # ── Safety: restrict to these base directories by default ────────────────────
 ALLOWED_ROOTS = [
-    Path.home(),                          # C:\Users\ousmo
-    Path("C:/Users/ousmo/.gemini"),       # Aiko project
-    Path("C:/Users/ousmo/Desktop"),
-    Path("C:/Users/ousmo/Documents"),
-    Path("C:/Users/ousmo/Downloads"),
-    Path("C:/Users/ousmo/Pictures"),
+    Path.home(),
+    Path.home() / ".gemini",
+    Path.home() / "Desktop",
+    Path.home() / "Documents",
+    Path.home() / "Downloads",
+    Path.home() / "Pictures",
 ]
 
 def _is_allowed(path: Path) -> bool:

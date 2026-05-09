@@ -69,10 +69,35 @@ class GamePlugin(AikoPlugin):
                         "required": ["command"]
                     }
                 }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "game",
+                    "description": "Send a command to a game (Legacy support). Format: 'minecraft | command' or 'factorio | command'",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "command": {"type": "string"}
+                        },
+                        "required": ["command"]
+                    }
+                }
             }
         ]
 
     async def execute_tool(self, tool_name: str, arguments: Dict[str, Any]) -> str:
+        if tool_name == "game":
+            raw = arguments.get("command", "")
+            if "|" in raw:
+                game, cmd = [x.strip() for x in raw.split("|", 1)]
+                if game.lower() in ["minecraft", "factorio"]:
+                    if game_manager.active_game != game.lower():
+                        await game_manager.connect_game(game.lower())
+                    result = await game_manager.send_to_active(cmd)
+                    return str(result.get("response", result.get("error", "Unknown error")))
+            return "Invalid game command format. Use 'game_type | command'."
+
         if tool_name == "connect_game":
             game = arguments.get("game", "").lower()
             success = await game_manager.connect_game(game)

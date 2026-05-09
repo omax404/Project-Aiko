@@ -62,12 +62,12 @@ flowchart TD
         Desktop["Tauri Desktop<br/>Live2D Overlay"]
     end
 
-    subgraph Tools["🔧 Tool Belt"]
-        MCP["MCP Bridge<br/>File System"]
-        Sandbox["Python Sandbox"]
-        PC["PC Manager<br/>Mouse/Keyboard"]
-        Games["Game Bridge<br/>Minecraft/Factorio"]
-        Spotify["Spotify Bridge"]
+    subgraph Plugins["🔌 Plugin System (ElizaOS style)"]
+        PluginMgr["Plugin Manager<br/>Dynamic Discovery"]
+        Games["Game Plugin<br/>Minecraft/Factorio"]
+        Spotify["Spotify Plugin"]
+        MCP["MCP Plugin<br/>File System"]
+        Custom["Custom Plugins"]
     end
 
     Discord -->|"messages + images"| Neural
@@ -78,7 +78,11 @@ flowchart TD
     Brain --> Emotion
     Brain --> Persona
     Brain --> Vision
-    Brain --> Tools
+    Brain --> PluginMgr
+    PluginMgr --> Games
+    PluginMgr --> Spotify
+    PluginMgr --> MCP
+    PluginMgr --> Custom
 
     Voice -->|"TTS audio"| Discord
     Voice -->|"TTS audio"| Desktop
@@ -93,7 +97,7 @@ flowchart TD
     style Neural fill:#1a1a2e,stroke:#e94560,stroke-width:2px,color:#fff
     style Senses fill:#16213e,stroke:#0f3460,stroke-width:2px,color:#fff
     style Satellites fill:#0f3460,stroke:#533483,stroke-width:2px,color:#fff
-    style Tools fill:#1a1a2e,stroke:#e94560,stroke-width:1px,color:#fff
+    style Plugins fill:#1a1a2e,stroke:#e94560,stroke-width:1px,color:#fff
 ```
 
 ---
@@ -141,8 +145,9 @@ flowchart TD
 - [x] Emotion-driven voice modulation and avatar expressions
 - [x] Relationship score tracking (0-100%)
 
-### 🤖 Tools & Agency
-- [x] MCP Bridge — file read/write, clipboard, process management
+### 🤖 Plugins & Agency
+- [x] **ElizaOS-style Plugin Architecture** — modular, dynamic tool loading
+- [x] MCP Plugin — file read/write, clipboard, process management
 - [x] Python Sandbox — safe code execution
 - [x] PC Manager — mouse, keyboard, screenshot, system info
 - [x] Spotify Bridge — now playing, queue, music awareness
