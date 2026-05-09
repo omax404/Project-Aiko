@@ -283,11 +283,44 @@ async def run_discord_bot():
             return await interaction.response.send_message("Unauthorized.", ephemeral=True)
         await interaction.response.send_message(f"Action frequency set to {frequency}.")
 
-    # --- Passive General Chat Scanner ---
+    # --- Emoji Reaction System ---
     import random
+
+    # Emotion -> emoji mapping for contextual reactions
+    EMOTION_EMOJIS = {
+        'happy': ['💖', '✨', '🌸', '😊', '💕'],
+        'love': ['💗', '💘', '🥰', '💞', '😍'],
+        'excited': ['🎉', '⚡', '🔥', '✨', '🌟'],
+        'sad': ['🥺', '💙', '🫂', '😢'],
+        'angry': ['😤', '💢', '🔥'],
+        'yandere': ['🖤', '🔪', '💜', '🌙'],
+        'shy': ['👉👈', '🌸', '💕', '😳'],
+        'curious': ['🤔', '👀', '✨', '🧐'],
+        'victory': ['🏆', '💪', '🎊', '⭐'],
+        'panic': ['😰', '💦', '⚠️'],
+        'neutral': ['💭', '✨', '🌸'],
+        'thinking': ['🤔', '💭', '🧠'],
+        'playful': ['😏', '🎮', '🎪', '✨'],
+        'smug': ['😏', '💅', '✨'],
+        'sleepy': ['😴', '🌙', '💤'],
+    }
+    # Passive reaction emojis (for messages she just observes)
+    PASSIVE_EMOJIS = ['👀', '💭', '✨', '🌸', '💖', '👍', '😊', '🤔', '💕']
+
+    async def add_emotion_reaction(msg: discord.Message, emotion: str = 'neutral'):
+        """Add a contextual emoji reaction based on Aiko's emotional state."""
+        try:
+            emojis = EMOTION_EMOJIS.get(emotion, EMOTION_EMOJIS['neutral'])
+            emoji = random.choice(emojis)
+            await msg.add_reaction(emoji)
+        except Exception:
+            pass  # Silently fail if permissions are missing
+
+    # --- Passive General Chat Scanner ---
     channel_buffers = {}  # channel_id -> list of recent messages (rolling window)
     SCAN_BUFFER_SIZE = 15  # How many messages Aiko "remembers" per channel
     PASSIVE_REPLY_CHANCE = 0.05  # 5% chance to jump into a conversation she wasn't called into
+    PASSIVE_REACT_CHANCE = 0.15  # 15% chance to react with emoji without replying
 
     @bot.event
     async def on_message(message):
@@ -422,11 +455,21 @@ async def run_discord_bot():
                 try:
                     if files: await message.reply(response, files=files)
                     else: await message.reply(response)
+                    # React with emotion-based emoji on the user's message
+                    await add_emotion_reaction(message, emotion or 'neutral')
                 except Exception as reply_err:
                     logger.error(f"Discord reply error: {reply_err}")
                     try:
                         await message.reply("I had something to say but Discord cut me off... 😤")
                     except: pass
+        else:
+            # Passive emoji reaction — Aiko "notices" messages without replying
+            if not is_dm and random.random() < PASSIVE_REACT_CHANCE:
+                try:
+                    emoji = random.choice(PASSIVE_EMOJIS)
+                    await message.add_reaction(emoji)
+                except Exception:
+                    pass
 
     async def proactive_polling_loop():
         """Poll the message queue for proactive messages (reminders, etc)."""

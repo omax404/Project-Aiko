@@ -33,8 +33,14 @@ def _warmup_tts():
         _tts_model = TTSModel.load_model()
 
         # Voice selection: try cloning first, fall back to built-in
-        clone_path = os.path.join(os.getcwd(), "voice_preview_yuki.wav")
-        if os.path.exists(clone_path):
+        # Check for voice sample in multiple formats
+        clone_path = None
+        for ext in [".mp3", ".wav", ".ogg", ".flac"]:
+            candidate = os.path.join(os.getcwd(), f"voice_preview_yuki{ext}")
+            if os.path.exists(candidate):
+                clone_path = candidate
+                break
+        if clone_path:
             try:
                 _voice_state = _tts_model.get_state_for_audio_prompt(clone_path)
                 logger.info(f"✅ Pocket-TTS ready (clone: {os.path.basename(clone_path)})")
