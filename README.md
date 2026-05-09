@@ -123,16 +123,6 @@ flowchart TD
 - [x] SpeechRecognition fallback (Google/Whisper)
 - [x] Client-side talking detection
 
-### 📊 Intelligence Dashboard
-The **Aiko Intelligence Dashboard** provides a high-level overview of Aiko's operational state:
-- **Neural Activity**: Track commits, synapses, and evolution progress over time.
-- **Biological Pulse**: Monitor real-time levels of Dopamine, Serotonin, and other synthetic chemicals.
-- **Resource Matrix**: View CPU, RAM, and Disk usage dedicated to her neural processing.
-- **Neural Map**: Explore the connectome of files and nodes that make up her intelligence.
-
-![Dashboard Preview](https://camo.githubusercontent.com/00f04745eaf808434ba02ebc1b432489876eb7ce56dc48dc2855419325b26108/68747470733a2f2f7265706f62656174732e6178696f6d2e636f2f6170692f656d6265642f613164366665326331336561326262353361353135343433356137316532343331663730633265652e737667)
-*Note: Dashboard visuals are inspired by high-end development metrics and real-time telemetry.*
-
 ### 🎙️ Voice (Mouth)
 - [x] Pocket-TTS local synthesis (offline, no API needed)
 - [x] Voice cloning from audio sample
@@ -156,12 +146,8 @@ The **Aiko Intelligence Dashboard** provides a high-level overview of Aiko's ope
 - [x] Relationship score tracking (0-100%)
 
 ### 🤖 Plugins & Agency
-- 🧠 **Modular Plugin System**: Inspired by ElizaOS, with dynamic tool discovery.
-- 🏰 **MemPalace Architecture**: High-recall RAG memory system for long-term intelligence.
-- 📊 **Intelligence Dashboard**: Real-time visualization of neural activity, biological states, and system resources.
-- 🎭 **Live2D Emotional Engine**: Dynamic avatar with lip-sync and chemical-based personality simulation.
-- 🔌 **MCP Bridge**: Full read/write access to the local system (sandboxed for safety).
-- 🎨 **Premium Glassmorphism UI**: High-end aesthetic with customizable accent colors and custom titlebars.
+- [x] **ElizaOS-style Plugin Architecture** — modular, dynamic tool loading
+- [x] MCP Plugin — file read/write, clipboard, process management
 - [x] Python Sandbox — safe code execution
 - [x] PC Manager — mouse, keyboard, screenshot, system info
 - [x] Spotify Bridge — now playing, queue, music awareness
@@ -290,6 +276,14 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 - [MemPalace](https://github.com/omax404/mempalace) — Semantic memory system
 - [Ollama](https://github.com/ollama/ollama) — Local LLM inference
 - [pixi-live2d-display](https://github.com/guansss/pixi-live2d-display) — Live2D rendering
+
+---
+
+## 📈 Activity
+
+<div align="center">
+  <img src="https://repobeats.axiom.co/api/embed/a1d6fe2c13ea2bb53a5154435a71e2431f70c2ee.svg" width="100%" alt="RepoBeats Analytics" />
+</div>
 
 ---
 
