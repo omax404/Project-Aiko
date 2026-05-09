@@ -561,6 +561,18 @@ async def run_telegram_bot():
 async def start_all_satellites():
     """Launch all satellites within the same cluster loop."""
     await asyncio.sleep(2) # Give the Hub a moment to bind to the port
-    logger.info("🛰️ Launching Neural Satellites (Consolidated Mode)...")
-    asyncio.create_task(run_discord_bot())
-    asyncio.create_task(run_telegram_bot())
+    logger.info("🛰️ Launching Neural Satellites (Consolidated & Shielded Mode)...")
+    
+    # Shield the tasks so they run completely independently of the main thread lifecycle
+    discord_task = asyncio.create_task(run_discord_bot(), name="DiscordSatellite")
+    telegram_task = asyncio.create_task(run_telegram_bot(), name="TelegramSatellite")
+    
+    # Add simple error callbacks just in case
+    def on_task_done(t):
+        try:
+            t.result()
+        except Exception as e:
+            logger.error(f"Satellite Task {t.get_name()} crashed: {e}")
+            
+    discord_task.add_done_callback(on_task_done)
+    telegram_task.add_done_callback(on_task_done)

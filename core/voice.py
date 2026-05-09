@@ -13,8 +13,8 @@ import time
 import logging
 import threading
 import numpy as np
-from pydub import AudioSegment
 import io
+import torch
 
 logger = logging.getLogger("Voice")
 
@@ -56,7 +56,16 @@ def _warmup_tts():
         if clone_path:
             logger.info(f"🎤 Voice clone sample found: {clone_path}")
             try:
-                _voice_state = _tts_model.get_state_for_audio_prompt(clone_path)
+                cache_path = clone_path + ".pt"
+                if os.path.exists(cache_path):
+                    logger.info(f"⚡ Loading cached voice fingerprint from {cache_path}")
+                    _voice_state = torch.load(cache_path, weights_only=True)
+                else:
+                    logger.info("⏳ Generating voice fingerprint (this will take 60-90s)...")
+                    _voice_state = _tts_model.get_state_for_audio_prompt(clone_path)
+                    torch.save(_voice_state, cache_path)
+                    logger.info(f"💾 Voice fingerprint cached to {cache_path}")
+                    
                 logger.info(f"✅ Pocket-TTS ready (clone: {os.path.basename(clone_path)})")
             except Exception as clone_err:
                 logger.warning(f"[Voice] Voice cloning unavailable ({clone_err}), falling back to built-in voice.")
@@ -248,25 +257,16 @@ class VoiceEngine:
                 full_audio = np.concatenate(audio_segments)
                 
                 # --- SPEED UP (VOICE DEBIT ADJUSTMENT) ---
-                # Convert numpy array (float32) to pydub AudioSegment
-                # Scale to int16 for pydub
-                audio_int16 = (full_audio * 32767).astype(np.int16)
-                segment = AudioSegment(
-                    audio_int16.tobytes(), 
-                    frame_rate=_tts_model.sample_rate,
-                    sample_width=2, 
-                    channels=1
-                )
+                # We achieve a 0.9x slowdown (artifact-free) by lowering the sample rate by 10%
+                # This naturally drops the pitch slightly, resulting in a deeper, smoother voice
+                import scipy.io.wavfile
+                slower_sample_rate = int(_tts_model.sample_rate * 0.9)
                 
-                # Speed up by 0.9x (slower, more natural)
-                # chunk_size and crossfade help reduce artifacts
-                faster_segment = segment.speedup(playback_speed=0.9, chunk_size=150, crossfade=25)
-                
-                # Export to target path
-                faster_segment.export(target_path, format="wav")
+                # Write directly using scipy (no pydub/ffmpeg needed)
+                scipy.io.wavfile.write(target_path, slower_sample_rate, full_audio)
 
-                duration_s = faster_segment.duration_seconds
-                logger.info(f"✅ Audio saved: {filename} ({duration_s:.1f}s, 0.9x speed, {len(chunks)} chunks)")
+                duration_s = len(full_audio) / slower_sample_rate
+                logger.info(f"✅ Audio saved: {filename} ({duration_s:.1f}s, 0.9x speed (pitch drop), {len(chunks)} chunks)")
                 return filename
 
             except Exception as e:

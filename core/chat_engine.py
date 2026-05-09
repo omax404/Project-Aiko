@@ -98,6 +98,10 @@ class AikoBrain:
         self.obsidian = obsidian
         self.sandbox = SandboxBridge()
         self.image_engine = ImageEngine()
+        
+        # Reflective Memory
+        self._message_count = 0
+        self._reflective_state = ""
         self.model = config.get("MODEL_NAME")
         self.using_fallback = False
         self.on_thinking = None
@@ -186,6 +190,11 @@ class AikoBrain:
 
         if save_input:
             self.memory.add_message(user_id, input_role, message)
+            self._message_count += 1
+            
+            # Trigger reflection every 5 messages
+            if self._message_count % 5 == 0:
+                asyncio.create_task(self._update_reflective_state(user_id))
 
         if self.on_thinking:
             self.on_thinking(True)
@@ -244,6 +253,11 @@ class AikoBrain:
             
             # Combine Persona and Tools for single-pass generation
             persona_prompt = self._get_cached_prompt(is_master)
+            
+            # Add Reflective State if it exists
+            if self._reflective_state:
+                persona_prompt += f"\n\n[REFLECTIVE_STATE] (Internal emotional context):\n{self._reflective_state}"
+                
             # Add tool instructions to the persona prompt
             single_pass_prompt = persona_prompt + "\n\n" + self._get_tools_prompt()
             
@@ -799,6 +813,35 @@ Use MCP tools whenever Master asks about his PC state, files, or wants you to re
             return "API key rejected. Check your credentials."
         return f"Ollama is unreachable or returned an error. (Error {status})"
 
+    async def _update_reflective_state(self, user_id: str):
+        """Generates a summary of the current emotional dynamic."""
+        try:
+            history = self.memory.get_history(user_id)[-10:]
+            if not history:
+                return
+            
+            prompt = (
+                "Summarize the emotional dynamic and context of this conversation in 1-2 short sentences. "
+                "Focus on Aiko's mood towards the user (e.g., 'Aiko is currently annoyed but affectionate')."
+            )
+            messages = [{"role": "system", "content": prompt}]
+            for h in history:
+                role = "user" if h["role"] == "system" else h["role"]
+                messages.append({"role": role, "content": h["content"]})
+                
+            session = get_session()
+            base_url = config.get("OLLAMA_BASE_URL", "http://localhost:11434")
+            model = config.get("MODEL_NAME", "deepseek-chat")
+            
+            payload = {"model": model, "messages": messages, "stream": False, "options": {"temperature": 0.3, "num_ctx": 4096}}
+            
+            async with session.post(f"{base_url}/api/chat", json=payload) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    self._reflective_state = data.get("message", {}).get("content", "").strip()
+                    logger.info(f"🧠 Reflection Updated: {self._reflective_state}")
+        except Exception as e:
+            logger.error(f"Failed to update reflective state: {e}")
 
     async def ask_raw(self, prompt: str) -> str:
         """Lightweight direct call — bypasses tools, uses current model."""
