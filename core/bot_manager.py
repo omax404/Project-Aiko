@@ -331,7 +331,11 @@ async def run_discord_bot():
 
         # --- Determine if Aiko should respond ---
         name_mentioned = any(kw in message.content.lower() for kw in ["aiko", "アイコ"])
-        directly_addressed = is_mentioned or is_dm or name_mentioned or reply_context
+        has_voice_attachment = any(
+            a.content_type and ('audio' in a.content_type or 'ogg' in a.content_type)
+            for a in message.attachments
+        )
+        directly_addressed = is_mentioned or is_dm or name_mentioned or reply_context or (has_voice_attachment and is_dm)
         
         # Passive scan: small chance to jump in even when not called
         passive_trigger = False
@@ -358,13 +362,33 @@ async def run_discord_bot():
                 full_msg = meta_prefix + chat_context + reply_context + clean_text
 
                 local_attachments = []
+                audio_transcriptions = []
                 os.makedirs("data/uploads", exist_ok=True)
                 for a in message.attachments:
+                    path = f"data/uploads/discord_{message.id}_{a.filename}"
+                    await a.save(path)
+                    abs_path = os.path.abspath(path)
+
                     if a.content_type and 'image' in a.content_type:
-                        path = f"data/uploads/discord_{message.id}_{a.filename}"
-                        await a.save(path)
-                        local_attachments.append(os.path.abspath(path))
-                
+                        local_attachments.append(abs_path)
+                    elif a.content_type and ('audio' in a.content_type or 'ogg' in a.content_type or 'voice' in (a.content_type or '')):
+                        # Voice message / audio file — transcribe it
+                        try:
+                            from core.voice import voice_engine
+                            transcription = await voice_engine.transcribe_file(abs_path)
+                            if transcription:
+                                audio_transcriptions.append(transcription)
+                                logger.info(f"Transcribed voice message: {transcription[:60]}...")
+                        except Exception as tr_err:
+                            logger.warning(f"Voice transcription failed: {tr_err}")
+
+                # Prepend voice transcriptions to the message
+                if audio_transcriptions:
+                    voice_text = " ".join(audio_transcriptions)
+                    full_msg = full_msg + f"\n[VOICE_MESSAGE_TRANSCRIPTION]: {voice_text}"
+                    if not clean_text.strip():
+                        full_msg = full_msg.replace(reply_context, reply_context + voice_text)
+
                 response, emotion, audio_path = await get_hub_response(full_msg, message.author.id, local_attachments)
                 
                 # LaTeX
