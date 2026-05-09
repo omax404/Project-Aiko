@@ -16,7 +16,7 @@
     --bg-card: #1e1b16;
     --bg-input: #161410;
     --bg-hover: rgba(255, 255, 255, 0.04);
-    --bg-active: rgba(255, 220, 170, 0.07);
+    --bg-active: rgba(216, 180, 254, 0.07);
 
     /* Text */
     --t1: #ede8df;
@@ -24,16 +24,16 @@
     --t3: #6b5e50;
     --t4: #2e2820;
 
-    /* Accent — warm pink/gold */
+    /* Accent — neon pink/purple */
     --acc: #ec4899;
     --acc2: #c084fc;
-    --acc-soft: rgba(212, 149, 106, 0.12);
-    --acc-glow: rgba(212, 149, 106, 0.25);
+    --acc-soft: rgba(236, 72, 153, 0.12);
+    --acc-glow: rgba(236, 72, 153, 0.25);
 
     /* Borders */
-    --b1: rgba(255, 220, 170, 0.06);
-    --b2: rgba(255, 220, 170, 0.10);
-    --b3: rgba(255, 220, 170, 0.18);
+    --b1: rgba(216, 180, 254, 0.06);
+    --b2: rgba(216, 180, 254, 0.10);
+    --b3: rgba(216, 180, 254, 0.18);
 
     /* Status */
     --green: #4ade80;
@@ -115,7 +115,7 @@ body.mascot-mode {
   cursor: grabbing;
 }
 .mascot-model-zone:hover {
-  filter: drop-shadow(0 0 20px rgba(212, 149, 106, 0.15));
+  filter: drop-shadow(0 0 20px rgba(236, 72, 153, 0.15));
 }
 
 /* ── Thinking dots (orbit below model) ── */
@@ -153,14 +153,14 @@ body.mascot-mode {
   background: rgba(30, 27, 22, 0.92);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 220, 170, 0.12);
+  border: 1px solid rgba(216, 180, 254, 0.12);
   border-radius: 14px 14px 14px 4px;
   pointer-events: auto;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 .mascot-speech-bubble:hover {
-  border-color: rgba(212, 149, 106, 0.3);
+  border-color: rgba(236, 72, 153, 0.3);
   background: rgba(30, 27, 22, 0.96);
 }
 .mascot-speech-bubble p {
@@ -177,8 +177,8 @@ body.mascot-mode {
   width: 12px;
   height: 12px;
   background: rgba(30, 27, 22, 0.92);
-  border-bottom: 1px solid rgba(255, 220, 170, 0.12);
-  border-left: 1px solid rgba(255, 220, 170, 0.12);
+  border-bottom: 1px solid rgba(216, 180, 254, 0.12);
+  border-left: 1px solid rgba(216, 180, 254, 0.12);
   transform: rotate(-45deg);
 }
 
@@ -194,7 +194,7 @@ body.mascot-mode {
   background: rgba(17, 16, 9, 0.88);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 220, 170, 0.08);
+  border: 1px solid rgba(216, 180, 254, 0.08);
   border-radius: 12px;
   pointer-events: auto;
 }
@@ -217,7 +217,7 @@ body.mascot-mode {
   color: #ede8df;
 }
 .mascot-btn-primary:hover {
-  background: rgba(212, 149, 106, 0.2);
+  background: rgba(236, 72, 153, 0.2);
   color: #ec4899;
 }
 .mascot-btn-danger:hover {
@@ -236,7 +236,7 @@ body.mascot-mode {
   background: rgba(17, 16, 9, 0.94);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 220, 170, 0.1);
+  border: 1px solid rgba(216, 180, 254, 0.1);
   border-radius: 16px;
   display: flex;
   flex-direction: column;
@@ -244,7 +244,7 @@ body.mascot-mode {
   pointer-events: auto;
   box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.4),
-    0 0 0 1px rgba(255, 220, 170, 0.05) inset;
+    0 0 0 1px rgba(216, 180, 254, 0.05) inset;
 }
 
 .mascot-chat-header {
@@ -252,7 +252,7 @@ body.mascot-mode {
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  border-bottom: 1px solid rgba(255, 220, 170, 0.06);
+  border-bottom: 1px solid rgba(216, 180, 254, 0.06);
 }
 .mascot-chat-status {
   display: flex;
@@ -324,15 +324,15 @@ body.mascot-mode {
 }
 .mascot-msg.user {
   align-self: flex-end;
-  background: rgba(212, 149, 106, 0.15);
-  border: 1px solid rgba(212, 149, 106, 0.2);
+  background: rgba(236, 72, 153, 0.15);
+  border: 1px solid rgba(236, 72, 153, 0.2);
   color: #ede8df;
   border-radius: 12px 12px 4px 12px;
 }
 .mascot-msg.assistant {
   align-self: flex-start;
   background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 220, 170, 0.06);
+  border: 1px solid rgba(216, 180, 254, 0.06);
   color: #a89880;
   border-radius: 12px 12px 12px 4px;
 }
@@ -389,13 +389,13 @@ body.mascot-mode {
   align-items: center;
   gap: 6px;
   padding: 8px 10px;
-  border-top: 1px solid rgba(255, 220, 170, 0.06);
+  border-top: 1px solid rgba(216, 180, 254, 0.06);
 }
 
 .mascot-chat-input {
   flex: 1;
   background: rgba(255, 255, 255, 0.04) !important;
-  border: 1px solid rgba(255, 220, 170, 0.08) !important;
+  border: 1px solid rgba(216, 180, 254, 0.08) !important;
   border-radius: 10px !important;
   padding: 8px 12px !important;
   font-size: 12px;
@@ -408,7 +408,7 @@ body.mascot-mode {
   cursor: text;
 }
 .mascot-chat-input:focus {
-  border-color: rgba(212, 149, 106, 0.3) !important;
+  border-color: rgba(236, 72, 153, 0.3) !important;
 }
 .mascot-chat-input::placeholder {
   color: rgba(168, 152, 128, 0.35);
