@@ -1,7 +1,5 @@
 <div align="center">
-<img src="./assets/aiko_banner.png" width="100%" alt="Aiko Banner" />
-
-<br/>
+<img width="2460" height="1358" alt="aiko" src="https://github.com/user-attachments/assets/0f2dda07-04d4-408d-91ed-9a7deb8cd5be" />
 
 # 💖 Aiko Desktop 🌸
 
