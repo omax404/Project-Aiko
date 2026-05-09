@@ -109,55 +109,55 @@ flowchart TD
 ## 🎯 Capabilities
 
 ### 🧠 Brain
-- [x] ReAct agent loop with multi-step reasoning and tool execution
-- [x] Streaming LLM inference (Ollama, OpenRouter, Gemini, OpenAI, Anthropic)
-- [x] Dual-pass generation (factual draft → personality overlay)
-- [x] Autonomous proactive agent loop (she decides when to speak)
-- [x] Context-aware conversation with rolling buffers
+- 🌸 ReAct agent loop with multi-step reasoning and tool execution
+- 🌸 Streaming LLM inference (Ollama, OpenRouter, Gemini, OpenAI, Anthropic)
+- 🌸 Dual-pass generation (factual draft → personality overlay)
+- 🌸 Autonomous proactive agent loop (she decides when to speak)
+- 🌸 Context-aware conversation with rolling buffers
 
 ### 👁️ Eyes (Vision)
-- [x] Multimodal image analysis via Gemma-4 Vision
-- [x] Discord image processing (photos, screenshots, memes)
-- [x] Screen capture and analysis
-- [x] Support for `.jpg`, `.png`, `.webp`, `.gif`, `.bmp`, `.avif`
+- 🌸 Multimodal image analysis via Gemma-4 Vision
+- 🌸 Discord image processing (photos, screenshots, memes)
+- 🌸 Screen capture and analysis
+- 🌸 Support for `.jpg`, `.png`, `.webp`, `.gif`, `.bmp`, `.avif`
 
 ### 👂 Ears (Hearing)
-- [x] Discord voice message transcription
-- [x] Moonshine ASR (primary, local, ~200MB)
-- [x] SpeechRecognition fallback (Google/Whisper)
-- [x] Client-side talking detection
+- 🌸 Discord voice message transcription
+- 🌸 Moonshine ASR (primary, local, ~200MB)
+- 🌸 SpeechRecognition fallback (Google/Whisper)
+- 🌸 Client-side talking detection
 
 ### 🎙️ Voice (Mouth)
-- [x] Pocket-TTS local synthesis (offline, no API needed)
-- [x] Voice cloning from audio sample
-- [x] Full-message chunked TTS (no 300-char limit)
-- [x] Action text `*...*` stripping (clean speech output)
-- [x] Graceful fallback to built-in voices (alba, cosette, etc.)
-- [x] Audio sent as Discord attachment
+- 🌸 Pocket-TTS local synthesis (offline, no API needed)
+- 🌸 Voice cloning from audio sample
+- 🌸 Full-message chunked TTS (no 300-char limit)
+- 🌸 Action text `*...*` stripping (clean speech output)
+- 🌸 Graceful fallback to built-in voices (alba, cosette, etc.)
+- 🌸 Audio sent as Discord attachment
 
 ### 💾 Memory
-- [x] Unified Memory with episodic + semantic layers
-- [x] MemPalace RAG for long-term knowledge retrieval
-- [x] Memory consolidation cycles (compress old memories)
-- [x] Per-user relationship tracking and affection system
-- [x] Birthday, timezone, and profile persistence
+- 🌸 Unified Memory with episodic + semantic layers
+- 🌸 MemPalace RAG for long-term knowledge retrieval
+- 🌸 Memory consolidation cycles (compress old memories)
+- 🌸 Per-user relationship tracking and affection system
+- 🌸 Birthday, timezone, and profile persistence
 
 ### ❤️ Emotions
-- [x] Neuromodulator system (dopamine, serotonin, cortisol, adrenaline)
-- [x] 22+ emotion categories (love, happy, yandere, panic, victory, etc.)
-- [x] Identity attractors (personality-stable emotional baselines)
-- [x] Emotion-driven voice modulation and avatar expressions
-- [x] Relationship score tracking (0-100%)
+- 🌸 Neuromodulator system (dopamine, serotonin, cortisol, adrenaline)
+- 🌸 22+ emotion categories (love, happy, yandere, panic, victory, etc.)
+- 🌸 Identity attractors (personality-stable emotional baselines)
+- 🌸 Emotion-driven voice modulation and avatar expressions
+- 🌸 Relationship score tracking (0-100%)
 
 ### 🤖 Plugins & Agency
-- [x] **ElizaOS-style Plugin Architecture** — modular, dynamic tool loading
-- [x] MCP Plugin — file read/write, clipboard, process management
-- [x] Python Sandbox — safe code execution
-- [x] PC Manager — mouse, keyboard, screenshot, system info
-- [x] Spotify Bridge — now playing, queue, music awareness
-- [x] Obsidian Connector — knowledge base integration
-- [x] LaTeX Engine — math rendering to image
-- [x] Image Generation — AI image creation
+- 🌸 **ElizaOS-style Plugin Architecture** — modular, dynamic tool loading
+- 🌸 MCP Plugin — file read/write, clipboard, process management
+- 🌸 Python Sandbox — safe code execution
+- 🌸 PC Manager — mouse, keyboard, screenshot, system info
+- 🌸 Spotify Bridge — now playing, queue, music awareness
+- 🌸 Obsidian Connector — knowledge base integration
+- 🌸 LaTeX Engine — math rendering to image
+- 🌸 Image Generation — AI image creation
 - [x] OpenClaw delegation — complex task handoff
 
 ### 🎮 Games
