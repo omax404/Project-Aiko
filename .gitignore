@@ -150,3 +150,15 @@ desktop.ini
 
 # Agent scratch pad
 scratch/
+
+# Aiko Runtime Data
+.logs/
+hub_debug.log
+data/voices/
+data/uploads/
+data/memory.json
+data/aiko_queue.db-journal
+data/aiko_queue.db-wal
+data/aiko_queue.db-shm
+uploads/
+temp/
