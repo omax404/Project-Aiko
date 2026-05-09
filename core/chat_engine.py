@@ -106,12 +106,18 @@ class AikoBrain:
 
         # --- PLUGIN ARCHITECTURE ---
         self.plugins = PluginManager()
-        asyncio.create_task(self._init_plugins())
+        self._plugins_ready = False
 
     async def _init_plugins(self):
         """Initialize and register plugins."""
+        if self._plugins_ready:
+            return
+            
+        logger.info("🔌 Loading Aiko Plugins...")
         await self.plugins.register_plugin(GamePlugin())
         await self.plugins.register_plugin(SpotifyPlugin())
+        self._plugins_ready = True
+        logger.info("✅ Plugins loaded successfully.")
 
         # OPTIMIZATION: Cache system prompts per user type
         self._cached_prompts = {}
@@ -162,6 +168,7 @@ class AikoBrain:
         Send message to LLM and get response with ReAct loop.
         Optimized for: Fewer allocations, batched streaming, connection reuse.
         """
+        await self._init_plugins()
         # Process Attachments
         processed_images = []
         file_context = ""
