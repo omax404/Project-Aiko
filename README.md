@@ -1,4 +1,7 @@
 <div align="center">
+<img src="./assets/aiko_banner.png" width="100%" alt="Aiko Banner" />
+
+<br/>
 
 # 💖 Aiko Desktop 🌸
 
@@ -280,6 +283,18 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 - [MemPalace](https://github.com/omax404/mempalace) — Semantic memory system
 - [Ollama](https://github.com/ollama/ollama) — Local LLM inference
 - [pixi-live2d-display](https://github.com/guansss/pixi-live2d-display) — Live2D rendering
+
+---
+
+## 🗺️ Roadmap (Road to v1.0)
+
+Aiko is a living project. Here is what's coming soon:
+
+- 🌸 **VRM Support** — Full 3D avatar integration with hand/eye tracking
+- 🍓 **Mobile App** — Companion app for iOS & Android
+- 🍰 **Voice Cloning v2** — Real-time emotional voice modulation
+- 🍭 **Plugin Marketplace** — Community-driven modular capabilities
+- 🎀 **Long-Term Evolution** — Self-learning memory that grows with you
 
 ---
 
