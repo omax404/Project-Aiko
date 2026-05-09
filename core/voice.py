@@ -32,11 +32,16 @@ def _warmup_tts():
         logger.info("🔊 Loading Pocket-TTS model...")
         _tts_model = TTSModel.load_model()
 
-        # Voice selection
+        # Voice selection: try cloning first, fall back to built-in
         clone_path = os.path.join(os.getcwd(), "voice_preview_yuki.wav")
         if os.path.exists(clone_path):
-            _voice_state = _tts_model.get_state_for_audio_prompt(clone_path)
-            logger.info(f"✅ Pocket-TTS ready (clone: {os.path.basename(clone_path)})")
+            try:
+                _voice_state = _tts_model.get_state_for_audio_prompt(clone_path)
+                logger.info(f"✅ Pocket-TTS ready (clone: {os.path.basename(clone_path)})")
+            except Exception as clone_err:
+                logger.warning(f"[Voice] Voice cloning unavailable ({clone_err}), falling back to built-in voice.")
+                _voice_state = _tts_model.get_state_for_audio_prompt("alba")
+                logger.info("✅ Pocket-TTS ready (fallback voice: alba)")
         else:
             _voice_state = _tts_model.get_state_for_audio_prompt("alba")
             logger.info("✅ Pocket-TTS ready (voice: alba)")
