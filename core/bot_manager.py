@@ -64,7 +64,7 @@ async def run_discord_bot():
     @bot.event
     async def on_ready():
         logger.info(f"💖 Discord Satellite online: {bot.user}")
-        await bot.change_presence(status=discord.Status.dnd, activity=discord.Game(name="github.com/omax404/aiko ♡"))
+        await bot.change_presence(status=discord.Status.dnd, activity=discord.Game(name="github.com/omax404/Project-Aiko ♡"))
         try:
             synced = await bot.tree.sync()
             logger.info(f"Synced {len(synced)} slash commands.")
