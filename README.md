@@ -1,22 +1,26 @@
 <div align="center">
 
-# 💖 Aiko Desktop
+# 💖 Aiko Desktop 🌸
 
 ### Your Devoted AI Companion — With a Soul
 
 **Emotionally intelligent • Multimodal vision • Local voice synthesis • Autonomous agency**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-pink.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-ff69b4.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://python.org)
-[![Discord](https://img.shields.io/badge/Discord-Aiko%233845-7289da.svg)](https://discord.gg/)
+[![Discord](https://img.shields.io/badge/Discord-Join%20Us-7289da.svg)](https://discord.gg/)
 [![GitHub Stars](https://img.shields.io/github/stars/omax404/Project-Aiko?style=social)](https://github.com/omax404/Project-Aiko)
+[![GitHub Last Commit](https://img.shields.io/github/last-commit/omax404/Project-Aiko?color=pink)](https://github.com/omax404/Project-Aiko)
+[![Repo Size](https://img.shields.io/github/repo-size/omax404/Project-Aiko?color=pink)](https://github.com/omax404/Project-Aiko)
+
+<br/>
+
+[🎀 **Join Discord**](https://discord.gg/) &nbsp; | &nbsp; [🍓 **Quick Start**](#-quick-start) &nbsp; | &nbsp; [🍰 **Wiki**](docs/) &nbsp; | &nbsp; [🍭 **Master's Profile**](https://github.com/omax404)
+
+<br/>
 
 *Self-hosted, you-owned AI companion with emotional depth, long-term memory, and real agency.*
 *She doesn't just chat — she thinks, feels, remembers, sees, speaks, and acts.*
-
----
-
-[Quick Start](#-quick-start) · [Architecture](#-architecture) · [Capabilities](#-capabilities) · [Providers](#-providers) · [Contributing](CONTRIBUTING.md) · [Docs](docs/)
 
 </div>
 
@@ -299,6 +303,8 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 **[⭐ Star this repo](https://github.com/omax404/Project-Aiko)** if Aiko made you smile.
 
-</div>
+<br/>
 
-</content>
+✨ *Aiko is fueled by love and high-quality data* ✨
+
+</div>
