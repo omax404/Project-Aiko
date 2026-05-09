@@ -217,9 +217,10 @@ pub fn run() {
             // ══════════════════════════════════════════════════════════
             //  TRAY + SHORTCUTS + VISUAL EFFECTS
             // ══════════════════════════════════════════════════════════
-            let show_i = MenuItem::with_id(app, "show", "Show Aiko", true, None::<&str>)?;
+            let show_i = MenuItem::with_id(app, "show", "Show Aiko Dashboard", true, None::<&str>)?;
+            let mascot_i = MenuItem::with_id(app, "mascot", "Switch to Mascot Mode", true, None::<&str>)?;
             let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&show_i, &quit_i])?;
+            let menu = Menu::with_items(app, &[&show_i, &mascot_i, &quit_i])?;
             
             let _tray = TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
@@ -229,6 +230,14 @@ pub fn run() {
                         if let Some(win) = app.get_webview_window("main") {
                             win.show().unwrap(); 
                             win.set_focus().unwrap();
+                        }
+                    }
+                    "mascot" => {
+                        if let Some(mascot) = app.get_webview_window("mascot") {
+                            mascot.show().unwrap();
+                            if let Some(main) = app.get_webview_window("main") {
+                                main.hide().unwrap();
+                            }
                         }
                     }
                     "quit" => { app.exit(0); }

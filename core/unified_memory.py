@@ -414,6 +414,14 @@ class UnifiedMemoryManager:
         except Exception as e:
             logger.error(f"[Memory] Palace filing error: {e}")
 
+        # Log important messages to thought stream
+        if role == 'assistant' and len(content) > 100:
+            self.thought_stream.think(
+                f"Responded to {user_id}: {content[:100]}...",
+                category='observation',
+                importance=4
+            )
+
         # Memory Compression & Archiving (Keep local history efficient)
         if len(self.history[user_id]) > 40:
             self._compress_history(user_id)
@@ -452,14 +460,6 @@ class UnifiedMemoryManager:
         
         self.history[user_id] = [archive_entry] + remaining
         logger.info(f"[Memory] Compressed history for {user_id}. Palace archive created.")
-
-        # Log important messages to thought stream
-        if role == 'assistant' and len(content) > 100:
-            self.thought_stream.think(
-                f"Responded to {user_id}: {content[:100]}...",
-                category='observation',
-                importance=4
-            )
 
         self._maybe_save()
 

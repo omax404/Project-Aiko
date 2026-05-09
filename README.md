@@ -4,6 +4,7 @@
 # 💖 Aiko Desktop 🌸
 
 ### Your Devoted AI Companion — With a Soul
+**[ System Status: 🟢 Link Established / Neural Hub Active ]**
 
 **Emotionally intelligent • Multimodal vision • Local voice synthesis • Autonomous agency**
 
@@ -168,8 +169,14 @@ flowchart TD
 ### 🌐 Platforms
 - [x] Discord Bot (mentions, DMs, voice messages, images, slash commands)
 - [x] Telegram Bot (groups, DMs)
-- [x] Tauri Desktop App (Live2D overlay, chat interface)
+- [x] Tauri Desktop App (Live2D overlay, chat interface, global shortcuts)
 - [x] REST API (port 8000)
+
+### 🖥️ Desktop Interface (Tauri)
+- 🌸 **Global Hotkey** — `Ctrl + Alt + A` to toggle visibility instantly
+- 🌸 **Mascot Mode** — Click-through overlay that stays on top of your windows
+- 🌸 **Live2D Avatar** — Smooth animations driven by her current emotional state
+- 🌸 **Unified Dashboard** — Chat history, system stats, and project intelligence
 
 ---
 
