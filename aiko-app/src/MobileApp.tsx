@@ -170,7 +170,7 @@ export default function MobileApp() {
         paddingBottom: 12,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-           <button onClick={() => setShowSessions(true)} style={{
+           <button onClick={() => setShowSessions(true)} title="View Sessions" aria-label="View Sessions" style={{
                 width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.05)',
                 border: '1px solid rgba(255,255,255,0.08)', display: 'flex',
                 alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.4)'
@@ -190,7 +190,7 @@ export default function MobileApp() {
               <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#ec4899' }} />
               <span style={{ fontSize: 9, color: '#ec4899', fontWeight: 'bold', textTransform: 'uppercase' }}>Neural Online</span>
           </div>
-          <button onClick={() => setShowSettings(true)} style={{
+          <button onClick={() => setShowSettings(true)} title="Settings" aria-label="Settings" style={{
             width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.05)',
             border: '1px solid rgba(255,255,255,0.08)', display: 'flex',
             alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
@@ -284,7 +284,7 @@ export default function MobileApp() {
             color: 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.05)'
           }}>
             <Plus size={20} />
-            <input type="file" accept="image/*,.pdf,.txt" style={{ display: 'none' }}
+            <input type="file" accept="image/*,.pdf,.txt" title="Attach file" aria-label="Attach file" style={{ display: 'none' }}
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) console.log('File selected:', file.name);
@@ -314,7 +314,7 @@ export default function MobileApp() {
           />
 
           {/* Send */}
-          <button onClick={handleSend} disabled={!text.trim() || thinking}
+          <button onClick={handleSend} disabled={!text.trim() || thinking} title="Send Message" aria-label="Send Message"
             style={{
               width: 44, height: 44, borderRadius: 16, flexShrink: 0, marginBottom: 0,
               background: text.trim() && !thinking ? '#fff' : 'rgba(255,255,255,0.03)',
@@ -353,7 +353,7 @@ export default function MobileApp() {
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
                             <span style={{ fontSize: 18, fontWeight: 'bold', color: 'rgba(237,232,223,0.9)' }}>Neural Settings</span>
-                            <button onClick={() => setShowSettings(false)} style={{
+                            <button onClick={() => setShowSettings(false)} title="Close Settings" aria-label="Close Settings" style={{
                                 width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.05)',
                                 border: 'none', cursor: 'pointer', display: 'flex',
                                 alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.5)'
@@ -388,7 +388,7 @@ export default function MobileApp() {
                     <div>
                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
                             <span style={{ fontSize: 18, fontWeight: 'bold', color: 'rgba(237,232,223,0.9)' }}>Neural History</span>
-                            <button onClick={() => setShowSessions(false)} style={{
+                            <button onClick={() => setShowSessions(false)} title="Close Sessions" aria-label="Close Sessions" style={{
                                 width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.05)',
                                 border: 'none', cursor: 'pointer', display: 'flex',
                                 alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.5)'
