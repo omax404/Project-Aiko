@@ -32,6 +32,16 @@ def check_hub_alive(host="127.0.0.1", port=8000):
     except:
         return False
 
+def check_tauri_alive(host="127.0.0.1", port=8080):
+    """Checks if Tauri dev server is responding."""
+    try:
+        conn = http.client.HTTPConnection(host, port, timeout=2)
+        conn.request("GET", "/")
+        resp = conn.getresponse()
+        return resp.status in [200, 304]
+    except:
+        return False
+
 def start_aiko_tauri():
     print("LAUNCHING AIKO TAURI ECOSYSTEM (HERO v3.0)...")
 
@@ -92,7 +102,7 @@ def start_aiko_tauri():
     # 2. Start Neural Hub (Host of Satellites and TTS)
     print(" Starting Neural Hub (Brain)...")
     hub_log = open(".logs/neural_hub.log", "w")
-    subprocess.Popen(
+    hub_process = subprocess.Popen(
         [sys.executable, "core/neural_hub.py"],
         stdout=hub_log, stderr=hub_log,
         creationflags=NO_WINDOW,
@@ -124,19 +134,55 @@ def start_aiko_tauri():
     # 4. Launch Tauri UI
     print(" Opening Tauri Hero Dashboard UI...")
     tauri_log = open(".logs/tauri_dev.log", "w")
-    subprocess.Popen(
+    tauri_process = subprocess.Popen(
         ["npm", "run", "tauri", "dev"],
         cwd="aiko-app",
         shell=True,
         stdout=tauri_log, stderr=tauri_log,
-        creationflags=NO_WINDOW,  # npm/vite log to file, Tauri window handles itself
+        creationflags=NO_WINDOW,
         env=ENV
     )
 
+    # Wait for Tauri dev server to be ready
+    print(" Waiting for Tauri UI to initialize...")
+    tauri_ready = False
+    for i in range(60):
+        if check_tauri_alive(port=8080):
+            tauri_ready = True
+            break
+        time.sleep(1)
+
+    if not tauri_ready:
+        print(" [!] WARNING: Tauri dev server not responding on port 8080.")
+        print("     Check .logs/tauri_dev.log for errors.")
+        print("     The Tauri window may still appear shortly...")
+
     print("\nALL SYSTEMS GO. (TAURI MODE)")
-    print("All background processes are running silently.")
+    print("All background processes are running.")
     print("Logs available in .logs/ folder.")
-    print("Tauri window will appear shortly.")
+    print("Tauri window should appear shortly.")
+    print("\nPress Ctrl+C to stop all services.\n")
+
+    # Keep the main process alive
+    try:
+        while True:
+            time.sleep(1)
+            # Optional: Check if critical processes are still running
+            if hub_process.poll() is not None:
+                print("[!] WARNING: Neural Hub process terminated unexpectedly!")
+            if tauri_process.poll() is not None:
+                print("[!] WARNING: Tauri process terminated!")
+    except KeyboardInterrupt:
+        print("\n\nShutting down AIKO TAURI ECOSYSTEM...")
+        tauri_process.terminate()
+        hub_process.terminate()
+        try:
+            tauri_process.wait(timeout=5)
+            hub_process.wait(timeout=5)
+        except:
+            tauri_process.kill()
+            hub_process.kill()
+        print("All services stopped.")
 
 if __name__ == "__main__":
     start_aiko_tauri()
