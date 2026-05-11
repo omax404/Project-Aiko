@@ -1,5 +1,5 @@
 """
-AIKO LAUNCHER v3.5 — Fixed Edition
+AIKO LAUNCHER v3.5 — Unified Edition
 ────────────────────────────────────
 Fixes:
   - Silent Rust build hang (now shows live cargo output)
@@ -38,13 +38,15 @@ PYTHON     = str(VENV_DIR / ("Scripts/python.exe" if IS_WINDOWS else "bin/python
 if not Path(PYTHON).exists():
     PYTHON = sys.executable
 
-NEURAL_HUB_URL = "http://127.0.0.1:8080"
+NEURAL_HUB_URL = "http://127.0.0.1:8000" # Back to 8000 for compatibility
 HUB_TIMEOUT    = 60  # seconds
 
-# Pre-built Tauri release binary (exists after first `cargo build --release`)
-TAURI_BINARY = APP_DIR / "src-tauri" / "target" / "release" / (
-    "aiko-app.exe" if IS_WINDOWS else "aiko-app"
-)
+# Pre-built Tauri release binary locations
+TAURI_BINARY_PATHS = [
+    BASE / "aiko-app.exe",
+    APP_DIR / "src-tauri" / "target" / "release" / ("aiko-app.exe" if IS_WINDOWS else "aiko-app"),
+    APP_DIR / "src-tauri" / "target" / "debug" / ("aiko-app.exe" if IS_WINDOWS else "aiko-app")
+]
 
 LOG_DIR.mkdir(exist_ok=True)
 DATA_DIR.mkdir(exist_ok=True)
@@ -90,11 +92,16 @@ def run_visible(cmd, cwd=None, label="RUN", env=None) -> int:
 
 def spawn_background(cmd, cwd=None, label="BG", log_file=None) -> subprocess.Popen:
     log_path = LOG_DIR / f"{log_file}.log" if log_file else None
+    
+    # Windows: Hide background process windows
+    creation_flags = subprocess.CREATE_NO_WINDOW if IS_WINDOWS else 0
+    
     proc = subprocess.Popen(
         cmd, cwd=cwd or str(BASE),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        env=os.environ.copy()
+        env=os.environ.copy(),
+        creationflags=creation_flags
     )
     running_procs.append(proc)
 
@@ -102,7 +109,6 @@ def spawn_background(cmd, cwd=None, label="BG", log_file=None) -> subprocess.Pop
         fh = open(log_path, "w", encoding="utf-8") if log_path else None
         for line in iter(stream.readline, b""):
             decoded = line.decode(errors="replace").rstrip()
-            print(f"  [{label}] {decoded}", flush=True)
             if fh:
                 fh.write(decoded + "\n")
                 fh.flush()
@@ -118,7 +124,10 @@ def spawn_background(cmd, cwd=None, label="BG", log_file=None) -> subprocess.Pop
 def kill_all():
     for p in running_procs:
         try:
-            p.terminate()
+            if IS_WINDOWS:
+                subprocess.call(["taskkill", "/F", "/T", "/PID", str(p.pid)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            else:
+                p.terminate()
         except Exception:
             pass
 
@@ -127,23 +136,19 @@ def kill_all():
 
 def cleanup_old_instances():
     if IS_WINDOWS:
-        for name in ["neural_hub", "pocket_tts", "aiko"]:
-            subprocess.call(
-                ["taskkill", "/F", "/FI", f"IMAGENAME eq {name}*"],
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-            )
-        # Free port 8080 if squatted
+        # Kill by process name
+        for name in ["node.exe", "aiko-app.exe", "python.exe"]:
+            # We don't kill our own python process
+            if name == "python.exe":
+                cmd = f'taskkill /F /IM {name} /T /FI "PID ne {os.getpid()}"'
+            else:
+                cmd = f'taskkill /F /IM {name} /T'
+            subprocess.call(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        
+        # Free port 8000 if squatted
         try:
-            result = subprocess.check_output(
-                "netstat -ano | findstr :8080", shell=True
-            ).decode()
-            for line in result.strip().splitlines():
-                parts = line.split()
-                if parts and parts[-1].isdigit():
-                    subprocess.call(
-                        ["taskkill", "/F", "/PID", parts[-1]],
-                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-                    )
+            cmd = f'powershell -Command "Stop-Process -Id (Get-NetTCPConnection -LocalPort 8000).OwningProcess -Force -ErrorAction SilentlyContinue"'
+            subprocess.call(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except Exception:
             pass
 
@@ -176,12 +181,12 @@ def start_neural_hub() -> subprocess.Popen:
 
 
 def wait_for_hub(timeout=HUB_TIMEOUT) -> bool:
-    info(f"Waiting up to {timeout}s for Neural Hub at {NEURAL_HUB_URL}/health ...")
+    info(f"Waiting up to {timeout}s for Neural Hub at {NEURAL_HUB_URL}/status ...")
     deadline = time.time() + timeout
     dots = 0
     while time.time() < deadline:
         try:
-            if requests.get(f"{NEURAL_HUB_URL}/health", timeout=2).status_code < 400:
+            if requests.get(f"{NEURAL_HUB_URL}/status", timeout=2).status_code < 400:
                 print()
                 return True
         except Exception:
@@ -254,18 +259,19 @@ def launch_tauri_dev() -> subprocess.Popen:
         cwd=str(APP_DIR),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        env=env
+        env=env,
+        shell=True if IS_WINDOWS else False
     )
     running_procs.append(proc)
     stream_proc(proc, "TAURI")
     return proc
 
 
-def launch_tauri_release() -> subprocess.Popen:
-    ok(f"Pre-built binary found: {TAURI_BINARY.name} — launching instantly.")
+def launch_tauri_release(path: Path) -> subprocess.Popen:
+    ok(f"Pre-built binary found: {path.name} — launching instantly.")
     proc = subprocess.Popen(
-        [str(TAURI_BINARY)],
-        cwd=str(BASE),
+        [str(path)],
+        cwd=str(APP_DIR if "src-tauri" in str(path) else BASE),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
@@ -283,7 +289,7 @@ def open_browser_fallback():
 # ─── Main ─────────────────────────────────────────────────────
 
 def main():
-    banner("AIKO ECOSYSTEM LAUNCHER v3.5 (Fixed)")
+    banner("AIKO ECOSYSTEM LAUNCHER v3.5 (Unified)")
 
     def _sigint(sig, frame):
         print("\n\nShutting down Aiko... 💖")
@@ -311,21 +317,11 @@ def main():
 
     if hub_proc.poll() is not None:
         err("Neural Hub crashed immediately!")
-        err("Check .logs/neural_hub.log — common causes:")
-        print("    · pip packages missing  →  pip install -r requirements.txt")
-        print("    · Port 8080 in use      →  check netstat -ano | findstr :8080")
-        print("    · Bad config            →  check data/config.json\n")
+        err("Check .logs/neural_hub.log")
         sys.exit(1)
 
     if not wait_for_hub():
         err(f"Neural Hub did not respond within {HUB_TIMEOUT}s.")
-        err("Last log lines:")
-        try:
-            lines = (LOG_DIR / "neural_hub.log").read_text(errors="replace").splitlines()
-            for l in lines[-15:]:
-                print(f"    {l}")
-        except Exception:
-            pass
         kill_all()
         sys.exit(1)
 
@@ -335,16 +331,24 @@ def main():
     banner("Launching Desktop UI...")
     tauri_proc = None
 
-    if not shutil.which("npm"):
-        err("npm not found — install Node.js >= 18 from https://nodejs.org")
-        open_browser_fallback()
-    elif TAURI_BINARY.exists():
-        tauri_proc = launch_tauri_release()
+    # Check for pre-built binary
+    found_bin = None
+    for p in TAURI_BINARY_PATHS:
+        if p.exists():
+            found_bin = p
+            break
+
+    if found_bin:
+        tauri_proc = launch_tauri_release(found_bin)
     else:
-        if ensure_npm_deps() and build_frontend():
-            tauri_proc = launch_tauri_dev()
-        else:
+        if not shutil.which("npm"):
+            err("npm not found — install Node.js >= 18 from https://nodejs.org")
             open_browser_fallback()
+        else:
+            if ensure_npm_deps() and build_frontend():
+                tauri_proc = launch_tauri_dev()
+            else:
+                open_browser_fallback()
 
     # 4. Stay alive
     banner("ALL SYSTEMS GO 🌸")
@@ -363,7 +367,6 @@ def main():
         time.sleep(2)
 
     kill_all()
-
 
 if __name__ == "__main__":
     main()

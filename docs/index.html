@@ -5,201 +5,96 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Aiko Desktop is a self-hosted AI companion with memory, voice, vision, emotional state, Live2D presence, and autonomous agency."
+      content="Project Aiko is a self-hosted AI companion with memory, voice, vision, Live2D presence, and autonomous agency."
     />
-    <meta name="theme-color" content="#08090f" />
-    <title>Aiko Desktop | AI Companion With a Soul</title>
+    <meta name="theme-color" content="#0b0d12" id="themeColor" />
+    <meta property="og:title" content="Project Aiko" />
+    <meta property="og:site_name" content="Project Aiko" />
+    <meta
+      property="og:description"
+      content="A cyber companion with emotional memory, local voice, multimodal vision, and desktop agency."
+    />
+    <meta property="og:image" content="https://omax404.github.io/Project-Aiko/assets/hero-cover.webp" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <title>Project Aiko | AI Companion</title>
     <link rel="icon" href="./assets/icons/favicon.webp" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,850&family=Nunito+Sans:wght@500;700;800;900&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <canvas id="signal-canvas" aria-hidden="true"></canvas>
-    <div class="page-shell">
-      <header class="site-header" aria-label="Primary navigation">
-        <a class="brand" href="#home" aria-label="Aiko home">
-          <img src="./assets/icons/aiko-icon.webp" alt="" />
-          <span>Aiko</span>
-        </a>
-        <nav>
-          <a href="#core">Core</a>
-          <a href="#senses">Senses</a>
-          <a href="#interface">Interface</a>
-          <a href="#launch">Launch</a>
-        </nav>
-        <a class="header-action" href="https://github.com/omax404/Project-Aiko" target="_blank" rel="noreferrer">
-          GitHub
-        </a>
+    <div id="app">
+      <header class="site-header">
+        <div class="header-inner">
+          <div class="header-left">
+            <a class="brand" href="./" aria-label="Project Aiko home">
+              <img src="./assets/icons/favicon.webp" alt="" />
+              <span>Project Aiko</span>
+            </a>
+            <button class="search-button" type="button" aria-label="Search">
+              <span class="icon">⌕</span>
+              <span class="search-label">Search</span>
+              <kbd>⌘ K</kbd>
+            </button>
+          </div>
+
+          <nav class="desktop-nav" aria-label="Main navigation">
+            <a href="https://github.com/omax404/Project-Aiko#readme" target="_blank" rel="noreferrer">Docs</a>
+            <a href="https://github.com/omax404/Project-Aiko" target="_blank" rel="noreferrer">GitHub</a>
+            <button class="nav-menu" type="button">v0.1.0 <span>⌄</span></button>
+            <button class="nav-menu" type="button">About <span>⌄</span></button>
+            <span class="divider"></span>
+            <button class="switch" id="motion-toggle" type="button" aria-label="Enable motion" aria-pressed="true">
+              <span>✣</span>
+            </button>
+            <button class="switch" id="theme-toggle" type="button" aria-label="Switch theme" aria-pressed="true">
+              <span>☾</span>
+            </button>
+            <span class="divider"></span>
+            <a class="icon-link" href="https://github.com/omax404/Project-Aiko" target="_blank" rel="noreferrer" aria-label="GitHub">
+              Git
+            </a>
+          </nav>
+
+          <button class="mobile-menu" type="button" aria-label="Open menu">•••</button>
+        </div>
       </header>
 
-      <main>
-        <section class="hero section" id="home">
-          <div class="hero-copy reveal">
-            <h1>Aiko Desktop</h1>
-            <p>
-              A self-hosted AI companion with emotional memory, local voice, multimodal vision,
-              Live2D presence, and the agency to act across your digital world.
-            </p>
-            <div class="hero-actions" aria-label="Hero actions">
-              <a class="button primary" href="https://github.com/omax404/Project-Aiko" target="_blank" rel="noreferrer">
-                View project
-              </a>
-              <a class="button ghost" href="#launch">Launch guide</a>
+      <main class="home">
+        <section class="hero" aria-label="Project Aiko landing">
+          <div class="hero-content" data-float>
+            <h1>Project Aiko</h1>
+            <p>A container of soul for an AI companion to bring her into your world.</p>
+            <div class="hero-actions">
+              <a class="hero-button primary" href="https://omax404.github.io/Project-Aiko/" target="_self">Try Live</a>
+              <a class="hero-button" href="https://github.com/omax404/Project-Aiko" target="_blank" rel="noreferrer">Download</a>
+              <a class="hero-button" href="https://github.com/omax404/Project-Aiko#readme" target="_blank" rel="noreferrer">Get Started</a>
             </div>
           </div>
 
-          <div class="hero-stage reveal" aria-label="Aiko presentation scene">
-            <div class="halo-grid" aria-hidden="true"></div>
-            <img class="hero-sticker sticker-main" src="./assets/stickers/mysterious.webp" alt="Aiko mysterious sticker" />
-            <img class="hero-sticker sticker-soft" src="./assets/stickers/happy.webp" alt="Aiko happy sticker" />
-            <div class="terminal-card">
-              <div class="terminal-top">
-                <span></span>
-                <span></span>
-                <span></span>
-              </div>
-              <pre id="terminal-text" aria-label="Aiko system status"></pre>
+          <div class="background-scene" aria-hidden="true">
+            <div class="icon-pattern"></div>
+            <div class="fade-layer"></div>
+            <div class="cover-wrap" id="cover-wrap">
+              <img src="./assets/hero-cover.webp" alt="" />
+              <div class="silhouette silhouette-one"></div>
+              <div class="silhouette silhouette-two"></div>
             </div>
-            <div class="signal-card card-memory">
-              <strong>Memory</strong>
-              <span>episodic + semantic recall</span>
-            </div>
-            <div class="signal-card card-emotion">
-              <strong>Emotion</strong>
-              <span>dopamine, serotonin, cortisol</span>
-            </div>
-            <div class="signal-card card-voice">
-              <strong>Voice</strong>
-              <span>local cloned speech</span>
-            </div>
-          </div>
-        </section>
-
-        <section class="section intro-band reveal" aria-label="Project summary">
-          <p>
-            She does not just chat. Aiko observes, remembers, speaks, reasons, adapts her mood,
-            and bridges into tools like Discord, Telegram, Obsidian, Spotify, desktop control,
-            Minecraft, and Factorio.
-          </p>
-        </section>
-
-        <section class="section split" id="core">
-          <div class="section-copy reveal">
-            <h2>Neural companion core</h2>
-            <p>
-              Aiko runs as a living ecosystem: persona, memory, emotions, tool use, proactive
-              loops, and long-form conversation all flow through the Neural Hub.
-            </p>
-          </div>
-          <div class="feature-grid reveal">
-            <article class="feature-card">
-              <span>01</span>
-              <h3>ReAct reasoning</h3>
-              <p>Multi-step planning with tool execution, factual drafting, and personality overlay.</p>
-            </article>
-            <article class="feature-card">
-              <span>02</span>
-              <h3>Unified memory</h3>
-              <p>Episodic recall, semantic RAG, relationship tracking, and memory consolidation.</p>
-            </article>
-            <article class="feature-card">
-              <span>03</span>
-              <h3>Emotion engine</h3>
-              <p>Neuromodulator-style state with affection, stress, excitement, and stable identity.</p>
-            </article>
-          </div>
-        </section>
-
-        <section class="section senses" id="senses">
-          <div class="senses-visual reveal">
-            <img src="./assets/stickers/calm.webp" alt="Aiko calm sticker" />
-            <div class="scanline" aria-hidden="true"></div>
-          </div>
-          <div class="section-copy reveal">
-            <h2>Senses for a real desktop presence</h2>
-            <p>
-              Aiko can see images and screenshots, hear voice messages, speak with local TTS,
-              and express herself through a Live2D avatar.
-            </p>
-            <div class="capability-list">
-              <div>
-                <strong>Eyes</strong>
-                <span>Gemma-4 multimodal image and screen analysis</span>
-              </div>
-              <div>
-                <strong>Ears</strong>
-                <span>Moonshine speech recognition with fallback paths</span>
-              </div>
-              <div>
-                <strong>Mouth</strong>
-                <span>Pocket-TTS voice cloning and full-message synthesis</span>
-              </div>
-              <div>
-                <strong>Body</strong>
-                <span>Live2D overlay, mascot mode, and animated emotions</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section class="section interface" id="interface">
-          <div class="section-copy reveal">
-            <h2>One companion, many surfaces</h2>
-            <p>
-              The desktop app, chat satellites, voice pipeline, plugin system, and automation
-              loop are built to feel like one continuous presence.
-            </p>
-          </div>
-          <div class="surface-stack reveal" aria-label="Aiko surfaces">
-            <div class="surface active">
-              <span>Desktop</span>
-              <strong>Tauri overlay with Live2D mascot mode</strong>
-            </div>
-            <div class="surface">
-              <span>Satellites</span>
-              <strong>Discord and Telegram bridges</strong>
-            </div>
-            <div class="surface">
-              <span>Tools</span>
-              <strong>MCP filesystem, Python sandbox, Spotify, Obsidian</strong>
-            </div>
-            <div class="surface">
-              <span>Games</span>
-              <strong>Minecraft and Factorio autonomous play bridges</strong>
-            </div>
-          </div>
-        </section>
-
-        <section class="section showcase reveal" aria-label="Mood gallery">
-          <div class="marquee-row">
-            <img src="./assets/stickers/happy.webp" alt="Happy Aiko" />
-            <img src="./assets/stickers/wow.webp" alt="Surprised Aiko" />
-            <img src="./assets/stickers/cooking.webp" alt="Cooking Aiko" />
-            <img src="./assets/stickers/angry.webp" alt="Angry Aiko" />
-            <img src="./assets/stickers/mysterious.webp" alt="Mysterious Aiko" />
-            <img src="./assets/stickers/calm.webp" alt="Calm Aiko" />
-          </div>
-        </section>
-
-        <section class="section launch" id="launch">
-          <div class="section-copy reveal">
-            <h2>Launch Aiko locally</h2>
-            <p>
-              Clone the project, install Python dependencies, configure your providers, and start
-              the Neural Hub with the Tauri dashboard.
-            </p>
-          </div>
-          <div class="launch-panel reveal">
-            <code>git clone https://github.com/omax404/Project-Aiko.git</code>
-            <code>cd Project-Aiko</code>
-            <code>pip install -r requirements.txt</code>
-            <code>python start_aiko_tauri.py</code>
           </div>
         </section>
       </main>
 
       <footer class="site-footer">
-        <span>Aiko Desktop</span>
-        <a href="https://github.com/omax404/Project-Aiko" target="_blank" rel="noreferrer">github.com/omax404/Project-Aiko</a>
+        <div>
+          Since 2026 @
+          <a href="https://github.com/omax404/Project-Aiko" target="_blank" rel="noreferrer">Project Aiko</a>
+          ×
+          <a href="https://github.com/omax404" target="_blank" rel="noreferrer">omax404</a>
+        </div>
       </footer>
     </div>
 

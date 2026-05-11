@@ -97,6 +97,7 @@ interface NeuralState {
   setAvatarScale: (scale: number) => void;
   setShowAnimatedAssets: (show: boolean) => void;
   fetchSettings: () => Promise<void>;
+  reloadConfig: () => void;
 }
 
 let socket: WebSocket | null = null;
@@ -594,6 +595,12 @@ export const useNeuralStore = create<NeuralState>()(
           socket.send(JSON.stringify({ type: 'listen' }));
         } else {
           console.error("[Aiko] WebSocket offline; STT only works via WS for now.");
+        }
+      },
+
+      reloadConfig: () => {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ type: 'system', action: 'reload_config' }));
         }
       },
 

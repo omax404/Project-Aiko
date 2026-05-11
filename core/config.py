@@ -54,6 +54,16 @@ class Config:
                     self._merge_config(self._config, file_config)
             except Exception as e:
                 print(f" [!] Failed to load config file: {e}")
+                
+        # Load from user_settings.json if exists (takes precedence)
+        user_settings_file = Path("user_settings.json")
+        if user_settings_file.exists():
+            try:
+                with open(user_settings_file, 'r') as f:
+                    user_config = json.load(f)
+                    self._merge_config(self._config, user_config)
+            except Exception as e:
+                print(f" [!] Failed to load user_settings.json: {e}")
         
         # Override with environment variables
         self._load_env_vars()

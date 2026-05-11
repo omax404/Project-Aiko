@@ -3,7 +3,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Live2DAvatar } from './components/Live2DAvatar';
 import { useNeuralStore } from './store/useNeuralStore';
-import { Home, X, MessageCircle, Send, Mic, Volume2, VolumeX } from 'lucide-react';
+import { Home, X, MessageCircle, Send, Volume2, VolumeX } from 'lucide-react';
 import { Window } from '@tauri-apps/api/window';
 
 /**
@@ -211,6 +211,7 @@ export default function MascotApp() {
               <button
                 onClick={() => setChatOpen(false)}
                 className="mascot-chat-close"
+                title="Close chat"
               >
                 <X size={14} />
               </button>
@@ -255,6 +256,7 @@ export default function MascotApp() {
                 onClick={handleSend}
                 disabled={!chatInput.trim()}
                 className="mascot-send-btn"
+                title="Send message"
               >
                 <Send size={14} />
               </button>

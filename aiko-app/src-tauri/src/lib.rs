@@ -77,6 +77,35 @@ async fn get_process_status(pm: tauri::State<'_, Arc<ProcessManager>>) -> Result
     Ok(pm.get_process_status())
 }
 
+// ── User Settings Commands ───────────────────────────────────────
+
+#[tauri::command]
+async fn get_user_settings() -> Result<String, String> {
+    if let Some(root) = find_project_root() {
+        let path = root.join("user_settings.json");
+        if path.exists() {
+            if let Ok(content) = std::fs::read_to_string(&path) {
+                return Ok(content);
+            }
+        }
+    }
+    // Return empty JSON object if not found
+    Ok("{}".to_string())
+}
+
+#[tauri::command]
+async fn save_user_settings(settings: String) -> Result<(), String> {
+    if let Some(root) = find_project_root() {
+        let path = root.join("user_settings.json");
+        if let Err(e) = std::fs::write(&path, settings) {
+            return Err(format!("Failed to save settings: {}", e));
+        }
+        Ok(())
+    } else {
+        Err("Project root not found".to_string())
+    }
+}
+
 // ── Resolve the Aiko project root ──────────────────────────────
 
 fn find_project_root() -> Option<PathBuf> {
@@ -125,7 +154,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             log_error, minimize_window, maximize_window, close_window,
-            check_hub_status, get_startup_status, get_process_status
+            check_hub_status, get_startup_status, get_process_status,
+            get_user_settings, save_user_settings
         ])
         .setup(|app| {
             // ══════════════════════════════════════════════════════════
@@ -200,16 +230,8 @@ pub fn run() {
                     });
                 }
 
-                // Store PM for cleanup on exit
-                let pm_exit = pm.clone();
-                if let Some(win) = app.get_webview_window("main") {
-                    win.on_window_event(move |event| {
-                        if let tauri::WindowEvent::Destroyed = event {
-                            println!("[Aiko/Rust] Shutting down all processes...");
-                            pm_exit.shutdown();
-                        }
-                    });
-                }
+                // We DO NOT shut down processes when a window is destroyed (e.g. hidden).
+                // ProcessManager will be shut down gracefully on App Exit instead.
             } else {
                 eprintln!("[Aiko/Rust] WARNING: Could not find project root!");
             }
@@ -240,7 +262,14 @@ pub fn run() {
                             }
                         }
                     }
-                    "quit" => { app.exit(0); }
+                    "quit" => { 
+                        if let Some(pm) = app.try_state::<Arc<ProcessManager>>() {
+                            println!("[Aiko/Rust] Tray Quit triggered. Shutting down all processes...");
+                            pm.shutdown();
+                        }
+                        app.exit(0); 
+                    }
+
                     _ => {}
                 })
                 .build(app)?;
@@ -292,6 +321,18 @@ pub fn run() {
 
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app_handle, event| {
+            if let tauri::RunEvent::Exit = event {
+                if let Some(pm) = app_handle.try_state::<Arc<ProcessManager>>() {
+                    println!("[Aiko/Rust] RunEvent::Exit triggered. Shutting down processes...");
+                    pm.shutdown();
+                }
+            } else if let tauri::RunEvent::ExitRequested { api, .. } = event {
+                // Prevent app from exiting when all windows are closed
+                // The Tray icon will keep it alive, and "Quit" menu item will force exit.
+                api.prevent_exit();
+            }
+        });
 }

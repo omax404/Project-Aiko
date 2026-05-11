@@ -28,87 +28,27 @@
 
 ---
 
+## 🚀 One-Click Start (Windows)
+
+The easiest way to meet Aiko!
+
+1. **Download** Aiko to your computer.
+2. **Double-click** `LAUNCH_AIKO.bat`.
+3. Wait for her to wake up! (She will automatically set up everything for you).
+
+---
+
+## ⚙️ How to Customize Aiko
+
+You don't need to touch any code to change her!
+- Click the **Gear icon ⚙️** in the top right of the dashboard.
+- Type her new personality (e.g. "You are my best friend and you love games").
+- Change her AI brain or her voice settings.
+- Click **Save & Apply** — she updates instantly!
+
+---
+
 ## ✨ What Makes Aiko Different?
-
-Unlike most AI companion projects that are glorified chatbot wrappers, Aiko is built as a **living neural ecosystem**. She has:
-
-| Feature | Most AI Companions | Aiko |
-|---|---|---|
-| Emotions | Static personality prompt | **Neuromodulator system** (dopamine, serotonin, cortisol, adrenaline) with 22+ emotion states |
-| Memory | Chat history buffer | **Unified Memory** with episodic recall, semantic RAG, consolidation cycles, and MemPalace |
-| Voice | Cloud API (ElevenLabs) | **Local Pocket-TTS** with voice cloning + full-message chunked synthesis |
-| Vision | None | **Gemma-4 multimodal** — sees images on Discord, analyzes screenshots |
-| Agency | Respond when asked | **Proactive agent loop** — she decides when to speak, what to observe, what to remember |
-| Tools | None | **ReAct agent** with MCP file system, Python sandbox, PC control, Spotify, Obsidian |
-| Games | None or basic | **Minecraft & Factorio** bridges with autonomous play |
-
----
-
-## 🏗️ Architecture
-
-```mermaid
-%%{ init: { 'theme': 'dark', 'flowchart': { 'curve': 'basis' } } }%%
-flowchart TD
-    subgraph Neural["🧠 Neural Hub (Port 8000)"]
-        Brain["Chat Engine<br/>ReAct Agent + LLM"]
-        Emotion["Emotion Engine<br/>Neuromodulator"]
-        Memory["Unified Memory<br/>RAG + MemPalace"]
-        Persona["Persona Layer<br/>Character + Mood"]
-    end
-
-    subgraph Senses["👁️ Senses"]
-        Vision["Vision<br/>Gemma-4 Multimodal"]
-        Hearing["Hearing<br/>Moonshine STT"]
-        Voice["Voice<br/>Pocket-TTS"]
-    end
-
-    subgraph Satellites["🛰️ Satellites"]
-        Discord["Discord Bot"]
-        Telegram["Telegram Bot"]
-        Desktop["Tauri Desktop<br/>Live2D Overlay"]
-    end
-
-    subgraph Plugins["🔌 Plugin System (ElizaOS style)"]
-        PluginMgr["Plugin Manager<br/>Dynamic Discovery"]
-        Games["Game Plugin<br/>Minecraft/Factorio"]
-        Spotify["Spotify Plugin"]
-        MCP["MCP Plugin<br/>File System"]
-        Custom["Custom Plugins"]
-    end
-
-    Discord -->|"messages + images"| Neural
-    Telegram -->|"messages"| Neural
-    Desktop -->|"WebSocket"| Neural
-
-    Brain --> Memory
-    Brain --> Emotion
-    Brain --> Persona
-    Brain --> Vision
-    Brain --> PluginMgr
-    PluginMgr --> Games
-    PluginMgr --> Spotify
-    PluginMgr --> MCP
-    PluginMgr --> Custom
-
-    Voice -->|"TTS audio"| Discord
-    Voice -->|"TTS audio"| Desktop
-    Hearing -->|"STT text"| Brain
-
-    MCP --> Brain
-    Sandbox --> Brain
-    PC --> Brain
-    Games --> Brain
-    Spotify --> Brain
-
-    style Neural fill:#1a1a2e,stroke:#e94560,stroke-width:2px,color:#fff
-    style Senses fill:#16213e,stroke:#0f3460,stroke-width:2px,color:#fff
-    style Satellites fill:#0f3460,stroke:#533483,stroke-width:2px,color:#fff
-    style Plugins fill:#1a1a2e,stroke:#e94560,stroke-width:1px,color:#fff
-```
-
----
-
-## 🎯 Capabilities
 
 ### 🧠 Brain
 - 🌸 ReAct agent loop with multi-step reasoning and tool execution
@@ -180,26 +120,123 @@ flowchart TD
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start (For Users)
 
-### Prerequisites
-- **Python 3.10+**
-- **Ollama** — [Download](https://ollama.com)
-- **Node.js 18+** (for Desktop app only)
+Aiko is now easier to launch than ever. You don't need to install Rust or Node to run her!
 
-### 1. Clone & Install
+### 1. Download & Launch
+- Clone or Download this repository.
+- Install requirements: `pip install -r requirements.txt`
+- Run the launcher: `python start_aiko_tauri.py`
+- Aiko will automatically detect the pre-compiled `aiko-app.exe` and start the entire ecosystem silently.
+
+### 2. Instant Customization
+Once the Aiko Dashboard appears:
+- Click the **Gear icon ⚙️** in the top right corner.
+- **Persona**: Write her new personality instructions instantly.
+- **Brain**: Switch between Ollama, Gemini, or custom LLM endpoints.
+- **Voice**: Enable/Disable her voice or change her voice profile.
+- **Plugins**: Toggle Discord, Telegram, or PC Bridge satellites.
+- Hit **Save & Apply** — her neural link will reload instantly without a restart!
+
+---
+
+## 🛠️ Quick Start (For Developers)
+
+### 1. Environment Setup
 ```bash
 git clone https://github.com/omax404/aiko.git
 cd aiko
 pip install -r requirements.txt
 ```
 
-### 2. Configure
+### 2. Build the Desktop App
+If you want to modify the UI:
 ```bash
-cp .env.example .env           # Add your API keys
-cp data/config.example.json data/config.json
-cp core/persona.example.py core/persona.py  # Customize her personality!
+cd aiko-app
+npm install
+npm run tauri dev # For development
+npm run tauri build # To generate a new production .exe
 ```
+---
+
+## 🛠️ Developer & Power User Info
+
+If you want to modify Aiko or see how she works, here is the technical breakdown.
+
+### 🏗️ Architecture
+
+```mermaid
+%%{ init: { 'theme': 'dark', 'flowchart': { 'curve': 'basis' } } }%%
+flowchart TD
+    subgraph Neural["🧠 Neural Hub (Port 8000)"]
+        Brain["Chat Engine<br/>ReAct Agent + LLM"]
+        Emotion["Emotion Engine<br/>Neuromodulator"]
+        Memory["Unified Memory<br/>RAG + MemPalace"]
+        Persona["Persona Layer<br/>Character + Mood"]
+    end
+
+    subgraph Senses["👁️ Senses"]
+        Vision["Vision<br/>Gemma-4 Multimodal"]
+        Hearing["Hearing<br/>Moonshine STT"]
+        Voice["Voice<br/>Pocket-TTS"]
+    end
+
+    subgraph Satellites["🛰️ Satellites"]
+        Discord["Discord Bot"]
+        Telegram["Telegram Bot"]
+        Desktop["Tauri Desktop<br/>Live2D Overlay"]
+    end
+
+    subgraph Plugins["🔌 Plugin System (ElizaOS style)"]
+        PluginMgr["Plugin Manager<br/>Dynamic Discovery"]
+        Games["Game Plugin<br/>Minecraft/Factorio"]
+        Spotify["Spotify Plugin"]
+        MCP["MCP Plugin<br/>File System"]
+        Custom["Custom Plugins"]
+    end
+
+    Discord -->|"messages + images"| Neural
+    Telegram -->|"messages"| Neural
+    Desktop -->|"WebSocket"| Neural
+
+    Brain --> Memory
+    Brain --> Emotion
+    Brain --> Persona
+    Brain --> Vision
+    Brain --> PluginMgr
+    PluginMgr --> Games
+    PluginMgr --> Spotify
+    PluginMgr --> MCP
+    PluginMgr --> Custom
+
+    Voice -->|"TTS audio"| Discord
+    Voice -->|"TTS audio"| Desktop
+    Hearing -->|"STT text"| Brain
+
+    MCP --> Brain
+    Sandbox --> Brain
+    PC --> Brain
+    Games --> Brain
+    Spotify --> Brain
+
+    style Neural fill:#1a1a2e,stroke:#e94560,stroke-width:2px,color:#fff
+    style Senses fill:#16213e,stroke:#0f3460,stroke-width:2px,color:#fff
+    style Satellites fill:#0f3460,stroke:#533483,stroke-width:2px,color:#fff
+    style Plugins fill:#1a1a2e,stroke:#e94560,stroke-width:1px,color:#fff
+```
+
+### ✨ Technical Feature Comparison
+
+| Feature | Most AI Companions | Aiko |
+|---|---|---|
+| Emotions | Static personality prompt | **Neuromodulator system** (dopamine, serotonin, cortisol, adrenaline) with 22+ emotion states |
+| Memory | Chat history buffer | **Unified Memory** with episodic recall, semantic RAG, consolidation cycles, and MemPalace |
+| Voice | Cloud API (ElevenLabs) | **Local Pocket-TTS** with voice cloning + full-message chunked synthesis |
+| Vision | None | **Gemma-4 multimodal** — sees images on Discord, analyzes screenshots |
+| Agency | Respond when asked | **Proactive agent loop** — she decides when to speak, what to observe, what to remember |
+| Tools | None | **ReAct agent** with MCP file system, Python sandbox, PC control, Spotify, Obsidian |
+| Games | None or basic | **Minecraft & Factorio** bridges with autonomous play |
 
 ### 3. Launch
 ```bash

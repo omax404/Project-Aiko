@@ -523,6 +523,15 @@ async def handle_ws(req):
                 elif m_type == "ping":
                     await ws.send_str(json.dumps({"type": "pong"}))
                 
+                elif m_type == "system":
+                    action = data.get("action")
+                    if action == "reload_config":
+                        logger.info(" [Hub] Reloading config from user_settings.json...")
+                        from core.config_manager import config
+                        config.load()
+                        # Also propagate changes to voice engine and chat engine
+                        voice_engine.enabled = config.get("TTS_ENABLED", True)
+                        
                 elif m_type == "listen":
                     # STT Request
                     await broadcast_event("state", {"listening": True})

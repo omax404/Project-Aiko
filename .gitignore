@@ -90,6 +90,9 @@ aiko-app/build/
 # FFmpeg (downloaded binaries)
 ffmpeg.exe
 ffmpeg.zip
+
+# User Customization
+user_settings.json
 ffmpeg-master-latest-win64-gpl/
 
 # Audio & Voice files (generated)

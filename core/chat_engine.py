@@ -150,7 +150,8 @@ class AikoBrain:
 
     def _emit_sentence(self, text: str):
         """Emit a complete sentence to the UI streaming callback with emotion detection."""
-        if not text or text.startswith(("[", "<")):
+        # Only suppress if it's a raw system tag or code block
+        if not text or text.startswith(("```", "{\"")):
             return
             
         if self.on_sentence:
@@ -223,6 +224,7 @@ class AikoBrain:
         video_prompts = []
         images_data = processed_images
         final_response = "I'm a bit confused, Master..."
+        plugin_context = ""
 
         logger.info(f" [Brain] Started thinking for user {user_id}: {message[:50]}...")
 
@@ -294,9 +296,10 @@ class AikoBrain:
         from .emotion_engine import emotion_engine
         emotion_engine.process_text(final_response)
 
-        # Clean Tags - completely remove XML blocks like <emotion>*</emotion> and <think>*</think>
-        cleaned_response = re.sub(r'<([a-zA-Z0-9_]+)>.*?</\1>|<.*?>|\[[^\]]+?:[^\]]+?\]|\[SCAN\]|\[MCP\b[^\]]*?\]', '', final_response,
-                                    flags=re.IGNORECASE | re.DOTALL)
+        # Clean Tags - remove XML think/emotion blocks and system tool tags, but PRESERVE personality [Tags]
+        cleaned_response = re.sub(r'<think>.*?</think>|<emotion>.*?</emotion>|<.*?>', '', final_response, flags=re.IGNORECASE | re.DOTALL)
+        # Only strip technical tool tags [TOOL:...] or [MCP:...]
+        cleaned_response = re.sub(r'\[(SCAN|MCP|TASK|BIO_REGISTER|GAME|OPEN|TYPE|CLICK|PRESS|WAIT|WALLPAPER|WEATHER|MUSIC|LETTER|VTS_BG|IMAGE|RECALL|LATEX|REFLECTIVE_STATE)[^\]]*?\]', '', cleaned_response, flags=re.IGNORECASE)
         cleaned_response = re.sub(r'\n{3,}', '\n\n', cleaned_response).strip()
 
         # Save & Return

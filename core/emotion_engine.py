@@ -339,9 +339,8 @@ Somatic Translation: You feel {somatic_str}."""
         modifiers["presence_penalty"] = (d * 0.8) - (c * 0.2)
         modifiers["frequency_penalty"] = (a * 1.0)
 
-        # Exponential collapse of working memory under stress (Cortisol)
-        # e^-2c means at c=0 -> 1.0 (300). At c=1.0 -> 0.135 (~40 tokens).
-        modifiers["max_tokens"] = int(300 * math.exp(-2.0 * c))
+        # Relaxed token limit: baseline 512, drops to ~200 under extreme stress (c=1.0)
+        modifiers["max_tokens"] = int(512 * math.exp(-1.0 * c))
 
         # Clamp all values to safe bounds for standard LLM APIs
         modifiers["temperature"] = max(0.1, min(2.0, modifiers["temperature"]))

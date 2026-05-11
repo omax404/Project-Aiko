@@ -1,0 +1,21 @@
+{
+  "llm": {
+    "url": "http://127.0.0.1:11434/api/chat",
+    "model": "qwen3.5:397b-cloud",
+    "fallback_model": "deepseek-r1:1.5b",
+    "timeout": 30
+  },
+  "tts": {
+    "enabled": true,
+    "voice": "vivian",
+    "speed": 0.9
+  },
+  "persona": {
+    "custom_prompt": "You are a highly capable AI agent designed to assist with anything the user needs. Always be polite, concise, and helpful."
+  },
+  "plugins": {
+    "discord_bot": false,
+    "telegram_bot": false,
+    "openclaw_bridge": false
+  }
+}

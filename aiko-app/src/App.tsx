@@ -4,7 +4,7 @@ import { emit } from '@tauri-apps/api/event';
 import { Sidebar } from './components/Sidebar';
 import { ChatBubble } from './components/ChatBubble';
 import { InputDock } from './components/InputDock';
-import { SettingsModal } from './components/SettingsModal';
+import { SettingsPanel } from './components/SettingsPanel';
 import { SkeletonLoader } from './components/SkeletonLoader';
 import { RotatingOrbital } from './components/AnimatedIcons';
 import { ProjectIntelligence } from './components/ProjectIntelligence';
@@ -455,7 +455,15 @@ function App() {
       </div>
 
       {/* Modals */}
-      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+      <SettingsPanel 
+        isOpen={isSettingsOpen} 
+        onClose={() => setIsSettingsOpen(false)} 
+        onSave={() => {
+          // Tell Python to reload user_settings.json instantly
+          const { reloadConfig } = useNeuralStore.getState();
+          reloadConfig();
+        }}
+      />
       <ProjectIntelligence isOpen={isProjectOpen} onClose={() => setIsProjectOpen(false)} />
 
       {isPurgeConfirmOpen && (

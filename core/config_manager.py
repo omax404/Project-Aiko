@@ -47,6 +47,27 @@ class ConfigManager:
                         self._config[k] = v
             except Exception as e:
                 logger.error(f"Failed to load config.json: {e}")
+                
+        # Load from user_settings.json
+        user_settings_path = Path("user_settings.json")
+        if user_settings_path.exists():
+            try:
+                with open(user_settings_path, "r", encoding="utf-8") as f:
+                    user_data = json.load(f)
+                    
+                    if "llm" in user_data:
+                        if "url" in user_data["llm"]: self._config["LLM_URL"] = user_data["llm"]["url"]
+                        if "model" in user_data["llm"]: self._config["MODEL_NAME"] = user_data["llm"]["model"]
+                    
+                    if "tts" in user_data:
+                        if "enabled" in user_data["tts"]: self._config["TTS_ENABLED"] = user_data["tts"]["enabled"]
+                        if "voice" in user_data["tts"]: self._config["TTS_VOICE"] = user_data["tts"]["voice"]
+                        
+                    if "persona" in user_data:
+                        if "custom_prompt" in user_data["persona"]: 
+                            self._config["custom_prompt"] = user_data["persona"]["custom_prompt"]
+            except Exception as e:
+                logger.error(f"Failed to load user_settings.json: {e}")
 
     def save(self):
         try:
