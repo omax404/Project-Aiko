@@ -1,20 +1,71 @@
 import React, { useState, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 
 interface SettingsPanelProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (settings: any) => void;
+  onSave?: (settings: any) => void;
+}
+
+const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI__;
+const HUB_URL = 'http://127.0.0.1:8000';
+
+// Load settings — works in both Tauri and browser mode
+async function loadSettingsFromBackend(): Promise<any> {
+  if (isTauri) {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const jsonStr: string = await invoke('get_user_settings');
+      return JSON.parse(jsonStr);
+    } catch (_) {
+      // Fall through to HTTP
+    }
+  }
+  // Browser fallback: load from Neural Hub
+  try {
+    const res = await fetch(`${HUB_URL}/api/settings`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (e) {
+    console.warn('[Settings] Could not load from backend, using defaults:', e);
+    return {};
+  }
+}
+
+// Save settings — works in both Tauri and browser mode
+async function saveSettingsToBackend(settings: any): Promise<void> {
+  if (isTauri) {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('save_user_settings', { settings: JSON.stringify(settings, null, 2) });
+      return;
+    } catch (_) {
+      // Fall through to HTTP
+    }
+  }
+  // Browser fallback: POST to Neural Hub
+  const res = await fetch(`${HUB_URL}/api/settings`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(settings),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => 'Unknown error');
+    throw new Error(`Server error ${res.status}: ${text}`);
+  }
 }
 
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, onSave }) => {
-  const [settings, setSettings] = useState<any>({
+  const defaultSettings = {
     llm: { url: 'http://127.0.0.1:11434/api/chat', model: 'qwen3.5:397b-cloud' },
     tts: { enabled: true, voice: 'vivian', speed: 0.9 },
     persona: { custom_prompt: 'You are a highly capable AI agent designed to assist with anything the user needs. Always be polite, concise, and helpful.' },
     plugins: { discord_bot: false, telegram_bot: false, openclaw_bridge: false }
-  });
+  };
+
+  const [settings, setSettings] = useState<any>(defaultSettings);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'ok' | 'err'>('idle');
   const [activeTab, setActiveTab] = useState('persona');
 
   useEffect(() => {
@@ -25,11 +76,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, o
 
   const loadSettings = async () => {
     setLoading(true);
+    setSaveStatus('idle');
     try {
-      const jsonStr: string = await invoke('get_user_settings');
-      const data = JSON.parse(jsonStr);
-      
-      // Merge with defaults to ensure all keys exist
+      const data = await loadSettingsFromBackend();
       setSettings((prev: any) => ({
         llm: { ...prev.llm, ...(data.llm || {}) },
         tts: { ...prev.tts, ...(data.tts || {}) },
@@ -37,20 +86,33 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, o
         plugins: { ...prev.plugins, ...(data.plugins || {}) }
       }));
     } catch (e) {
-      console.error("Failed to load settings:", e);
+      console.error('Failed to load settings:', e);
     } finally {
       setLoading(false);
     }
   };
 
   const handleSave = async () => {
+    setSaving(true);
+    setSaveStatus('idle');
     try {
-      await invoke('save_user_settings', { settings: JSON.stringify(settings, null, 2) });
-      onSave(settings);
-      onClose();
-    } catch (e) {
-      console.error("Failed to save settings:", e);
-      alert("Failed to save settings. See console for details.");
+      await saveSettingsToBackend(settings);
+      setSaveStatus('ok');
+      // Notify parent — safe even if onSave is undefined
+      if (typeof onSave === 'function') onSave(settings);
+      // Also tell the hub to reload its config
+      try {
+        await fetch(`${HUB_URL}/api/settings/reload`, { method: 'POST' });
+      } catch (_) {}
+      setTimeout(() => {
+        setSaveStatus('idle');
+        onClose();
+      }, 800);
+    } catch (e: any) {
+      console.error('Failed to save settings:', e);
+      setSaveStatus('err');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -65,7 +127,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, o
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
             <span className="text-[#a8b8ff]">⚙️</span> Aiko Customization
           </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors" title="Close settings">
+          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors" title="Close settings" aria-label="Close settings">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
           </button>
         </div>
@@ -126,6 +188,19 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, o
                     />
                     <p className="text-xs text-gray-500 mt-1">E.g., "qwen3.5:397b-cloud" or "gpt-4o"</p>
                   </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-1">API Key (Optional — for cloud providers)</label>
+                    <input 
+                      id="api-key"
+                      type="password"
+                      className="w-full bg-[#111] border border-[#333] rounded-lg p-2.5 text-sm text-white focus:border-[#a8b8ff] outline-none"
+                      value={settings.llm.api_key || ''}
+                      onChange={e => setSettings({...settings, llm: {...settings.llm, api_key: e.target.value}})}
+                      placeholder="sk-... or leave blank for local Ollama"
+                      aria-label="API Key"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Required for OpenAI, Gemini, OpenRouter, etc.</p>
+                  </div>
                 </div>
               )}
 
@@ -139,6 +214,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, o
                       className="w-4 h-4 rounded bg-[#111] border-[#333] text-[#a8b8ff] focus:ring-[#a8b8ff]"
                       checked={settings.tts.enabled}
                       onChange={e => setSettings({...settings, tts: {...settings.tts, enabled: e.target.checked}})}
+                      aria-label="Enable Aiko's Voice"
                     />
                     <span className="text-sm font-medium text-white">Enable Aiko's Voice</span>
                   </label>
@@ -178,13 +254,27 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, o
         )}
 
         {/* Footer */}
-        <div className="p-4 border-t border-[#2a2a2a] bg-[#1a1a1a] flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-medium text-gray-300 hover:bg-[#2a2a2a] transition-colors">
-            Cancel
-          </button>
-          <button onClick={handleSave} className="px-6 py-2 rounded-lg text-sm font-medium bg-[#a8b8ff] text-black hover:bg-[#90a2ff] transition-colors shadow-[0_0_15px_rgba(168,184,255,0.3)]">
-            Save & Apply
-          </button>
+        <div className="p-4 border-t border-[#2a2a2a] bg-[#1a1a1a] flex justify-between items-center">
+          <span className={`text-sm transition-all ${
+            saveStatus === 'ok' ? 'text-green-400' :
+            saveStatus === 'err' ? 'text-red-400' : 'text-transparent'
+          }`}>
+            {saveStatus === 'ok' ? '✓ Settings saved!' : saveStatus === 'err' ? '✗ Save failed — is the Neural Hub running?' : '.'}
+          </span>
+          <div className="flex gap-3">
+            <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-medium text-gray-300 hover:bg-[#2a2a2a] transition-colors" title="Cancel" aria-label="Cancel">
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="px-6 py-2 rounded-lg text-sm font-medium bg-[#a8b8ff] text-black hover:bg-[#90a2ff] transition-colors shadow-[0_0_15px_rgba(168,184,255,0.3)] disabled:opacity-60 disabled:cursor-not-allowed"
+              title="Save & Apply"
+              aria-label="Save & Apply"
+            >
+              {saving ? 'Saving...' : 'Save & Apply'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

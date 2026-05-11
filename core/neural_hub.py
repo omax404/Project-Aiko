@@ -648,17 +648,56 @@ async def handle_purge(req):
         return web.json_response({"error": str(e)}, status=500)
 
 async def handle_update_settings(req):
-    """Persist UI settings to config.json."""
+    """Persist UI settings — accepts both flat and nested formats."""
     try:
         data = await req.json()
-        config.update(data)
+        # Always write to user_settings.json (nested format that config_manager understands)
+        user_settings_path = BASE / "user_settings.json"
+        # Read existing settings first so we don't wipe unrelated keys
+        existing = {}
+        if user_settings_path.exists():
+            try:
+                existing = json.loads(user_settings_path.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+        # Merge incoming data
+        for k, v in data.items():
+            if isinstance(v, dict) and isinstance(existing.get(k), dict):
+                existing[k] = {**existing[k], **v}
+            else:
+                existing[k] = v
+        user_settings_path.write_text(json.dumps(existing, indent=2, ensure_ascii=False), encoding="utf-8")
+        # Also update in-memory config
+        config.load()
+        logger.info("[Settings] Saved and reloaded user_settings.json")
         return web.json_response({"status": "success"})
+    except Exception as e:
+        logger.error(f"[Settings] Save error: {e}")
+        return web.json_response({"error": str(e)}, status=500)
+
+async def handle_reload_settings(req):
+    """Hot-reload config from user_settings.json without restarting."""
+    try:
+        config.load()
+        voice_engine.enabled = config.get("TTS_ENABLED", True)
+        logger.info("[Settings] Config hot-reloaded.")
+        return web.json_response({"status": "reloaded"})
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
 
 async def handle_get_settings(req):
-    """Retrieve current system settings."""
+    """Retrieve current system settings in nested format for the UI."""
     try:
+        # Try to return user_settings.json first (the format SettingsPanel expects)
+        user_settings_path = BASE / "user_settings.json"
+        if user_settings_path.exists():
+            try:
+                data = json.loads(user_settings_path.read_text(encoding="utf-8"))
+                # Also inject flat keys from config for backwards compat
+                data.update(config.get_all())
+                return web.json_response(data)
+            except Exception:
+                pass
         return web.json_response(config.get_all())
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
@@ -814,6 +853,7 @@ def build_hub_app():
     app.router.add_post("/api/chat", handle_chat_api)
     app.router.add_post("/api/purge", handle_purge)
     app.router.add_post("/api/settings", handle_update_settings)
+    app.router.add_post("/api/settings/reload", handle_reload_settings)
     app.router.add_get("/api/settings", handle_get_settings)
     app.router.add_get("/api/project/structure", handle_project_structure)
     app.router.add_get("/api/bridge/status", handle_bridge_status)
