@@ -322,7 +322,7 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 ## 🔗 Related Projects
 
 - [Pocket-TTS](https://github.com/kyutai-labs/pocket-tts) — Local voice synthesis
-- [MemPalace](https://github.com/omax404/mempalace) — Semantic memory system
+- [MemPalace](https://github.com/MemPalace/mempalace) — The best-benchmarked open-source AI memory system
 - [Ollama](https://github.com/ollama/ollama) — Local LLM inference
 - [pixi-live2d-display](https://github.com/guansss/pixi-live2d-display) — Live2D rendering
 

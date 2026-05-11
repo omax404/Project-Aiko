@@ -218,6 +218,19 @@ def check_prerequisites() -> bool:
     else:
         ok("Core files present.")
 
+    # Auto-create config files from examples if missing
+    env_file = BASE / ".env"
+    env_example = BASE / ".env.example"
+    if not env_file.exists() and env_example.exists():
+        shutil.copy2(str(env_example), str(env_file))
+        ok("Created .env from .env.example (edit to add your API keys).")
+
+    settings_file = BASE / "user_settings.json"
+    settings_example = BASE / "user_settings.example.json"
+    if not settings_file.exists() and settings_example.exists():
+        shutil.copy2(str(settings_example), str(settings_file))
+        ok("Created user_settings.json from example (customizable via UI).")
+
     return all_ok
 
 
