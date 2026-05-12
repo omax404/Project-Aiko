@@ -71,15 +71,70 @@ running_procs: list[subprocess.Popen] = []
 
 # ─── Helpers ──────────────────────────────────────────────────
 
-def banner(text: str):
-    w = 58
-    print(f"\n{'─' * w}\n  {text}\n{'─' * w}")
+# ─── Terminal UI System ────────────────────────────────────────
 
-def ok(msg):   print(f"  [OK]  {msg}")
-def warn(msg): print(f"  [!!]  {msg}")
-def err(msg):  print(f"  [XX]  {msg}")
-def info(msg): print(f"   >>   {msg}")
+class UI:
+    # ANSI Colors
+    PINK   = "\033[38;2;236;72;153m"
+    VIOLET = "\033[38;2;139;92;246m"
+    BLUE   = "\033[38;2;59;130;246m"
+    CYAN   = "\033[38;2;6;182;212m"
+    GREEN  = "\033[38;2;34;197;94m"
+    AMBER  = "\033[38;2;245;158;11m"
+    RED    = "\033[38;2;239;68;68m"
+    DIM    = "\033[2m"
+    BOLD   = "\033[1m"
+    RESET  = "\033[0m"
 
+    @staticmethod
+    def banner(title: str):
+        w = 60
+        print(f"\n{UI.VIOLET}┏{'━' * (w-2)}┓{UI.RESET}")
+        print(f"{UI.VIOLET}┃{UI.RESET} {UI.BOLD}{title.center(w-4)}{UI.RESET} {UI.VIOLET}┃{UI.RESET}")
+        print(f"{UI.VIOLET}┗{'━' * (w-2)}┛{UI.RESET}\n")
+
+    @staticmethod
+    def ok(msg):    print(f"  {UI.GREEN}✓{UI.RESET}  {msg}")
+    @staticmethod
+    def warn(msg):  print(f"  {UI.AMBER}⚠{UI.RESET}  {msg}")
+    @staticmethod
+    def err(msg):   print(f"  {UI.RED}✘{UI.RESET}  {msg}")
+    @staticmethod
+    def info(msg):  print(f"  {UI.BLUE}ℹ{UI.RESET}  {UI.DIM}{msg}{UI.RESET}")
+    @staticmethod
+    def step(msg):  print(f"  {UI.PINK}🌸{UI.RESET} {UI.BOLD}{msg}{UI.RESET}")
+    @staticmethod
+    def sub(msg):   print(f"     {UI.DIM}└─ {msg}{UI.RESET}")
+
+class Spinner:
+    def __init__(self, message="Thinking..."):
+        self.message = message
+        self.frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+        self.idx = 0
+        self.stop_event = threading.Event()
+        self.thread = None
+
+    def _spin(self):
+        while not self.stop_event.is_set():
+            sys.stdout.write(f"\r  {UI.PINK}{self.frames[self.idx % len(self.frames)]}{UI.RESET}  {self.message}")
+            sys.stdout.flush()
+            self.idx += 1
+            time.sleep(0.08)
+
+    def start(self):
+        self.stop_event.clear()
+        self.thread = threading.Thread(target=self._spin, daemon=True)
+        self.thread.start()
+
+    def stop(self, success=True, final_msg=None):
+        self.stop_event.set()
+        if self.thread: self.thread.join()
+        sys.stdout.write("\r" + " " * (len(self.message) + 10) + "\r")
+        msg = final_msg or self.message
+        if success: UI.ok(msg)
+        else: UI.err(msg)
+
+# ─── Helpers ──────────────────────────────────────────────────
 
 def stream_proc(proc: subprocess.Popen, label: str):
     """Pipe stdout + stderr of proc to console in real time."""
@@ -88,14 +143,14 @@ def stream_proc(proc: subprocess.Popen, label: str):
             return
         try:
             for line in iter(stream.readline, b""):
-                print(f"  [{label}] {line.decode(errors='replace').rstrip()}", flush=True)
+                text = line.decode(errors='replace').rstrip()
+                if text:
+                    print(f"  {UI.DIM}[{label}]{UI.RESET} {text}", flush=True)
         except (ValueError, OSError):
-            pass  # Stream closed
+            pass
         finally:
-            try:
-                stream.close()
-            except Exception:
-                pass
+            try: stream.close()
+            except Exception: pass
     if proc.stdout:
         threading.Thread(target=_reader, args=(proc.stdout,), daemon=True).start()
     if proc.stderr:
@@ -104,7 +159,7 @@ def stream_proc(proc: subprocess.Popen, label: str):
 
 def run_shell(cmd_str, cwd=None, label="RUN") -> int:
     """Run a command through the shell. This is the SAFE way to call npm/npx on Windows."""
-    info(f"$ {cmd_str}")
+    UI.info(f"$ {cmd_str}")
     proc = subprocess.Popen(
         cmd_str,
         cwd=cwd or str(BASE),
@@ -183,64 +238,47 @@ def check_prerequisites() -> bool:
     # Python version check
     py_ver = sys.version_info
     if py_ver < (3, 9):
-        err(f"Python {py_ver.major}.{py_ver.minor} detected — Aiko requires Python 3.9+")
-        err("Download from: https://www.python.org/downloads/")
+        UI.err(f"Python {py_ver.major}.{py_ver.minor} detected — Aiko requires Python 3.9+")
+        UI.info("Download from: https://www.python.org/downloads/")
         all_ok = False
     else:
-        ok(f"Python {py_ver.major}.{py_ver.minor}.{py_ver.micro}")
+        UI.ok(f"Python {py_ver.major}.{py_ver.minor}.{py_ver.micro}")
 
     # Node.js check
     node_path = shutil.which("node")
     if not node_path:
-        warn("Node.js not found.")
-        warn("Install from: https://nodejs.org/ (LTS recommended)")
-        warn("Aiko can still run the backend, but the desktop UI requires Node.js.")
+        UI.warn("Node.js not found.")
+        UI.sub("Desktop UI requires Node.js (https://nodejs.org)")
     else:
         try:
             node_ver = subprocess.check_output(
                 ["node", "--version"], shell=IS_WINDOWS,
                 stderr=subprocess.DEVNULL
             ).decode().strip()
-            ok(f"Node.js {node_ver}")
+            UI.ok(f"Node.js {node_ver}")
         except Exception:
-            ok(f"Node.js found at {node_path}")
-
-    # npm check
-    npm_path = shutil.which("npm")
-    if not npm_path:
-        if node_path:
-            warn("npm not found (but Node.js is installed — this is unusual).")
-            warn("Try reinstalling Node.js from https://nodejs.org/")
-    else:
-        try:
-            npm_ver = subprocess.check_output(
-                ["npm", "--version"], shell=IS_WINDOWS,
-                stderr=subprocess.DEVNULL
-            ).decode().strip()
-            ok(f"npm {npm_ver}")
-        except Exception:
-            ok(f"npm found at {npm_path}")
+            UI.ok(f"Node.js found at {node_path}")
 
     # Core files check
     hub_script = BASE / "core" / "neural_hub.py"
     if not hub_script.exists():
-        err("core/neural_hub.py not found! Repository may be incomplete.")
+        UI.err("Core files missing (neural_hub.py not found).")
         all_ok = False
     else:
-        ok("Core files present.")
+        UI.ok("Core engine ready.")
 
     # Auto-create config files from examples if missing
     env_file = BASE / ".env"
     env_example = BASE / ".env.example"
     if not env_file.exists() and env_example.exists():
         shutil.copy2(str(env_example), str(env_file))
-        ok("Created .env from .env.example (edit to add your API keys).")
+        UI.ok("Created .env from example.")
 
     settings_file = BASE / "user_settings.json"
     settings_example = BASE / "user_settings.example.json"
     if not settings_file.exists() and settings_example.exists():
         shutil.copy2(str(settings_example), str(settings_file))
-        ok("Created user_settings.json from example (customizable via UI).")
+        UI.ok("Created user_settings.json from example.")
 
     return all_ok
 
@@ -263,7 +301,7 @@ def cleanup_old_instances():
             )
         except Exception:
             pass
-    ok("Clean.")
+    UI.ok("Workspace cleaned.")
 
 
 # ─── Step 2: LLM check ────────────────────────────────────────
@@ -423,7 +461,11 @@ def open_browser_fallback():
 # ─── Main ─────────────────────────────────────────────────────
 
 def main():
-    banner("AIKO ECOSYSTEM LAUNCHER v4.0")
+    # Enable ANSI on Windows if needed
+    if IS_WINDOWS:
+        os.system('') 
+    
+    UI.banner("PROJECT AIKO 🌸 CORE v4.5")
 
     def _sigint(sig, frame):
         print("\n\nShutting down Aiko... 💖")
@@ -432,59 +474,53 @@ def main():
     signal.signal(signal.SIGINT, _sigint)
 
     # 0. Prerequisites
-    banner("Checking prerequisites...")
+    UI.banner("AIKO SYSTEM INITIALIZER")
+    UI.step("Verifying Prerequisites")
     if not check_prerequisites():
-        err("Critical prerequisites missing. Please install them and try again.")
-        input("\nPress Enter to exit...")
+        UI.err("Critical prerequisites missing.")
         sys.exit(1)
 
     # 1. Cleanup
-    banner("Cleaning up old instances...")
+    UI.step("Cleaning Workspace")
     cleanup_old_instances()
 
     # 2. LLM
-    banner("Checking LLM availability...")
+    UI.step("Checking Intelligence")
     if check_llm():
-        ok("LLM detected (Ollama or LM Studio).")
+        UI.ok("Local LLM detected (Ollama/LM Studio).")
     else:
-        warn("No LLM at :11434 or :1234 — start Ollama first for best results.")
-        warn("Continuing anyway (cloud providers will be used if configured).")
+        UI.warn("No local LLM found. Using cloud fallback.")
 
     # 3. Neural Hub
-    banner("Starting Neural Hub (Brain)...")
+    UI.banner("Starting Neural Core")
+    hub_spinner = Spinner("Igniting Neural Hub (Brain)...")
+    hub_spinner.start()
+    
     hub_proc = start_neural_hub()
     time.sleep(2)
 
     if hub_proc.poll() is not None:
-        err("Neural Hub crashed immediately!")
-        err("Check .logs/neural_hub.log for details.")
-        # Show the last few lines of the log
+        hub_spinner.stop(False, "Neural Hub crashed immediately!")
+        UI.err("Check .logs/neural_hub.log for details.")
         log_file = LOG_DIR / "neural_hub.log"
         if log_file.exists():
-            info("Last 10 lines of neural_hub.log:")
+            UI.info("Last 10 lines of neural_hub.log:")
             lines = log_file.read_text(encoding="utf-8", errors="replace").splitlines()
             for line in lines[-10:]:
                 print(f"    {line}")
-        input("\nPress Enter to exit...")
         sys.exit(1)
 
     if not wait_for_hub():
-        err(f"Neural Hub did not respond within {HUB_TIMEOUT}s.")
-        err("Check .logs/neural_hub.log for details.")
-        log_file = LOG_DIR / "neural_hub.log"
-        if log_file.exists():
-            info("Last 10 lines of neural_hub.log:")
-            lines = log_file.read_text(encoding="utf-8", errors="replace").splitlines()
-            for line in lines[-10:]:
-                print(f"    {line}")
-        kill_all()
-        input("\nPress Enter to exit...")
+        hub_spinner.stop(False, f"Neural Hub timed out ({HUB_TIMEOUT}s)")
+        UI.err("Check .logs/neural_hub.log for details.")
         sys.exit(1)
 
-    ok("Neural Hub is online.")
+    hub_spinner.stop(True, "Neural Hub is online.")
+    UI.ok("Neural Link established.")
 
     # 4. Desktop UI
-    banner("Launching Desktop UI...")
+    # 4. Desktop UI
+    UI.banner("Launching Desktop UI")
     tauri_proc = None
 
     # Check for pre-built binary
@@ -501,28 +537,28 @@ def main():
         has_rust = shutil.which("cargo") is not None
 
         if not has_npm:
-            warn("npm not found — cannot build the desktop UI.")
-            warn("Install Node.js >= 18 from https://nodejs.org")
+            UI.warn("npm not found — cannot build the desktop UI.")
+            UI.sub("Install Node.js >= 18 from https://nodejs.org")
             # Check if dist/ already exists (pre-built)
             if (APP_DIR / "dist" / "index.html").exists():
-                ok("Pre-built frontend found — launching in browser mode.")
+                UI.ok("Pre-built frontend found — launching in browser mode.")
                 open_browser_fallback()
             else:
-                warn("No pre-built frontend either — opening Neural Hub in browser.")
+                UI.warn("No pre-built frontend either — opening Neural Hub in browser.")
                 open_browser_fallback()
         else:
             if ensure_npm_deps() and build_frontend():
                 if has_rust:
                     tauri_proc = launch_tauri_dev()
                 else:
-                    info("Rust/Cargo not found — skipping Tauri native build.")
-                    info("Launching in browser mode instead (works great!).")
+                    UI.info("Rust/Cargo not found — skipping Tauri native build.")
+                    UI.info("Launching in browser mode instead.")
                     # Start vite dev server or serve dist/
                     if (APP_DIR / "dist" / "index.html").exists():
                         open_browser_fallback()
                     else:
                         # Use npm run dev (Vite dev server)
-                        info("Starting Vite dev server...")
+                        UI.info("Starting Vite dev server...")
                         proc = subprocess.Popen(
                             "npm run dev",
                             cwd=str(APP_DIR),
@@ -541,22 +577,23 @@ def main():
                 open_browser_fallback()
 
     # 5. Stay alive
-    banner("ALL SYSTEMS GO 🌸")
-    ok(f"Neural Hub  →  {NEURAL_HUB_URL}")
+    UI.banner("ALL SYSTEMS GO ✨")
+    UI.ok(f"Neural Hub  →  {UI.BOLD}{NEURAL_HUB_URL}{UI.RESET}")
     if tauri_proc:
-        ok("Desktop UI  →  Tauri window (check taskbar)")
+        UI.ok(f"Desktop UI  →  {UI.BOLD}Tauri Native{UI.RESET} (Mascot Mode)")
     else:
-        ok("Desktop UI  →  Browser window")
+        UI.ok(f"Desktop UI  →  {UI.BOLD}Browser Mode{UI.RESET} (Fallback)")
+    
     print()
-    info("Press Ctrl+C to shut everything down.\n")
+    UI.info("Aiko is now listening. Press Ctrl+C to terminate the link.\n")
 
     try:
         while True:
             if hub_proc.poll() is not None:
-                err("Neural Hub exited unexpectedly! Check .logs/neural_hub.log")
+                UI.err("Neural Hub exited unexpectedly!")
                 break
             if tauri_proc and tauri_proc.poll() is not None:
-                warn("Tauri window closed. Neural Hub still running.")
+                UI.warn("Tauri window closed. Neural Hub still running.")
                 tauri_proc = None
             time.sleep(2)
     except KeyboardInterrupt:
