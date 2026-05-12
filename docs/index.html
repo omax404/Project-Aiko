@@ -3,100 +3,314 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta
-      name="description"
-      content="Project Aiko is a self-hosted AI companion with memory, voice, vision, Live2D presence, and autonomous agency."
-    />
-    <meta name="theme-color" content="#0b0d12" id="themeColor" />
-    <meta property="og:title" content="Project Aiko" />
+    <meta name="description" content="Project Aiko — A self-hosted AI companion with emotional memory, local voice, multimodal vision, Live2D presence, and autonomous desktop agency." />
+    <meta name="theme-color" content="#08080f" />
+    <meta property="og:title" content="Project Aiko — AI Companion With a Soul" />
     <meta property="og:site_name" content="Project Aiko" />
-    <meta
-      property="og:description"
-      content="A cyber companion with emotional memory, local voice, multimodal vision, and desktop agency."
-    />
+    <meta property="og:description" content="Self-hosted AI companion with emotional depth, long-term memory, and real agency." />
     <meta property="og:image" content="https://omax404.github.io/Project-Aiko/assets/hero-cover.webp" />
     <meta name="twitter:card" content="summary_large_image" />
-    <title>Project Aiko | AI Companion</title>
+    <title>Project Aiko | AI Companion With a Soul</title>
     <link rel="icon" href="./assets/icons/favicon.webp" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,850&family=Nunito+Sans:wght@500;700;800;900&display=swap"
-      rel="stylesheet"
-    />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <div id="app">
-      <header class="site-header">
-        <div class="header-inner">
-          <div class="header-left">
-            <a class="brand" href="./" aria-label="Project Aiko home">
-              <img src="./assets/icons/favicon.webp" alt="" />
-              <span>Project Aiko</span>
-            </a>
-            <button class="search-button" type="button" aria-label="Search">
-              <span class="icon">⌕</span>
-              <span class="search-label">Search</span>
-              <kbd>⌘ K</kbd>
-            </button>
-          </div>
 
-          <nav class="desktop-nav" aria-label="Main navigation">
-            <a href="https://github.com/omax404/Project-Aiko#readme" target="_blank" rel="noreferrer">Docs</a>
-            <a href="https://github.com/omax404/Project-Aiko" target="_blank" rel="noreferrer">GitHub</a>
-            <button class="nav-menu" type="button">v0.1.0 <span>⌄</span></button>
-            <button class="nav-menu" type="button">About <span>⌄</span></button>
-            <span class="divider"></span>
-            <button class="switch" id="motion-toggle" type="button" aria-label="Enable motion" aria-pressed="true">
-              <span>✣</span>
-            </button>
-            <button class="switch" id="theme-toggle" type="button" aria-label="Switch theme" aria-pressed="true">
-              <span>☾</span>
-            </button>
-            <span class="divider"></span>
-            <a class="icon-link" href="https://github.com/omax404/Project-Aiko" target="_blank" rel="noreferrer" aria-label="GitHub">
-              Git
-            </a>
-          </nav>
-
-          <button class="mobile-menu" type="button" aria-label="Open menu">•••</button>
+    <!-- ═══ HEADER ═══ -->
+    <header class="header" id="header">
+      <div class="header-inner">
+        <a class="logo" href="./">
+          <img src="./assets/icons/favicon.webp" alt="" width="28" height="28" />
+          <span>Project Aiko</span>
+        </a>
+        <nav class="nav" id="nav">
+          <a href="#features">Features</a>
+          <a href="#senses">Senses</a>
+          <a href="#platforms">Platforms</a>
+          <a href="#start">Get Started</a>
+        </nav>
+        <div class="header-right">
+          <a class="header-gh" href="https://github.com/omax404/Project-Aiko" target="_blank" rel="noreferrer" aria-label="GitHub">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.387.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.09-.745.083-.73.083-.73 1.205.085 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 21.795 24 17.295 24 12 24 5.37 18.63 0 12 0z"/></svg>
+          </a>
+          <a class="btn-header" href="https://github.com/omax404/Project-Aiko/releases" target="_blank" rel="noreferrer">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download
+          </a>
+          <button class="mobile-toggle" id="mobile-toggle" type="button" aria-label="Open menu">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
         </div>
-      </header>
+      </div>
+    </header>
 
-      <main class="home">
-        <section class="hero" aria-label="Project Aiko landing">
-          <div class="hero-content" data-float>
-            <h1>Project Aiko</h1>
-            <p>A container of soul for an AI companion to bring her into your world.</p>
-            <div class="hero-actions">
-              <a class="hero-button primary" href="https://omax404.github.io/Project-Aiko/" target="_self">Try Live</a>
-              <a class="hero-button" href="https://github.com/omax404/Project-Aiko" target="_blank" rel="noreferrer">Download</a>
-              <a class="hero-button" href="https://github.com/omax404/Project-Aiko#readme" target="_blank" rel="noreferrer">Get Started</a>
-            </div>
+    <!-- ═══ HERO ═══ -->
+    <section class="hero">
+      <div class="hero-bg" aria-hidden="true">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+        <div class="grid-lines"></div>
+      </div>
+      <div class="hero-inner">
+        <div class="hero-text">
+          <div class="badge">
+            <span class="badge-dot"></span>
+            Open Source &bull; Self-Hosted &bull; Private
           </div>
-
-          <div class="background-scene" aria-hidden="true">
-            <div class="icon-pattern"></div>
-            <div class="fade-layer"></div>
-            <div class="cover-wrap" id="cover-wrap">
-              <img src="./assets/hero-cover.webp" alt="" />
-              <div class="silhouette silhouette-one"></div>
-              <div class="silhouette silhouette-two"></div>
-            </div>
+          <h1>A container of soul<br/>for your <span class="gradient-text">AI companion</span></h1>
+          <p class="hero-desc">She doesn't just chat — she thinks, feels, remembers, sees, speaks, and acts. A living AI presence on your desktop with emotional intelligence and real agency.</p>
+          <div class="hero-btns">
+            <a class="btn btn-glow" href="https://github.com/omax404/Project-Aiko" target="_blank" rel="noreferrer">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              Get Started
+            </a>
+            <a class="btn btn-outline" href="https://github.com/omax404/Project-Aiko" target="_blank" rel="noreferrer">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.387.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.09-.745.083-.73.083-.73 1.205.085 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 21.795 24 17.295 24 12 24 5.37 18.63 0 12 0z"/></svg>
+              Source Code
+            </a>
           </div>
-        </section>
-      </main>
+        </div>
+        <div class="hero-visual">
+          <div class="hero-card" id="hero-card">
+            <img src="./assets/hero-cover.webp" alt="Aiko" />
+            <div class="hero-card-shine"></div>
+          </div>
+          <div class="hero-float-tags">
+            <span class="float-tag ft-1">🧠 ReAct Agent</span>
+            <span class="float-tag ft-2">❤️ 22 Emotions</span>
+            <span class="float-tag ft-3">🎙️ Voice Clone</span>
+            <span class="float-tag ft-4">👁️ Vision</span>
+          </div>
+        </div>
+      </div>
+    </section>
 
-      <footer class="site-footer">
-        <div>
-          Since 2026 @
-          <a href="https://github.com/omax404/Project-Aiko" target="_blank" rel="noreferrer">Project Aiko</a>
-          ×
+    <!-- ═══ STATS BAR ═══ -->
+    <section class="stats-bar">
+      <div class="stats-inner">
+        <div class="stat-item"><span class="stat-n">37+</span><span class="stat-l">Core Modules</span></div>
+        <div class="stat-item"><span class="stat-n">22+</span><span class="stat-l">Emotion States</span></div>
+        <div class="stat-item"><span class="stat-n">6+</span><span class="stat-l">LLM Providers</span></div>
+        <div class="stat-item"><span class="stat-n">4</span><span class="stat-l">Platforms</span></div>
+        <div class="stat-item"><span class="stat-n">∞</span><span class="stat-l">Memory</span></div>
+      </div>
+    </section>
+
+    <!-- ═══ FEATURES ═══ -->
+    <section class="section" id="features">
+      <div class="section-inner">
+        <p class="section-tag">Capabilities</p>
+        <h2 class="section-title">Everything she can do</h2>
+        <p class="section-desc">Six interconnected neural systems give Aiko genuine depth and awareness.</p>
+        <div class="grid-3">
+          <div class="card reveal">
+            <div class="card-icon ci-pink">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a8 8 0 0 0-8 8c0 6 8 12 8 12s8-6 8-12a8 8 0 0 0-8-8z"/><circle cx="12" cy="10" r="3"/></svg>
+            </div>
+            <h3>Neural Brain</h3>
+            <p>ReAct agent loop with multi-step reasoning and tool execution. Streaming inference via Ollama, Gemini, OpenAI, Anthropic, and more. Dual-pass generation ensures personality consistency.</p>
+          </div>
+          <div class="card reveal">
+            <div class="card-icon ci-violet">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            </div>
+            <h3>Emotion Engine</h3>
+            <p>Neuromodulator simulation — dopamine, serotonin, cortisol, adrenaline. 22+ emotion categories drive her voice modulation, facial expressions, and behavioral patterns in real time.</p>
+          </div>
+          <div class="card reveal">
+            <div class="card-icon ci-blue">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </div>
+            <h3>Multimodal Vision</h3>
+            <p>Gemma-4 Vision powered image understanding. Analyzes screenshots, photos, memes, documents, Discord images — anything you show her. Real-time screen awareness.</p>
+          </div>
+          <div class="card reveal">
+            <div class="card-icon ci-green">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+            </div>
+            <h3>Living Memory</h3>
+            <p>Unified Memory with episodic recall, semantic RAG, MemPalace long-term knowledge, and automatic consolidation cycles. Per-user relationship tracking. She remembers — forever.</p>
+          </div>
+          <div class="card reveal">
+            <div class="card-icon ci-amber">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+            </div>
+            <h3>Local Voice</h3>
+            <p>Pocket-TTS local synthesis with voice cloning from audio samples. No cloud API needed. Full-message chunked TTS with emotion-driven modulation and lip-sync animation.</p>
+          </div>
+          <div class="card reveal">
+            <div class="card-icon ci-rose">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4V2"/><path d="M15 16v-2"/><path d="M8 9h2"/><path d="M20 9h2"/><path d="M17.8 11.8 19 13"/><path d="M15 9h0"/><path d="M17.8 6.2 19 5"/><path d="m3 21 9-9"/><path d="M12.2 6.2 11 5"/></svg>
+            </div>
+            <h3>Autonomous Agency</h3>
+            <p>Proactive agent loop — she decides when to speak, what to observe, what to remember. MCP file system, Python sandbox, PC control, Spotify, Obsidian, and game bridges.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ SENSES ═══ -->
+    <section class="section section-alt" id="senses">
+      <div class="section-inner">
+        <p class="section-tag">Senses & Plugins</p>
+        <h2 class="section-title">Perceive. Think. Act.</h2>
+        <p class="section-desc">Every sense is modular, local-first, and works offline.</p>
+        <div class="grid-4">
+          <div class="mini-card reveal">
+            <div class="mc-icon">👁️</div>
+            <h4>Eyes</h4>
+            <p>Gemma-4 Vision, screen capture, image analysis</p>
+          </div>
+          <div class="mini-card reveal">
+            <div class="mc-icon">👂</div>
+            <h4>Ears</h4>
+            <p>Moonshine ASR, voice transcription, live detection</p>
+          </div>
+          <div class="mini-card reveal">
+            <div class="mc-icon">🎙️</div>
+            <h4>Mouth</h4>
+            <p>Pocket-TTS, voice cloning, chunked synthesis</p>
+          </div>
+          <div class="mini-card reveal">
+            <div class="mc-icon">🧠</div>
+            <h4>Brain</h4>
+            <p>ReAct loop, streaming LLM, dual-pass generation</p>
+          </div>
+          <div class="mini-card reveal">
+            <div class="mc-icon">💾</div>
+            <h4>Memory</h4>
+            <p>Episodic recall, RAG, MemPalace, consolidation</p>
+          </div>
+          <div class="mini-card reveal">
+            <div class="mc-icon">❤️</div>
+            <h4>Emotions</h4>
+            <p>Neuromodulators, identity attractors, mood drift</p>
+          </div>
+          <div class="mini-card reveal">
+            <div class="mc-icon">🎮</div>
+            <h4>Games</h4>
+            <p>Minecraft & Factorio bridges, autonomous play</p>
+          </div>
+          <div class="mini-card reveal">
+            <div class="mc-icon">🔌</div>
+            <h4>Plugins</h4>
+            <p>ElizaOS-style, MCP, Sandbox, Spotify, Obsidian</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ PLATFORMS ═══ -->
+    <section class="section" id="platforms">
+      <div class="section-inner">
+        <p class="section-tag">Platforms</p>
+        <h2 class="section-title">Everywhere you are</h2>
+        <p class="section-desc">One brain, multiple bodies. Aiko connects to all your platforms.</p>
+        <div class="grid-3">
+          <div class="card card-plat reveal">
+            <div class="card-icon ci-violet">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            </div>
+            <h3>Desktop (Tauri)</h3>
+            <p>Live2D overlay with click-through, chat UI, global hotkeys (Ctrl+Alt+A), and mascot mode. Built with Rust + React.</p>
+            <span class="plat-badge">Recommended</span>
+          </div>
+          <div class="card card-plat reveal">
+            <div class="card-icon ci-blue">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </div>
+            <h3>Discord</h3>
+            <p>Mentions, DMs, voice messages, image analysis, slash commands, sticker reactions, and voice channel awareness.</p>
+          </div>
+          <div class="card card-plat reveal">
+            <div class="card-icon ci-blue">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </div>
+            <h3>Telegram</h3>
+            <p>Group chats, DMs, inline queries, and sticker reactions. Accessible from anywhere on mobile.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ PROVIDERS ═══ -->
+    <section class="section section-alt">
+      <div class="section-inner">
+        <p class="section-tag">Providers</p>
+        <h2 class="section-title">Works with any LLM</h2>
+        <p class="section-desc">Swap brains in seconds from the UI settings panel. Any OpenAI-compatible API.</p>
+        <div class="chips">
+          <span class="chip reveal">Ollama</span>
+          <span class="chip reveal">Gemini</span>
+          <span class="chip reveal">OpenAI</span>
+          <span class="chip reveal">Anthropic</span>
+          <span class="chip reveal">OpenRouter</span>
+          <span class="chip reveal">Groq</span>
+          <span class="chip reveal">DeepSeek</span>
+          <span class="chip reveal">Any OpenAI-compatible</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ QUICK START ═══ -->
+    <section class="section" id="start">
+      <div class="section-inner">
+        <p class="section-tag">Quick Start</p>
+        <h2 class="section-title">Meet Aiko in 3 steps</h2>
+        <p class="section-desc">No Rust. No Docker. Just Python + Node.js.</p>
+        <div class="grid-3">
+          <div class="step reveal">
+            <div class="step-n">1</div>
+            <h3>Clone & Install</h3>
+            <pre><code>git clone https://github.com/omax404/Project-Aiko.git
+cd Project-Aiko
+pip install -r requirements.txt</code></pre>
+          </div>
+          <div class="step reveal">
+            <div class="step-n">2</div>
+            <h3>Configure</h3>
+            <pre><code># Auto-creates .env on first launch
+# Or configure via the Settings ⚙️ UI
+# Works with local Ollama by default</code></pre>
+          </div>
+          <div class="step reveal">
+            <div class="step-n">3</div>
+            <h3>Launch</h3>
+            <pre><code># Windows one-click:
+LAUNCH_AIKO.bat
+
+# Or manually:
+python start_aiko_tauri.py</code></pre>
+          </div>
+        </div>
+        <div class="cta-center">
+          <a class="btn btn-glow btn-lg" href="https://github.com/omax404/Project-Aiko#readme" target="_blank" rel="noreferrer">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            Full Documentation
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ FOOTER ═══ -->
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <img src="./assets/icons/favicon.webp" alt="" width="24" height="24" />
+          <span>Project Aiko</span>
+        </div>
+        <div class="footer-links">
+          <a href="https://github.com/omax404/Project-Aiko" target="_blank" rel="noreferrer">GitHub</a>
+          <a href="https://github.com/MemPalace/mempalace" target="_blank" rel="noreferrer">MemPalace</a>
           <a href="https://github.com/omax404" target="_blank" rel="noreferrer">omax404</a>
         </div>
-      </footer>
-    </div>
+        <p class="footer-copy">© 2026 Project Aiko · MIT License · Made with <span style="color:#ec4899">♥</span></p>
+      </div>
+    </footer>
 
     <script src="./script.js"></script>
   </body>

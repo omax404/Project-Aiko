@@ -22,12 +22,23 @@ import http.server
 import socketserver
 from pathlib import Path
 
-try:
-    import requests
-except ImportError:
-    print("  [INFO] Installing requests library...")
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "requests", "-q"])
-    import requests
+import urllib.request
+import urllib.error
+import json as _json
+
+def http_get(url, timeout=5):
+    """Simple HTTP GET using stdlib only — no 'requests' dependency needed."""
+    try:
+        req = urllib.request.Request(url)
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return resp.status, resp.read().decode(errors='replace')
+    except Exception:
+        return 0, ""
+
+def http_ok(url, timeout=5):
+    """Return True if url returns HTTP 2xx/3xx."""
+    code, _ = http_get(url, timeout)
+    return 200 <= code < 400
 
 # ─── Paths ────────────────────────────────────────────────────
 BASE       = Path(__file__).parent.resolve()
@@ -37,7 +48,7 @@ LOG_DIR    = BASE / ".logs"
 DATA_DIR   = BASE / "data"
 
 IS_WINDOWS = platform.system() == "Windows"
-PYTHON     = str(VENV_DIR / ("Scripts/python.exe" if IS_WINDOWS else "bin/python"))
+PYTHON     = str(VENV_DIR / "Scripts" / "python.exe") if IS_WINDOWS else str(VENV_DIR / "bin" / "python")
 if not Path(PYTHON).exists():
     PYTHON = sys.executable
 
@@ -260,11 +271,8 @@ def cleanup_old_instances():
 def check_llm() -> bool:
     for url in ["http://127.0.0.1:11434/api/tags",
                 "http://127.0.0.1:1234/v1/models"]:
-        try:
-            if requests.get(url, timeout=3).status_code < 400:
-                return True
-        except Exception:
-            pass
+        if http_ok(url, timeout=3):
+            return True
     return False
 
 
@@ -284,12 +292,9 @@ def wait_for_hub(timeout=HUB_TIMEOUT) -> bool:
     deadline = time.time() + timeout
     dots = 0
     while time.time() < deadline:
-        try:
-            if requests.get(f"{NEURAL_HUB_URL}/status", timeout=2).status_code < 400:
-                print()
-                return True
-        except Exception:
-            pass
+        if http_ok(f"{NEURAL_HUB_URL}/status", timeout=2):
+            print()
+            return True
         time.sleep(1)
         sys.stdout.write(".")
         sys.stdout.flush()
@@ -560,4 +565,15 @@ def main():
         kill_all()
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        print(f"\n\n  [FATAL ERROR] {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        # NEVER let the window close silently — users need to see errors
+        try:
+            input("\nPress Enter to exit...")
+        except EOFError:
+            pass
