@@ -9,7 +9,7 @@
 **Emotionally intelligent • Multimodal vision • Local voice synthesis • Autonomous agency**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-ff69b4.svg)](LICENSE)
-[![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://python.org)
+[![Python 3.10 - 3.12](https://img.shields.io/badge/Python-3.10--3.12-blue.svg)](https://python.org)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Us-7289da.svg)](https://discord.gg/)
 [![GitHub Stars](https://img.shields.io/github/stars/omax404/Project-Aiko?style=social)](https://github.com/omax404/Project-Aiko)
 [![GitHub Last Commit](https://img.shields.io/github/last-commit/omax404/Project-Aiko?color=pink)](https://github.com/omax404/Project-Aiko)
@@ -345,6 +345,23 @@ Aiko is a living project. Here is what's coming soon:
 <div align="center">
   <img src="https://repobeats.axiom.co/api/embed/a1d6fe2c13ea2bb53a5154435a71e2431f70c2ee.svg" width="100%" alt="RepoBeats Analytics" />
 </div>
+
+---
+
+---
+
+## 🛠️ Troubleshooting
+
+### 1. `LAUNCH_AIKO.bat` crashes immediately
+- **Fix:** Make sure you checked **"Add Python to PATH"** during installation.
+- **Fix:** Ensure you are using **Python 3.10, 3.11, or 3.12**. (Python 3.13 is very new and some libraries might not support it yet).
+
+### 2. Error: `Failed to build wheel` or `cl.exe` not found
+- **Fix:** You need the **Visual C++ Build Tools**. Download the "Desktop development with C++" workload from [Microsoft's website](https://visualstudio.microsoft.com/visual-cpp-build-tools/).
+
+### 3. Aiko wakes up but can't "think"
+- **Fix:** Make sure you have **Ollama** running in the background.
+- **Fix:** Go to **Settings ⚙️** and check your API keys if you are using cloud providers like OpenAI or Gemini.
 
 ---
 
