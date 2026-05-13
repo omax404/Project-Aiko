@@ -326,7 +326,7 @@ def start_neural_hub() -> subprocess.Popen:
 
 
 def wait_for_hub(timeout=HUB_TIMEOUT) -> bool:
-    info(f"Waiting up to {timeout}s for Neural Hub at {NEURAL_HUB_URL}/status ...")
+    UI.info(f"Waiting up to {timeout}s for Neural Hub at {NEURAL_HUB_URL}/status ...")
     deadline = time.time() + timeout
     dots = 0
     while time.time() < deadline:
@@ -352,7 +352,7 @@ def ensure_npm_deps() -> bool:
     lock_file    = APP_DIR / "package-lock.json"
 
     if not package_json.exists():
-        err("aiko-app/package.json not found. Repo may be incomplete.")
+        UI.err("aiko-app/package.json not found. Repo may be incomplete.")
         return False
 
     needs_install = not node_modules.exists()
@@ -360,40 +360,40 @@ def ensure_npm_deps() -> bool:
         needs_install = lock_file.stat().st_mtime > node_modules.stat().st_mtime
 
     if needs_install:
-        info("node_modules missing or stale — running npm install...")
-        info("(First run may take 1-3 minutes)")
+        UI.info("node_modules missing or stale — running npm install...")
+        UI.info("(First run may take 1-3 minutes)")
         code = run_shell("npm install", cwd=str(APP_DIR), label="NPM")
         if code != 0:
-            err("npm install failed.")
-            err("Make sure Node.js >= 18 is installed: https://nodejs.org")
+            UI.err("npm install failed.")
+            UI.err("Make sure Node.js >= 18 is installed: https://nodejs.org")
             return False
-        ok("npm install complete.")
+        UI.ok("npm install complete.")
     else:
-        ok("node_modules OK — skipping install.")
+        UI.ok("node_modules OK — skipping install.")
     return True
 
 
 def build_frontend() -> bool:
     """Build the Vite frontend. Uses shell=True for Windows .cmd shim compatibility."""
     if (APP_DIR / "dist" / "index.html").exists():
-        ok("Frontend dist/ already built — skipping Vite build.")
+        UI.ok("Frontend dist/ already built — skipping Vite build.")
         return True
-    info("Building Vite frontend...")
+    UI.info("Building Vite frontend...")
     code = run_shell("npm run build", cwd=str(APP_DIR), label="VITE")
     if code != 0:
-        err("Vite build failed.")
+        UI.err("Vite build failed.")
         return False
-    ok("Frontend built.")
+    UI.ok("Frontend built.")
     return True
 
 
 def launch_tauri_dev() -> subprocess.Popen:
-    warn("─────────────────────────────────────────────────────")
-    warn("FIRST-TIME RUST COMPILATION DETECTED")
-    warn("Cargo will now compile the Tauri backend (~5-20 min).")
-    warn("You will see live build output below. This is normal.")
-    warn("Every launch after this will be instant.")
-    warn("─────────────────────────────────────────────────────")
+    UI.warn("─────────────────────────────────────────────────────")
+    UI.warn("FIRST-TIME RUST COMPILATION DETECTED")
+    UI.warn("Cargo will now compile the Tauri backend (~5-20 min).")
+    UI.warn("You will see live build output below. This is normal.")
+    UI.warn("Every launch after this will be instant.")
+    UI.warn("─────────────────────────────────────────────────────")
 
     env = os.environ.copy()
     env["RUST_LOG"] = "info"
@@ -413,7 +413,7 @@ def launch_tauri_dev() -> subprocess.Popen:
 
 
 def launch_tauri_release(path: Path) -> subprocess.Popen:
-    ok(f"Pre-built binary found: {path.name} — launching instantly.")
+    UI.ok(f"Pre-built binary found: {path.name} — launching instantly.")
     proc = subprocess.Popen(
         [str(path)],
         cwd=str(APP_DIR if "src-tauri" in str(path) else BASE),
@@ -441,14 +441,14 @@ def start_static_server(port=5173):
         server = socketserver.TCPServer(("127.0.0.1", port), QuietHandler)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
-        ok(f"Static file server running at http://127.0.0.1:{port}")
+        UI.ok(f"Static file server running at http://127.0.0.1:{port}")
         return server
     except OSError:
         return None
 
 
 def open_browser_fallback():
-    warn("Tauri unavailable — opening browser UI instead.")
+    UI.warn("Tauri unavailable — opening browser UI instead.")
     # Try to serve the dist/ folder first, then fall back to Neural Hub
     server = start_static_server()
     import webbrowser
