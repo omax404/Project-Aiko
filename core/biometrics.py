@@ -1,6 +1,5 @@
 
 import os
-import cv2
 import logging
 import numpy as np
 import time
@@ -9,27 +8,41 @@ from core.config_manager import config
 
 logger = logging.getLogger("Biometrics")
 
+try:
+    import cv2
+    HAS_CV2 = True
+except ImportError:
+    HAS_CV2 = False
+    logger.warning("OpenCV not installed. Biometrics disabled. Run: pip install opencv-contrib-python")
+
 class BiometricScanner:
     """
     Aiko's Biometric Security Layer.
     Uses OpenCV for Face Recognition and Master Identification.
     """
     def __init__(self):
-        self.cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
-        self.face_cascade = cv2.CascadeClassifier(self.cascade_path)
-        self.recognizer = cv2.face.LBPHFaceRecognizer_create()
+        self.is_trained = False
         self.data_dir = Path("data/biometrics")
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.model_path = self.data_dir / "master_model.yml"
         self.training_dir = self.data_dir / "training"
         self.training_dir.mkdir(parents=True, exist_ok=True)
         
-        self.is_trained = self.model_path.exists()
-        if self.is_trained:
-            self.recognizer.read(str(self.model_path))
+        if HAS_CV2:
+            self.cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+            self.face_cascade = cv2.CascadeClassifier(self.cascade_path)
+            self.recognizer = cv2.face.LBPHFaceRecognizer_create()
+            
+            self.is_trained = self.model_path.exists()
+            if self.is_trained:
+                self.recognizer.read(str(self.model_path))
             
     def register_master(self, camera_index=0, num_samples=30):
         """Captures training data from the webcam to register the Master."""
+        if not HAS_CV2:
+            logger.error("Cannot register master without OpenCV.")
+            return False
+            
         logger.info("Initializing Master Registration sequence...")
         cap = cv2.VideoCapture(camera_index)
         count = 0
@@ -59,6 +72,8 @@ class BiometricScanner:
 
     def train_model(self):
         """Trains the LBPH recognizer on the captured samples."""
+        if not HAS_CV2: return False
+        
         faces = []
         ids = []
         
@@ -80,7 +95,7 @@ class BiometricScanner:
         Scans a single frame for the Master.
         Returns (is_master, confidence, box)
         """
-        if not self.is_trained:
+        if not self.is_trained or not HAS_CV2:
             return False, 0.0, None
             
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -98,6 +113,8 @@ class BiometricScanner:
 
     async def autonomous_scan(self, camera_index=0):
         """One-shot scan from camera to verify presence."""
+        if not HAS_CV2: return False
+        
         cap = cv2.VideoCapture(camera_index)
         ret, frame = cap.read()
         cap.release()

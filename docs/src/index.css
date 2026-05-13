@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+@theme {
+  --color-airi-bg: #0d0c13;
+  --color-airi-text: #e6e6e6;
+  --color-airi-accent: #f2f2f2;
+  --color-airi-subtext: #8b8b8b;
+  --color-airi-glass: rgba(255, 255, 255, 0.05);
+  --color-airi-glass-hover: rgba(255, 255, 255, 0.1);
+  --color-airi-glass-border: rgba(255, 255, 255, 0.1);
+}
+
+@layer base {
+  body {
+    @apply bg-airi-bg text-airi-text font-sans antialiased overflow-x-hidden;
+    margin: 0;
+    min-height: 100vh;
+    background-image: 
+      radial-gradient(circle at 50% -20%, rgba(255, 255, 255, 0.05) 0%, transparent 50%),
+      radial-gradient(circle at 100% 50%, rgba(255, 255, 255, 0.02) 0%, transparent 50%);
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply bg-airi-glass backdrop-blur-md border border-airi-glass-border rounded-2xl;
+  }
+  .glass-button {
+    @apply bg-airi-glass backdrop-blur-lg border border-airi-glass-border rounded-full text-airi-text transition-all duration-300;
+  }
+  .glass-button:hover {
+    @apply bg-airi-glass-hover text-white shadow-[0_0_15px_rgba(255,255,255,0.1)];
+  }
+}
+
+/* Background Grids / Ghost pattern */
+.bg-grid {
+  background-size: 40px 40px;
+  background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  mask-image: radial-gradient(circle at center, black 40%, transparent 80%);
+  -webkit-mask-image: radial-gradient(circle at center, black 40%, transparent 80%);
+}
+
+.scramble-text {
+  display: inline-block;
+  min-width: 1em;
+}
+

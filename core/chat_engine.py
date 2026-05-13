@@ -832,17 +832,11 @@ Use MCP tools whenever Master asks about his PC state, files, or wants you to re
                 role = "user" if h["role"] == "system" else h["role"]
                 messages.append({"role": role, "content": h["content"]})
                 
-            session = get_session()
-            base_url = config.get("OLLAMA_BASE_URL", "http://localhost:11434")
-            model = config.get("MODEL_NAME", "deepseek-chat")
-            
-            payload = {"model": model, "messages": messages, "stream": False, "options": {"temperature": 0.3, "num_ctx": 4096}}
-            
-            async with session.post(f"{base_url}/api/chat", json=payload) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    self._reflective_state = data.get("message", {}).get("content", "").strip()
-                    logger.info(f"🧠 Reflection Updated: {self._reflective_state}")
+            # Use the unified LLM caller instead of hardcoded Ollama endpoint
+            content = await self._call_llm(messages, apply_neuromodulators=False)
+            if content:
+                self._reflective_state = content.strip()
+                logger.info(f"🧠 Reflection Updated: {self._reflective_state}")
         except Exception as e:
             logger.error(f"Failed to update reflective state: {e}")
 

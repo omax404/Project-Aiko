@@ -1004,7 +1004,7 @@ if __name__ == "__main__":
         f.write(str(os.getpid()))
         
     try:
-        web.run_app(build_hub_app(), host=args.host, port=8000, print=lambda x: logger.info(x))
+        web.run_app(build_hub_app(), host=args.host, port=args.port, print=lambda x: logger.info(x))
     except OSError as e:
         if e.errno in (10048, 98): # Windows and Linux "Address already in use"
             logger.warning(f" [!] Port {args.port} is already in use.")
