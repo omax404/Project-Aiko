@@ -1,13 +1,13 @@
 @import "tailwindcss";
 
 @theme {
-  --color-airi-bg: #0d0c13;
-  --color-airi-text: #e6e6e6;
-  --color-airi-accent: #f2f2f2;
-  --color-airi-subtext: #8b8b8b;
-  --color-airi-glass: rgba(255, 255, 255, 0.05);
-  --color-airi-glass-hover: rgba(255, 255, 255, 0.1);
-  --color-airi-glass-border: rgba(255, 255, 255, 0.1);
+  --color-airi-bg: #050508;
+  --color-airi-text: #f0f0f5;
+  --color-airi-accent: #ffffff;
+  --color-airi-subtext: #9494b8;
+  --color-airi-glass: rgba(255, 255, 255, 0.03);
+  --color-airi-glass-hover: rgba(255, 255, 255, 0.07);
+  --color-airi-glass-border: rgba(255, 255, 255, 0.08);
 }
 
 @layer base {
@@ -16,21 +16,52 @@
     margin: 0;
     min-height: 100vh;
     background-image: 
-      radial-gradient(circle at 50% -20%, rgba(255, 255, 255, 0.05) 0%, transparent 50%),
+      radial-gradient(circle at 50% -20%, rgba(120, 119, 198, 0.15) 0%, transparent 50%),
       radial-gradient(circle at 100% 50%, rgba(255, 255, 255, 0.02) 0%, transparent 50%);
   }
 }
 
 @layer utilities {
   .glass-panel {
-    @apply bg-airi-glass backdrop-blur-md border border-airi-glass-border rounded-2xl;
+    @apply bg-airi-glass backdrop-blur-xl border border-airi-glass-border rounded-2xl;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
   }
+  
+  .glass-crystal {
+    background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .glass-crystal::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3仿真%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    opacity: 0.05;
+    pointer-events: none;
+  }
+
   .glass-button {
-    @apply bg-airi-glass backdrop-blur-lg border border-airi-glass-border rounded-full text-airi-text transition-all duration-300;
+    @apply bg-airi-glass backdrop-blur-lg border border-airi-glass-border rounded-full text-airi-text transition-all duration-500 ease-out;
+    letter-spacing: 0.1em;
   }
   .glass-button:hover {
-    @apply bg-airi-glass-hover text-white shadow-[0_0_15px_rgba(255,255,255,0.1)];
+    @apply bg-white/10 text-white shadow-[0_0_20px_rgba(255,255,255,0.15)] border-white/30;
+    transform: translateY(-2px);
   }
+}
+
+.cursor-spotlight {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  pointer-events: none;
+  z-index: 1;
+  background: radial-gradient(600px circle at var(--x) var(--y), rgba(255,255,255,0.06), transparent 40%);
 }
 
 /* Background Grids / Ghost pattern */

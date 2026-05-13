@@ -92,36 +92,48 @@ const MagneticButton = ({ children, className = "", onClick }) => {
 // --- Main App ---
 function App() {
   const [isReady, setIsReady] = useState(false);
+  const spotlightRef = useRef(null);
 
   useEffect(() => {
     // Reveal animation
     setTimeout(() => setIsReady(true), 100);
+
+    const handleMouseMove = (e) => {
+      document.documentElement.style.setProperty('--x', `${e.clientX}px`);
+      document.documentElement.style.setProperty('--y', `${e.clientY}px`);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
   return (
     <div className="min-h-screen w-full relative flex flex-col items-center justify-center overflow-hidden">
+      {/* Dynamic Cursor Spotlight */}
+      <div className="cursor-spotlight" />
+
       {/* Background Ghost Grid */}
       <div className="absolute inset-0 bg-grid z-0 opacity-20 pointer-events-none" />
       
-      {/* Main Container */}
+      {/* Main Glass Container (Crystal) */}
       <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: isReady ? 1 : 0, scale: isReady ? 1 : 0.95 }}
-        transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-        className="z-10 flex flex-col items-center justify-center mt-20 md:mt-0"
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: isReady ? 1 : 0, y: isReady ? 0 : 30 }}
+        transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+        className="z-10 flex flex-col items-center justify-center glass-crystal p-12 md:p-20 rounded-[3rem] max-w-[90vw]"
       >
         {/* Tagline */}
         <motion.div 
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.5, duration: 0.8 }}
-          className="text-airi-accent/60 text-xs tracking-[0.3em] uppercase font-mono mb-6"
+          className="text-white/40 text-[0.6rem] tracking-[0.4em] uppercase font-mono mb-8"
         >
-          Neural Hub
+          Neural Hub — Soul Container Protocol
         </motion.div>
 
         {/* Title */}
-        <h1 className="text-6xl md:text-8xl font-light tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-white/40 mb-4 select-none mix-blend-plus-lighter">
+        <h1 className="text-6xl md:text-8xl font-light tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-white/30 mb-6 select-none mix-blend-plus-lighter">
           <ScrambleText text="Project Aiko" />
         </h1>
 
@@ -130,9 +142,9 @@ function App() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1, duration: 1 }}
-          className="text-airi-subtext text-center max-w-lg mb-12 text-sm leading-relaxed"
+          className="text-airi-subtext text-center max-w-lg mb-12 text-sm md:text-base leading-relaxed font-light"
         >
-          An open-source container of souls. A cyber companion bringing AI entities into our world through seamless desktop integration.
+          Bringing high-fidelity virtual entities into our reality. An open-source architecture for local AI orchestration and visual presence.
         </motion.p>
 
         {/* Action Buttons */}
@@ -140,13 +152,13 @@ function App() {
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 1.2, duration: 0.8 }}
-          className="flex flex-wrap gap-6 justify-center"
+          className="flex flex-wrap gap-8 justify-center"
         >
           <MagneticButton onClick={() => window.open('http://localhost:8000', '_blank')}>
-            Initialize Link
+            INITIALIZE_LINK
           </MagneticButton>
-          <MagneticButton className="bg-transparent border-white/20 hover:bg-white/10" onClick={() => window.open('https://github.com/aiko', '_blank')}>
-            View Documentation
+          <MagneticButton className="bg-transparent border-white/10 hover:bg-white/20" onClick={() => window.open('https://github.com/omax404/Project-Aiko', '_blank')}>
+            PROTOCOL_DOCS
           </MagneticButton>
         </motion.div>
       </motion.div>
@@ -154,15 +166,15 @@ function App() {
       {/* Mascot Silhouette */}
       <motion.div 
         initial={{ y: "100%", opacity: 0 }}
-        animate={{ y: 0, opacity: 0.6 }}
-        transition={{ delay: 1.5, duration: 1.5, ease: "easeOut" }}
-        className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-[60vh] pointer-events-none z-0 mix-blend-screen"
+        animate={{ y: 0, opacity: 0.4 }}
+        transition={{ delay: 1.5, duration: 2, ease: [0.16, 1, 0.3, 1] }}
+        className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-[70vh] pointer-events-none z-0 mix-blend-lighten opacity-40"
         style={{
           backgroundImage: 'url(/aiko.png)',
           backgroundSize: 'contain',
           backgroundPosition: 'bottom center',
           backgroundRepeat: 'no-repeat',
-          filter: 'drop-shadow(0 0 30px rgba(170, 59, 255, 0.2)) grayscale(100%) contrast(1.2)'
+          filter: 'drop-shadow(0 0 50px rgba(255, 255, 255, 0.1)) grayscale(100%) brightness(1.5)'
         }}
       />
     </div>
