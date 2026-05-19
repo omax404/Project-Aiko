@@ -31,3 +31,4 @@ pydub>=0.25.1
 scipy>=1.10.0
 huggingface_hub>=0.16.0
 spotipy>=2.23.0
+chromadb>=0.4.0

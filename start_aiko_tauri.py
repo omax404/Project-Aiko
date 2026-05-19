@@ -25,6 +25,7 @@ from pathlib import Path
 import urllib.request
 import urllib.error
 import json as _json
+import io
 
 def http_get(url, timeout=5):
     """Simple HTTP GET using stdlib only — no 'requests' dependency needed."""
@@ -53,7 +54,7 @@ if not Path(PYTHON).exists():
     PYTHON = sys.executable
 
 NEURAL_HUB_URL = "http://127.0.0.1:8000"
-HUB_TIMEOUT    = 60  # seconds
+HUB_TIMEOUT    = 180  # seconds
 
 # Pre-built Tauri release binary locations
 TAURI_BINARY_PATHS = [
@@ -464,6 +465,9 @@ def main():
     # Enable ANSI on Windows if needed
     if IS_WINDOWS:
         os.system('') 
+        # Force UTF-8 for Windows console to avoid UnicodeEncodeError
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
     
     UI.banner("PROJECT AIKO 🌸 CORE v4.5")
 

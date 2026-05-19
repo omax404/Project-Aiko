@@ -21,10 +21,16 @@ from aiohttp import web
 import aiohttp
 from datetime import datetime
 
-# Setup Logging
+# Setup Logging with UTF-8 support
+import io
+if sys.platform == "win32":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(name)s] %(message)s"
+    format="%(asctime)s [%(name)s] %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)]
 )
 logger = logging.getLogger("NeuralHub")
 
@@ -131,7 +137,11 @@ vision = VisionEngine()
 pc = PCManager()
 voice_engine = VoiceEngine()
 hearing_engine = HearingEngine()
-obsidian = ObsidianConnector(vault_path=config.get("obsidian_path", ""))
+try:
+    obsidian = ObsidianConnector(vault_path=config.get("obsidian_path", ""))
+except Exception as _obs_err:
+    logger.warning(f"Obsidian Connector skipped: {_obs_err}")
+    obsidian = None
 
 # Initialize Proactive Agent
 proactive_agent = ProactiveAgent(brain=None, vision=vision, pc_manager=pc, voice=voice_engine)
@@ -174,7 +184,7 @@ async def sync_star_office(state: str, detail: str = ""):
     except:
         return False
 
-USER_ID = "omax"
+USER_ID = config.get("username", os.getenv("USER", os.getenv("USERNAME", "user")))
 
 # --- Callbacks ---
 async def broadcast_amplitude(amp: float):
@@ -348,11 +358,11 @@ async def handle_pin_session(req):
     try:
         data = await req.json()
         sid = data.get("id")
-        # memory.py doesn't have pin_session yet, I'll add it or simulate it
-        if hasattr(memory, 'pin_session'):
-            if memory.pin_session(sid):
-                return web.json_response({"status": "success"})
-        return web.json_response({"error": "Endpoint not implemented"}, status=501)
+        if not sid:
+            return web.json_response({"error": "Missing session id"}, status=400)
+        if memory.pin_session(sid):
+            return web.json_response({"status": "success"})
+        return web.json_response({"error": "Session not found"}, status=404)
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
 
@@ -685,8 +695,31 @@ async def handle_reload_settings(req):
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
 
+# Keys that must NEVER be sent to the frontend
+_REDACTED_KEY_PATTERNS = {
+    "API_KEY", "DEEPSEEK_API_KEY", "GEMINI_API_KEY", "DISCORD_TOKEN",
+    "TELEGRAM_TOKEN", "SPOTIFY_CLIENT_SECRET", "TTS_KEY", "STT_KEY",
+    "IMAGE_GEN_KEY",
+}
+
+def _redact_secrets(data: dict) -> dict:
+    """Return a shallow copy with sensitive keys masked."""
+    safe = {}
+    for k, v in data.items():
+        if k.upper() in _REDACTED_KEY_PATTERNS or k.upper().endswith("_SECRET"):
+            if v:  # only redact non-empty values
+                safe[k] = f"{str(v)[:4]}...{'*' * 8}"
+            else:
+                safe[k] = ""
+        elif isinstance(v, dict):
+            safe[k] = _redact_secrets(v)
+        else:
+            safe[k] = v
+    return safe
+
 async def handle_get_settings(req):
-    """Retrieve current system settings in nested format for the UI."""
+    """Retrieve current system settings in nested format for the UI.
+    Sensitive keys (API keys, tokens) are redacted before sending."""
     try:
         # Try to return user_settings.json first (the format SettingsPanel expects)
         user_settings_path = BASE / "user_settings.json"
@@ -695,10 +728,10 @@ async def handle_get_settings(req):
                 data = json.loads(user_settings_path.read_text(encoding="utf-8"))
                 # Also inject flat keys from config for backwards compat
                 data.update(config.get_all())
-                return web.json_response(data)
+                return web.json_response(_redact_secrets(data))
             except Exception:
                 pass
-        return web.json_response(config.get_all())
+        return web.json_response(_redact_secrets(config.get_all()))
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
     

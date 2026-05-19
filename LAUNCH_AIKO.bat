@@ -54,6 +54,21 @@ REM ── 4. Activate and Install Requirements ──────────�
 echo  [INFO] Warming up neural modules...
 call .venv\Scripts\activate.bat
 
+REM ── 4a. First Run Setup (copy example files) ────────────
+if not exist ".env" (
+    echo  [INFO] First run detected! Creating .env from template...
+    copy .env.example .env >nul 2>&1
+    echo  [OK] Created .env - Edit this file to add your API keys.
+)
+
+if not exist "user_settings.json" (
+    echo  [INFO] Creating user_settings.json from template...
+    copy user_settings.example.json user_settings.json >nul 2>&1
+    echo  [OK] Created user_settings.json
+)
+
+if not exist "data" mkdir data >nul 2>&1
+
 if not exist ".venv\.ready" (
     echo  [INFO] Installing required libraries (first time only)...
     echo  [INFO] This may take 2-5 minutes depending on your internet speed.

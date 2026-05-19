@@ -165,3 +165,9 @@ data/aiko_queue.db-wal
 data/aiko_queue.db-shm
 uploads/
 temp/
+
+# ── Exceptions (files that MUST be tracked) ──────────────
+!.env.example
+!user_settings.example.json
+!LAUNCH_AIKO.bat
+!aiko-app.exe
