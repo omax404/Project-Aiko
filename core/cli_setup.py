@@ -375,6 +375,8 @@ def run_setup(force=False):
         if "llm" not in d: d["llm"] = {}
         d["llm"]["model"] = model_name
         d["llm"]["url"] = url
+        if api_key:
+            d["llm"]["api_key"] = api_key
     update_user_settings_dict(_update_llm)
 
     print(f"  {SYM_OK} Core AI LLM setting saved!")
