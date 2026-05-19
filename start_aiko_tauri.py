@@ -484,6 +484,13 @@ def main():
         UI.err("Critical prerequisites missing.")
         sys.exit(1)
 
+    # Interactive Setup Wizard (First launch config & user overrides)
+    try:
+        from core.cli_setup import run_setup
+        run_setup(force=False)
+    except Exception as setup_err:
+        UI.warn(f"Failed to run interactive setup: {setup_err}")
+
     # 1. Cleanup
     UI.step("Cleaning Workspace")
     cleanup_old_instances()
