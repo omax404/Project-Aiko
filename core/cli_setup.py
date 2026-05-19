@@ -1,9 +1,9 @@
 """
 core/cli_setup.py
 
-Interactive CLI Setup Wizard for Aiko Desktop.
+Interactive CLI Setup Wizard & Subsystem Customizer for Aiko Desktop.
 Inspired by Claude Code Theme. High-tech, clean, minimalist, and smart.
-Includes auto-detection of local Ollama models.
+Presents the project structure and enables full terminal-level customizability of subsystems.
 """
 
 import os
@@ -79,7 +79,8 @@ def update_env_file(updates: dict):
             
     env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
-def update_user_settings(model_name: str, url: str):
+def update_user_settings_dict(updater_func):
+    """Safely loads, modifies, and saves user_settings.json."""
     settings_path = BASE_DIR / "user_settings.json"
     if not settings_path.exists():
         example_path = BASE_DIR / "user_settings.example.json"
@@ -93,12 +94,7 @@ def update_user_settings(model_name: str, url: str):
     except Exception:
         data = {}
         
-    if "llm" not in data:
-        data["llm"] = {}
-        
-    data["llm"]["model"] = model_name
-    data["llm"]["url"] = url
-    
+    updater_func(data)
     settings_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
 def run_diagnostics():
@@ -123,6 +119,105 @@ def run_diagnostics():
     else:
         print(f"  {CLR_GRAY}⬡ Local Ollama: Offline or Unreachable{CLR_RESET}")
 
+def customize_subsystems():
+    """Presents the project subsystems structure and allows interactive customization."""
+    print(f"\n┌── {CLR_BOLD}{CLR_GREEN}Subsystems & Customization Panel{CLR_RESET} ─────────────────────────────────┐")
+    print(f"│  Customize Aiko's core subsystems (Voice, Brain Persona, integrations) │")
+    print(f"└─────────────────────────────────────────────────────────────┘\n")
+    
+    while True:
+        # Load current values from settings for display
+        settings_path = BASE_DIR / "user_settings.json"
+        tts_enabled = False
+        tts_voice = "alba"
+        custom_prompt = "Devoted companion"
+        discord_bot = False
+        telegram_bot = False
+        openclaw_bridge = False
+        
+        if settings_path.exists():
+            try:
+                data = json.loads(settings_path.read_text(encoding="utf-8"))
+                tts_enabled = data.get("tts", {}).get("enabled", False)
+                tts_voice = data.get("tts", {}).get("voice", "alba")
+                custom_prompt = data.get("persona", {}).get("custom_prompt", "Devoted companion")
+                discord_bot = data.get("plugins", {}).get("discord_bot", False)
+                telegram_bot = data.get("plugins", {}).get("telegram_bot", False)
+                openclaw_bridge = data.get("plugins", {}).get("openclaw_bridge", False)
+            except Exception:
+                pass
+                
+        print(f"  {CLR_BOLD}Configure Project Components:{CLR_RESET}")
+        print(f"   1. {CLR_BOLD}🔊 Voice (TTS Engine){CLR_RESET} ── Currently: {CLR_GREEN if tts_enabled else CLR_GRAY}{'Enabled' if tts_enabled else 'Disabled'} ({tts_voice}){CLR_RESET}")
+        print(f"   2. {CLR_BOLD}🧠 Brain Persona{CLR_RESET} ──────── Currently: {CLR_CYAN}{custom_prompt[:35]}...{CLR_RESET}")
+        print(f"   3. {CLR_BOLD}🔌 External Integrations{CLR_RESET} ─ Discord: {CLR_GREEN if discord_bot else CLR_GRAY}{discord_bot}{CLR_RESET} | Telegram: {CLR_GREEN if telegram_bot else CLR_GRAY}{telegram_bot}{CLR_RESET} | OpenClaw: {CLR_GREEN if openclaw_bridge else CLR_GRAY}{openclaw_bridge}{CLR_RESET}")
+        print(f"   4. {CLR_BOLD}🚀 Finish Customization & Exit{CLR_RESET}")
+        print()
+        
+        try:
+            choice = input(f"  {SYM_Q} Select subsystem to customize [1-4, Default: 4]: ").strip()
+            if not choice or choice == "4":
+                break
+                
+            if choice == "1":
+                # Voice configuration
+                enabled_input = input(f"  {SYM_Q} Enable TTS Voice feedback? [y/N]: ").strip().lower()
+                voice_name = input(f"  {SYM_Q} Choose voice name [Default: {tts_voice} (alba/vivian/nova)]: ").strip()
+                speed_str = input(f"  {SYM_Q} Voice speed [Default: 0.9]: ").strip()
+                
+                is_enabled = enabled_input in ("y", "yes")
+                voice_str = voice_name if voice_name else tts_voice
+                try: speed_val = float(speed_str) if speed_str else 0.9
+                except ValueError: speed_val = 0.9
+                
+                def _update_tts(d):
+                    if "tts" not in d: d["tts"] = {}
+                    d["tts"]["enabled"] = is_enabled
+                    d["tts"]["voice"] = voice_str
+                    d["tts"]["speed"] = speed_val
+                    
+                update_user_settings_dict(_update_tts)
+                print(f"  {SYM_OK} {CLR_GREEN}Voice Engine updated!{CLR_RESET}\n")
+                
+            elif choice == "2":
+                # Persona Prompt
+                print(f"  Current System Persona Prompt:\n  \"{CLR_GRAY}{custom_prompt}{CLR_RESET}\"")
+                prompt_input = input(f"  {SYM_Q} Enter new Custom Persona Prompt: ").strip()
+                if prompt_input:
+                    def _update_persona(d):
+                        if "persona" not in d: d["persona"] = {}
+                        d["persona"]["custom_prompt"] = prompt_input
+                    update_user_settings_dict(_update_persona)
+                    print(f"  {SYM_OK} {CLR_GREEN}Aiko Persona prompt modified!{CLR_RESET}\n")
+                else:
+                    print(f"  {CLR_GRAY}Prompt unchanged.{CLR_RESET}\n")
+                    
+            elif choice == "3":
+                # Integrations
+                discord_input = input(f"  {SYM_Q} Enable Discord Bot integration? [y/N]: ").strip().lower()
+                telegram_input = input(f"  {SYM_Q} Enable Telegram Bot integration? [y/N]: ").strip().lower()
+                openclaw_input = input(f"  {SYM_Q} Enable OpenClaw Bridge integration? [y/N]: ").strip().lower()
+                
+                enable_discord = discord_input in ("y", "yes")
+                enable_telegram = telegram_input in ("y", "yes")
+                enable_openclaw = openclaw_input in ("y", "yes")
+                
+                def _update_plugins(d):
+                    if "plugins" not in d: d["plugins"] = {}
+                    d["plugins"]["discord_bot"] = enable_discord
+                    d["plugins"]["telegram_bot"] = enable_telegram
+                    d["plugins"]["openclaw_bridge"] = enable_openclaw
+                    
+                update_user_settings_dict(_update_plugins)
+                print(f"  {SYM_OK} {CLR_GREEN}Integrations updated!{CLR_RESET}\n")
+                
+            else:
+                print(f"  {SYM_ERR} Invalid choice. Please select 1-4.")
+                
+        except (KeyboardInterrupt, EOFError):
+            print("\n  Exiting customization...")
+            break
+
 def run_setup(force=False):
     # Ensure data directory exists
     (BASE_DIR / "data").mkdir(exist_ok=True)
@@ -143,7 +238,7 @@ def run_setup(force=False):
     clear_screen()
     run_diagnostics()
     
-    print(f"\n┌── {CLR_BOLD}{CLR_GREEN}Configuration Wizard{CLR_RESET} ──────────────────────────────────────┐")
+    print(f"\n┌── {CLR_BOLD}{CLR_GREEN}Step 1: LLM Provider Configuration{CLR_RESET} ──────────────────────────────┐")
     print(f"│  Configure the LLM Provider and select the Model to power   │")
     print(f"│  your Aiko companion. We support local and cloud AI APIs.   │")
     print(f"└─────────────────────────────────────────────────────────────┘\n")
@@ -248,7 +343,6 @@ def run_setup(force=False):
     if selected['provider'] != "Ollama":
         while True:
             try:
-                # Prompt for Key
                 api_key = input(f"  {SYM_Q} Enter your {selected['provider']} API Key: ").strip()
                 if api_key:
                     break
@@ -257,8 +351,8 @@ def run_setup(force=False):
                 print("\n  Aborted setup.")
                 return
 
-    # Commit Configuration
-    print(f"\n  {CLR_GRAY}⚡ Writing configuration assets...{CLR_RESET}")
+    # Commit Step 1 Configuration
+    print(f"\n  {CLR_GRAY}⚡ Writing environment values...{CLR_RESET}")
     
     env_updates = {
         "PROVIDER": selected['provider'],
@@ -275,12 +369,28 @@ def run_setup(force=False):
             env_updates["DEEPSEEK_API_KEY"] = api_key
 
     update_env_file(env_updates)
-    update_user_settings(model_name, url)
+    
+    # Simple direct lambda update for settings.json to match step 1
+    def _update_llm(d):
+        if "llm" not in d: d["llm"] = {}
+        d["llm"]["model"] = model_name
+        d["llm"]["url"] = url
+    update_user_settings_dict(_update_llm)
+
+    print(f"  {SYM_OK} Core AI LLM setting saved!")
+
+    # Step 2: Subsystems configuration
+    try:
+        custom_choice = input(f"\n  {SYM_Q} Would you like to customize Aiko's subsystems? [y/N]: ").strip().lower()
+        if custom_choice in ("y", "yes"):
+            customize_subsystems()
+    except (KeyboardInterrupt, EOFError):
+        print("\n  Skipped customization panel.")
 
     # Mark setup as completed successfully
     SENTINEL_FILE.write_text("done", encoding="utf-8")
 
-    print(f"  {SYM_OK} {CLR_BOLD}Configured Aiko environment successfully!{CLR_RESET}")
+    print(f"\n  {SYM_OK} {CLR_BOLD}Configured Aiko environment successfully!{CLR_RESET}")
     print(f"    - Provider : {CLR_BOLD}{selected['provider']}{CLR_RESET}")
     print(f"    - Model    : {CLR_BOLD}{model_name}{CLR_RESET}")
     if api_key:
