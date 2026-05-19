@@ -1,80 +1,191 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@theme {
-  --color-airi-bg: #050508;
-  --color-airi-text: #f0f0f5;
-  --color-airi-accent: #ffffff;
-  --color-airi-subtext: #9494b8;
-  --color-airi-glass: rgba(255, 255, 255, 0.03);
-  --color-airi-glass-hover: rgba(255, 255, 255, 0.07);
-  --color-airi-glass-border: rgba(255, 255, 255, 0.08);
+@layer base {
+  :root {
+    /* Aiko Soul Mode: Devoted (default) */
+    --accent-color: #f4a4c0;
+    --glow-color: rgba(244, 164, 192, 0.3);
+    --bg-tint: rgba(244, 164, 192, 0.05);
+
+    /* shadcn overrides */
+    --background: 240 20% 4%;
+    --foreground: 250 20% 93%;
+    --card: 240 20% 4%;
+    --card-foreground: 250 20% 93%;
+    --popover: 240 20% 4%;
+    --popover-foreground: 250 20% 93%;
+    --primary: 270 50% 21%;
+    --primary-foreground: 250 20% 93%;
+    --secondary: 240 10% 15%;
+    --secondary-foreground: 250 20% 93%;
+    --muted: 240 10% 15%;
+    --muted-foreground: 250 10% 60%;
+    --accent: 270 50% 21%;
+    --accent-foreground: 250 20% 93%;
+    --destructive: 15 100% 50%;
+    --destructive-foreground: 250 20% 93%;
+    --border: 240 10% 15%;
+    --input: 240 10% 15%;
+    --ring: 270 50% 40%;
+    --radius: 0.625rem;
+  }
 }
 
 @layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
-    @apply bg-airi-bg text-airi-text font-sans antialiased overflow-x-hidden;
-    margin: 0;
-    min-height: 100vh;
-    background-image: 
-      radial-gradient(circle at 50% -20%, rgba(120, 119, 198, 0.15) 0%, transparent 50%),
-      radial-gradient(circle at 100% 50%, rgba(255, 255, 255, 0.02) 0%, transparent 50%);
+    @apply bg-obsidian text-moonlight antialiased;
+    font-family: 'Inter', sans-serif;
+    font-weight: 300;
+    overflow-x: hidden;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #0a0a0f;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #2d1b4e;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #c8a4f4;
+  }
+
+  /* Selection */
+  ::selection {
+    background: rgba(200, 164, 244, 0.3);
+    color: #e8e6f0;
+  }
+}
+
+@layer components {
+  /* Glassmorphism card */
+  .glass-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    backdrop-filter: blur(12px);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .glass-card:hover {
+    border-color: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 0 30px rgba(200, 164, 244, 0.1);
+  }
+
+  /* Terminal block */
+  .terminal-block {
+    background: rgba(10, 10, 15, 0.9);
+    border: 1px solid rgba(200, 164, 244, 0.2);
+    border-radius: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  /* Soul mode transitions */
+  .soul-transition {
+    transition: color 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+                background-color 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+                border-color 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+                box-shadow 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  /* Eyebrow text */
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #c8a4f4;
+  }
+
+  /* Display heading */
+  .display-heading {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 300;
+    line-height: 1.1;
+    color: #e8e6f0;
+  }
+
+  /* Section padding */
+  .section-padding {
+    padding-top: clamp(80px, 12vh, 160px);
+    padding-bottom: clamp(80px, 12vh, 160px);
+    padding-left: clamp(24px, 5vw, 80px);
+    padding-right: clamp(24px, 5vw, 80px);
+  }
+
+  /* Content max width */
+  .content-max {
+    max-width: 1280px;
+    margin-left: auto;
+    margin-right: auto;
   }
 }
 
 @layer utilities {
-  .glass-panel {
-    @apply bg-airi-glass backdrop-blur-xl border border-airi-glass-border rounded-2xl;
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  }
-  
-  .glass-crystal {
-    background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    position: relative;
-    overflow: hidden;
-  }
-  
-  .glass-crystal::after {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3仿真%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-    opacity: 0.05;
+  /* Vignette overlay */
+  .vignette {
+    background: radial-gradient(ellipse at center, transparent 0%, transparent 50%, rgba(10, 10, 15, 0.6) 100%);
     pointer-events: none;
   }
 
-  .glass-button {
-    @apply bg-airi-glass backdrop-blur-lg border border-airi-glass-border rounded-full text-airi-text transition-all duration-500 ease-out;
-    letter-spacing: 0.1em;
+  /* Text gradient */
+  .text-gradient-lavender {
+    background: linear-gradient(135deg, #c8a4f4 0%, #f4a4c0 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
-  .glass-button:hover {
-    @apply bg-white/10 text-white shadow-[0_0_20px_rgba(255,255,255,0.15)] border-white/30;
-    transform: translateY(-2px);
+
+  /* Glow effects */
+  .glow-lavender {
+    box-shadow: 0 0 30px rgba(200, 164, 244, 0.2);
+  }
+
+  .glow-ribbon {
+    box-shadow: 0 0 30px rgba(244, 164, 192, 0.2);
+  }
+
+  /* Hide cursor on desktop when custom cursor is active */
+  .custom-cursor-active {
+    cursor: none;
+  }
+
+  .custom-cursor-active * {
+    cursor: none;
   }
 }
 
-.cursor-spotlight {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100vw; height: 100vh;
-  pointer-events: none;
-  z-index: 1;
-  background: radial-gradient(600px circle at var(--x) var(--y), rgba(255,255,255,0.06), transparent 40%);
-}
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 
-/* Background Grids / Ghost pattern */
-.bg-grid {
-  background-size: 40px 40px;
-  background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-  mask-image: radial-gradient(circle at center, black 40%, transparent 80%);
-  -webkit-mask-image: radial-gradient(circle at center, black 40%, transparent 80%);
+  html {
+    scroll-behavior: auto;
+  }
 }
-
-.scramble-text {
-  display: inline-block;
-  min-width: 1em;
-}
-
