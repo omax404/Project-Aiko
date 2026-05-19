@@ -807,14 +807,17 @@ Use MCP tools whenever Master asks about his PC state, files, or wants you to re
         if content:
             return content
 
-        # Error messages - Strictly Ollama focused
+        # Provider-aware dynamic error messages
         if status == 408:
-            return "Ollama is taking too long to think. (Timeout)"
+            return f"{PROVIDER} is taking too long to think. (Timeout)"
         if status == 404:
-            return f"Model '{MODEL}' not found. Run: `ollama pull {MODEL}`"
+            if PROVIDER == "Ollama":
+                return f"Model '{MODEL}' not found. Run: `ollama pull {MODEL}`"
+            else:
+                return f"Model '{MODEL}' not found on {PROVIDER}."
         if status == 401:
-            return "API key rejected. Check your credentials."
-        return f"Ollama is unreachable or returned an error. (Error {status})"
+            return f"API key rejected by {PROVIDER}. Check your credentials."
+        return f"{PROVIDER} is unreachable or returned an error. (Error {status})"
 
     async def _update_reflective_state(self, user_id: str):
         """Generates a summary of the current emotional dynamic."""

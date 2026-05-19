@@ -670,12 +670,29 @@ async def handle_update_settings(req):
                 existing = json.loads(user_settings_path.read_text(encoding="utf-8"))
             except Exception:
                 pass
-        # Merge incoming data
+        # Merge incoming data while protecting redacted keys from overwriting real keys
         for k, v in data.items():
             if isinstance(v, dict) and isinstance(existing.get(k), dict):
-                existing[k] = {**existing[k], **v}
+                merged = {**existing[k]}
+                for sub_k, sub_v in v.items():
+                    is_redacted = False
+                    if isinstance(sub_v, str) and ("..." in sub_v or sub_v.endswith("*") or sub_v.endswith("********")):
+                        is_redacted = True
+                    
+                    if is_redacted and sub_k in existing[k]:
+                        pass
+                    else:
+                        merged[sub_k] = sub_v
+                existing[k] = merged
             else:
-                existing[k] = v
+                is_redacted = False
+                if isinstance(v, str) and ("..." in v or v.endswith("*") or v.endswith("********")):
+                    is_redacted = True
+                
+                if is_redacted and k in existing:
+                    pass
+                else:
+                    existing[k] = v
         user_settings_path.write_text(json.dumps(existing, indent=2, ensure_ascii=False), encoding="utf-8")
         # Also update in-memory config
         config.load()

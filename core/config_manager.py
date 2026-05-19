@@ -56,8 +56,72 @@ class ConfigManager:
                     user_data = json.load(f)
                     
                     if "llm" in user_data:
-                        if "url" in user_data["llm"]: self._config["LLM_URL"] = user_data["llm"]["url"]
-                        if "model" in user_data["llm"]: self._config["MODEL_NAME"] = user_data["llm"]["model"]
+                        llm_info = user_data["llm"]
+                        url = llm_info.get("url", "")
+                        model = llm_info.get("model", "")
+                        api_key = llm_info.get("api_key", "")
+                        
+                        if url:
+                            normalized_url = url.strip()
+                            if "api.openai.com" in normalized_url:
+                                if normalized_url.endswith("/v1"):
+                                    normalized_url += "/chat/completions"
+                                elif normalized_url.endswith("/v1/"):
+                                    normalized_url += "chat/completions"
+                                elif not normalized_url.endswith("/chat/completions"):
+                                    normalized_url = normalized_url.rstrip("/") + "/chat/completions"
+                            elif "openrouter.ai" in normalized_url:
+                                if normalized_url.endswith("/v1"):
+                                    normalized_url += "/chat/completions"
+                                elif normalized_url.endswith("/v1/"):
+                                    normalized_url += "chat/completions"
+                                elif not normalized_url.endswith("/chat/completions"):
+                                    normalized_url = normalized_url.rstrip("/") + "/chat/completions"
+                            elif "generativelanguage.googleapis.com" in normalized_url:
+                                if not normalized_url.endswith("/chat/completions"):
+                                    normalized_url = normalized_url.rstrip("/") + "/chat/completions"
+                            elif "api.deepseek.com" in normalized_url:
+                                if normalized_url.endswith("/v1"):
+                                    normalized_url += "/chat/completions"
+                                elif normalized_url.endswith("/v1/"):
+                                    normalized_url += "chat/completions"
+                                elif not normalized_url.endswith("/chat/completions"):
+                                    normalized_url = normalized_url.rstrip("/") + "/chat/completions"
+                            elif "api.anthropic.com" in normalized_url:
+                                if not (normalized_url.endswith("/messages") or normalized_url.endswith("/chat/completions")):
+                                    normalized_url = normalized_url.rstrip("/") + "/messages"
+                            
+                            self._config["LLM_URL"] = normalized_url
+                            
+                            # Infer Provider based on URL
+                            if any(x in normalized_url for x in ["11434", "localhost:11434", "127.0.0.1:11434"]) or "ollama" in normalized_url.lower():
+                                self._config["PROVIDER"] = "Ollama"
+                            elif "api.openai.com" in normalized_url:
+                                self._config["PROVIDER"] = "OpenAI"
+                            elif "openrouter.ai" in normalized_url:
+                                self._config["PROVIDER"] = "OpenRouter"
+                            elif "generativelanguage.googleapis.com" in normalized_url:
+                                self._config["PROVIDER"] = "Gemini"
+                            elif "api.deepseek.com" in normalized_url:
+                                self._config["PROVIDER"] = "DeepSeek"
+                            elif "api.anthropic.com" in normalized_url:
+                                self._config["PROVIDER"] = "Anthropic"
+                            else:
+                                if api_key:
+                                    self._config["PROVIDER"] = "Custom"
+                                else:
+                                    self._config["PROVIDER"] = "Ollama"
+                                    
+                        if model:
+                            self._config["MODEL_NAME"] = model
+                            
+                        if api_key:
+                            self._config["API_KEY"] = api_key
+                            provider = self._config.get("PROVIDER")
+                            if provider == "Gemini":
+                                self._config["GEMINI_API_KEY"] = api_key
+                            elif provider == "DeepSeek":
+                                self._config["DEEPSEEK_API_KEY"] = api_key
                     
                     if "tts" in user_data:
                         if "enabled" in user_data["tts"]: self._config["TTS_ENABLED"] = user_data["tts"]["enabled"]
