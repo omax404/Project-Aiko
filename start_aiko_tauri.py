@@ -486,8 +486,11 @@ def main():
 
     # Interactive Setup Wizard (First launch config & user overrides)
     try:
-        from core.cli_setup import run_setup
-        run_setup(force=False)
+        if not (BASE / "data" / ".setup_done").exists():
+            from core.cli_setup import run_setup
+            run_setup(force=False)
+        else:
+            UI.ok("Setup completed sentinel detected - skipping interactive wizard.")
     except Exception as setup_err:
         UI.warn(f"Failed to run interactive setup: {setup_err}")
 
