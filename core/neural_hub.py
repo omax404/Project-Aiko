@@ -368,7 +368,16 @@ async def handle_pin_session(req):
 
 async def handle_delete_session(req):
     try:
+        # Support both query param and JSON body for flexibility
         sid = req.query.get("id")
+        if not sid:
+            try:
+                data = await req.json()
+                sid = data.get("id")
+            except Exception:
+                pass
+        if not sid:
+            return web.json_response({"error": "Missing session id"}, status=400)
         if memory.delete_session(sid):
             return web.json_response({"status": "success"})
         return web.json_response({"error": "Session not found"}, status=404)
@@ -651,7 +660,14 @@ async def memory_autosave_loop():
 async def handle_purge(req):
     """Clean system caches and session memory."""
     try:
-        memory.clear_cache()
+        # Accept optional user_id from body for targeted purge
+        user_id = None
+        try:
+            data = await req.json()
+            user_id = data.get("user_id")
+        except Exception:
+            pass
+        memory.clear_memory(user_id)
         await broadcast_event("state", {"info": "SYSTEM_PURGE_COMPLETE"})
         return web.json_response({"status": "success"})
     except Exception as e:
@@ -743,8 +759,11 @@ async def handle_get_settings(req):
         if user_settings_path.exists():
             try:
                 data = json.loads(user_settings_path.read_text(encoding="utf-8"))
-                # Also inject flat keys from config for backwards compat
-                data.update(config.get_all())
+                # Inject flat keys from config for backwards compat,
+                # but only if they don't already exist in user_settings
+                for k, v in config.get_all().items():
+                    if k not in data:
+                        data[k] = v
                 return web.json_response(_redact_secrets(data))
             except Exception:
                 pass

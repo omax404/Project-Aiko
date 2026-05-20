@@ -31,6 +31,10 @@ class LatexEngine:
 
     async def compile_to_pdf(self, tex_code, filename="aiko_output"):
         """Compile LaTeX code to PDF using pdflatex."""
+        import shutil
+        if not shutil.which("pdflatex"):
+            return "pdflatex is not installed. LaTeX compilation is unavailable."
+
         filepath = os.path.join(self.output_dir, f"{filename}.tex")
         pdf_path = os.path.join(self.output_dir, f"{filename}.pdf")
         
@@ -38,13 +42,17 @@ class LatexEngine:
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(tex_code)
             
-            # Run pdflatex (non-interactive)
+            # Run pdflatex (non-interactive) with timeout
             process = await asyncio.create_subprocess_exec(
                 "pdflatex", "-interaction=nonstopmode", f"-output-directory={self.output_dir}", filepath,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
-            stdout, stderr = await process.communicate()
+            try:
+                stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=30)
+            except asyncio.TimeoutError:
+                process.kill()
+                return "LaTeX compilation timed out after 30 seconds."
             
             if process.returncode == 0:
                 return f"Success! I've compiled your paper to PDF. You can find it at: {pdf_path} (⁠ꈍ⁠ᴗ⁠ꈍ⁠)"
@@ -56,6 +64,10 @@ class LatexEngine:
 
     async def render_snippet(self, tex_snippet, filename=None):
         """Render a LaTeX snippet (formula, table, etc) to a high-res PNG image."""
+        import shutil
+        if not shutil.which("pdflatex"):
+            return None, "pdflatex is not installed. LaTeX rendering is unavailable."
+
         if not filename:
              import time
              filename = f"latex_{int(time.time()*1000)}"
@@ -71,13 +83,17 @@ class LatexEngine:
             with open(tex_path, "w", encoding="utf-8") as f:
                 f.write(full_tex)
 
-            # Compile to PDF
+            # Compile to PDF with timeout
             process = await asyncio.create_subprocess_exec(
                 "pdflatex", "-interaction=nonstopmode", f"-output-directory={self.output_dir}", tex_path,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
-            await process.wait()
+            try:
+                await asyncio.wait_for(process.wait(), timeout=30)
+            except asyncio.TimeoutError:
+                process.kill()
+                return None, "LaTeX compilation timed out after 30 seconds."
 
             if not os.path.exists(pdf_path):
                 return None, "PDF generation failed."
