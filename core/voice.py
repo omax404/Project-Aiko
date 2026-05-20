@@ -37,14 +37,14 @@ def _warmup_tts():
         # Voice selection: try cloning first, fall back to built-in
         # Check for voice samples in order of priority
         clone_path = None
-        # Priority 1: New vivian.wav
-        # Priority 2: Previous yuki samples
+        # Priority 1: Yuki samples
+        # Priority 2: Vivian samples
         potential_samples = [
-            "vivian.wav",
             "voice_preview_yuki.mp3",
             "voice_preview_yuki.wav",
             "voice_preview_yuki.ogg",
-            "voice_preview_yuki.flac"
+            "voice_preview_yuki.flac",
+            "vivian.wav"
         ]
         
         for sample_name in potential_samples:
