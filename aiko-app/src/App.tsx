@@ -393,6 +393,26 @@ function App() {
                               <ReactMarkdown 
                                 remarkPlugins={[remarkGfm, remarkMath]}
                                 rehypePlugins={[[rehypeKatex, { throwOnError: false }]]}
+                                components={{
+                                  img: ({ node, src, alt, ...props }) => {
+                                    if (!src) return null;
+                                    const isSticker = src.includes('/stickers/');
+                                    if (isSticker) {
+                                      const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI__;
+                                      const hubUrl = isTauri ? 'http://127.0.0.1:8000' : (typeof window !== 'undefined' ? window.location.origin : 'http://127.0.0.1:8000');
+                                      const absoluteSrc = src.startsWith('http') ? src : `${hubUrl}${src}`;
+                                      return (
+                                        <img 
+                                          src={absoluteSrc} 
+                                          alt={alt || "sticker"} 
+                                          className="w-28 h-28 object-contain my-2 inline-block transition-transform hover:scale-110 duration-200 cursor-pointer drop-shadow-[0_4px_12px_rgba(0,0,0,0.15)]"
+                                          {...props}
+                                        />
+                                      );
+                                    }
+                                    return <img src={src} alt={alt} className="max-w-full rounded-xl my-2" {...props} />;
+                                  }
+                                }}
                               >
                                 {maskUnclosedLatex(streamingContent)}
                               </ReactMarkdown>
