@@ -6,6 +6,15 @@ Makes Aiko feel truly alive by responding to contextual keywords intelligently.
 
 import random
 import re
+import aiohttp
+import os
+import logging
+
+logger = logging.getLogger("GIFEngine")
+
+# Public fallback API keys
+TENOR_PUBLIC_KEY = "LIVDSRZULEQX"
+GIPHY_PUBLIC_KEY = "dc6zaTOxFJmzC"
 
 # ═══════════════════════════════════════════════════════════════
 #                    EXPANDED GIF LIBRARY
@@ -325,9 +334,113 @@ def should_send_gif(chance: float = 0.5) -> bool:
     Use this to add cooldown/chance to GIF sending.
     
     Usage:
-        if should_send_gif(0.5):  # 50% chance
-            gif = detect_aiko_emotion(message)
-            if gif:
-                await channel.send(gif)
+         if should_send_gif(0.5):  # 50% chance
+             gif = detect_aiko_emotion(message)
+             if gif:
+                 await channel.send(gif)
     """
     return random.random() < chance
+
+
+async def search_gif(query: str, provider: str = None) -> str | None:
+    """
+    Search Tenor and/or Giphy dynamically for a GIF.
+    If provider is not specified, tries Tenor first (better for anime), then Giphy.
+    Uses custom API keys if present, otherwise falls back to public beta keys.
+    If connection fails or results are empty, falls back to local static categories.
+    """
+    if not query:
+        return None
+
+    # Ensure search remains themed (cute anime style)
+    search_query = query
+    if "anime" not in query.lower():
+        search_query = f"{query} anime"
+
+    tenor_key = os.getenv("TENOR_API_KEY", TENOR_PUBLIC_KEY)
+    giphy_key = os.getenv("GIPHY_API_KEY", GIPHY_PUBLIC_KEY)
+
+    # List of search tasks to attempt
+    providers_to_try = []
+    if provider == "giphy":
+        providers_to_try = [("giphy", giphy_key)]
+    elif provider == "tenor":
+        providers_to_try = [("tenor", tenor_key)]
+    else:
+        # Default: try Tenor first, then Giphy
+        providers_to_try = [("tenor", tenor_key), ("giphy", giphy_key)]
+
+    async with aiohttp.ClientSession() as session:
+        for name, key in providers_to_try:
+            try:
+                if name == "tenor":
+                    if len(key) == 12:  # legacy public v1 key
+                        url = "https://api.tenor.com/v1/search"
+                        params = {
+                            "q": search_query,
+                            "key": key,
+                            "limit": 8,
+                            "media_filter": "minimal"
+                        }
+                    else:
+                        url = "https://tenor.googleapis.com/v2/search"
+                        params = {
+                            "q": search_query,
+                            "key": key,
+                            "client_key": "aiko_desktop",
+                            "limit": 8,
+                            "media_filter": "gif"
+                        }
+                    async with session.get(url, params=params, timeout=10) as resp:
+                        if resp.status == 200:
+                            data = await resp.json()
+                            results = data.get("results", [])
+                            if results:
+                                # Choose randomly from top results to feel fresh and dynamic
+                                chosen = random.choice(results)
+                                media_formats = chosen.get("media_formats", {})
+                                if not media_formats:
+                                    media_list = chosen.get("media", [])
+                                    if media_list:
+                                        media_formats = media_list[0]
+                                gif_url = media_formats.get("gif", {}).get("url")
+                                if gif_url:
+                                    logger.info(f"Successfully retrieved GIF from Tenor for: {query}")
+                                    return gif_url
+                        else:
+                            logger.warning(f"Tenor API returned status {resp.status}")
+                elif name == "giphy":
+                    url = "https://api.giphy.com/v1/gifs/search"
+                    params = {
+                        "api_key": key,
+                        "q": search_query,
+                        "limit": 8
+                    }
+                    async with session.get(url, params=params, timeout=10) as resp:
+                        if resp.status == 200:
+                            data = await resp.json()
+                            results = data.get("data", [])
+                            if results:
+                                chosen = random.choice(results)
+                                gif_url = chosen.get("images", {}).get("original", {}).get("url")
+                                if gif_url:
+                                    logger.info(f"Successfully retrieved GIF from Giphy for: {query}")
+                                    return gif_url
+                        else:
+                            logger.warning(f"Giphy API returned status {resp.status}")
+            except Exception as e:
+                logger.error(f"Error querying {name} for GIF: {e!r}")
+
+    # --- Robust Fallback ---
+    # Scan the query/prompt using get_emotion_category
+    detected_emotion = get_emotion_category(query)
+    if not detected_emotion:
+        # Fall back to a general positive emotion or happy category if nothing detected
+        detected_emotion = "happy"
+        
+    local_gif = get_random_gif(detected_emotion)
+    if local_gif:
+        logger.info(f"GIF API failed/empty. Graceful fallback to local static category '{detected_emotion}'")
+        return local_gif
+
+    return None

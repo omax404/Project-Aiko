@@ -243,10 +243,13 @@ async def process_queue_messages():
                 logger.info(f"[Queue] Processing Discord message from {user_id}: {message[:50]}...")
 
                 # Process through Aiko brain
-                reply, emotion, *_ = await brain.chat(message, user_id=user_id)
+                chat_res = await brain.chat(message, user_id=user_id)
+                reply = chat_res[0]
+                emotion = chat_res[1]
+                gif_url = chat_res[5] if len(chat_res) > 5 else None
 
                 # Send response back to Discord queue
-                send_response('discord', user_id, reply, emotion)
+                send_response('discord', user_id, reply, emotion, gif_url=gif_url)
 
                 # Log thought
                 unified_memory.think(
@@ -269,9 +272,12 @@ async def process_queue_messages():
 
                 logger.info(f"[Queue] Processing Telegram message from {user_id}: {message[:50]}...")
 
-                reply, emotion, *_ = await brain.chat(message, user_id=user_id)
+                chat_res = await brain.chat(message, user_id=user_id)
+                reply = chat_res[0]
+                emotion = chat_res[1]
+                gif_url = chat_res[5] if len(chat_res) > 5 else None
 
-                send_response('telegram', user_id, reply, emotion)
+                send_response('telegram', user_id, reply, emotion, gif_url=gif_url)
 
                 unified_memory.think(
                     f"Responded to Telegram user {user_id}: {reply[:100]}...",
@@ -408,7 +414,9 @@ async def handle_chat_api(req):
         await broadcast_event("state", {"thinking": True, "source": "api"})
         await sync_star_office("researching", f"Thinking about: {msg[:20]}...")
         
-        reply, *_ = await brain.chat(msg, user_id=uid, initial_images=attachments)
+        chat_res = await brain.chat(msg, user_id=uid, initial_images=attachments)
+        reply = chat_res[0]
+        gif_url = chat_res[5] if len(chat_res) > 5 else None
         emotion = detect_emotion(reply)
         
         audio_filename = None
@@ -424,6 +432,7 @@ async def handle_chat_api(req):
         return web.json_response({
             "response": reply,
             "emotion": emotion,
+            "gif_url": gif_url,
             "audio_url": f"http://127.0.0.1:8000/api/tts/audio/{audio_filename}" if audio_filename else None,
             "audio_path": os.path.join(os.getcwd(), "data", "voices", audio_filename) if audio_filename else None,
             "timestamp": datetime.now().isoformat()
@@ -468,11 +477,15 @@ async def handle_ws(req):
                         brain.on_sentence = _bridge_sentence
 
                         try:
-                            reply, active_emotion, *_ = await brain.chat(text, user_id=uid, initial_images=attachments)
+                            chat_res = await brain.chat(text, user_id=uid, initial_images=attachments)
+                            reply = chat_res[0]
+                            active_emotion = chat_res[1]
+                            gif_url = chat_res[5] if len(chat_res) > 5 else None
                         except Exception as e:
                             logger.error(f"Brain Chat Error: {e}")
                             reply = f"Neural Error: {e}"
                             active_emotion = "sad"
+                            gif_url = None
                         finally:
                             brain.on_sentence = original_on_sentence
 
@@ -481,7 +494,8 @@ async def handle_ws(req):
                             "role": "assistant",
                             "text": reply,
                             "content": reply,
-                            "emotion": active_emotion
+                            "emotion": active_emotion,
+                            "gif_url": gif_url
                         })
                     asyncio.create_task(_process_chat(text, uid, attachments))
 
@@ -521,11 +535,15 @@ async def handle_ws(req):
                         )
 
                         try:
-                            reply, active_emotion, *_ = await brain.chat(text, user_id=uid, initial_images=attachments)
+                            chat_res = await brain.chat(text, user_id=uid, initial_images=attachments)
+                            reply = chat_res[0]
+                            active_emotion = chat_res[1]
+                            gif_url = chat_res[5] if len(chat_res) > 5 else None
                         except Exception as e:
                             logger.error(f"Brain Chat Error: {e}")
                             reply = f"Neural Error: {e}"
                             active_emotion = "sad"
+                            gif_url = None
                         finally:
                             brain.on_sentence = original_on_sentence
 
@@ -534,7 +552,8 @@ async def handle_ws(req):
                             "role": "assistant",
                             "text": reply,
                             "content": reply,
-                            "emotion": active_emotion
+                            "emotion": active_emotion,
+                            "gif_url": gif_url
                         })
                     asyncio.create_task(_process_branch(text, msg_id, uid, attachments))
                 

@@ -2,13 +2,31 @@
 title Aiko Desktop - Neural Link Initializer
 color 0F
 
+where fastfetch >nul 2>&1
+if not errorlevel 1 (
+    fastfetch --config fastfetch_config.jsonc
+    echo.
+    goto :post_logo
+)
+
 echo.
-echo  ============================================
-echo   AIKO DESKTOP - NEURAL LINK INITIALIZER
-echo  ============================================
+echo       _  _         _         
+echo      / \(_) _ __  ^| ^| __ ___ 
+echo     / _ \^| ^|^| '_ \ ^| ^|/ // _ \
+echo    / ___ \^|^| ^| ^| ^|^|   ^<^| (_) ^|
+echo   /_/   \_\_^|_^| ^|_^|^|_^|\_\_\\___/ 
+echo.
+echo   ============================================
+echo    AIKO DESKTOP - NEURAL LINK INITIALIZER
+echo   ============================================
+echo    [TIP] For an ultra-premium startup screen,
+echo          install Fastfetch: 'winget install fastfetch'
+echo   ============================================
 echo.
 
-REM ── 1. Check for Python ──────────────────────────────
+:post_logo
+
+REM -- 1. Check for Python ----------------------------------
 where python >nul 2>&1
 if errorlevel 1 (
     echo  [ERROR] Python is not installed!
@@ -23,7 +41,7 @@ if errorlevel 1 (
 for /f "tokens=*" %%i in ('python --version 2^>^&1') do set "PYVER=%%i"
 echo  [OK] %PYVER%
 
-REM ── 2. Check for Node.js ─────────────────────────────
+REM -- 2. Check for Node.js ---------------------------------
 set "HAS_NODE=0"
 where node >nul 2>&1
 if errorlevel 1 (
@@ -36,10 +54,10 @@ if errorlevel 1 (
 )
 if "%HAS_NODE%"=="1" echo  [OK] Node.js %NODEVER%
 
-REM ── 3. Create Virtual Environment if needed ──────────
+REM -- 3. Create Virtual Environment if needed --------------
 if not exist ".venv\Scripts\activate.bat" (
     echo.
-    echo  [INFO] Creating neural environment (first time only)...
+    echo  [INFO] Creating neural environment [first time only]...
     python -m venv .venv
     if errorlevel 1 (
         echo  [ERROR] Failed to create virtual environment.
@@ -50,11 +68,11 @@ if not exist ".venv\Scripts\activate.bat" (
     echo  [OK] Virtual environment created.
 )
 
-REM ── 4. Activate and Install Requirements ─────────────
+REM -- 4. Activate and Install Requirements -----------------
 echo  [INFO] Warming up neural modules...
 call .venv\Scripts\activate.bat
 
-REM ── 4a. First Run Setup (copy example files) ────────────
+REM -- 4a. First Run Setup (copy example files) ------------
 if not exist ".env" (
     echo  [INFO] First run detected! Creating .env from template...
     copy .env.example .env >nul 2>&1
@@ -70,7 +88,7 @@ if not exist "user_settings.json" (
 if not exist "data" mkdir data >nul 2>&1
 
 if not exist ".venv\.ready" (
-    echo  [INFO] Installing required libraries (first time only)...
+    echo  [INFO] Installing required libraries [first time only]...
     echo  [INFO] This may take 2-5 minutes depending on your internet speed.
     echo.
     pip install -r requirements.txt -q --no-warn-script-location 2>&1
@@ -94,7 +112,7 @@ if not exist ".venv\.ready" (
     echo  [OK] Dependencies ready.
 )
 
-REM ── 5. Launch Aiko ───────────────────────────────────
+REM -- 5. Launch Aiko ---------------------------------------
 echo.
 echo  ============================================
 echo   Neural Link Stable. Launching Aiko...

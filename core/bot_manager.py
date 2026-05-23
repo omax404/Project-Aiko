@@ -4,7 +4,7 @@ import os
 import logging
 import discord
 from discord.ext import commands
-from telegram import Update
+from telegram import Update, ReactionTypeEmoji
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters, CommandHandler
 import aiohttp
 import re
@@ -307,6 +307,25 @@ async def run_discord_bot():
     # Passive reaction emojis (for messages she just observes)
     PASSIVE_EMOJIS = ['👀', '💭', '✨', '🌸', '💖', '👍', '😊', '🤔', '💕']
 
+    # Emotion -> local sticker mapping
+    EMOTION_STICKERS = {
+        'happy': ['lavender_happy_umbrella.png', 'lavender_cheering.png', 'lavender_thumbs_up.png', 'lavender_shy_smile.png'],
+        'love': ['lavender_heart_eyes.png', 'lavender_shy_smile.png'],
+        'excited': ['lavender_ssr_star_eyes.png', 'lavender_cheering.png'],
+        'sad': ['lavender_crying_tears.png', 'lavender_cup.png'],
+        'angry': ['lavender_angry_dagger.png', 'lavender_pouty_umbrella.png'],
+        'yandere': ['lavender_angry_dagger.png'],
+        'shy': ['lavender_shy_blush.png', 'lavender_shy_smile.png'],
+        'curious': ['lavender_thinking.png', 'lavender_idea.png'],
+        'victory': ['lavender_victory.png', 'lavender_proud.png'],
+        'panic': ['lavender_dizzy.png', 'lavender_sweatdrop.png'],
+        'neutral': ['lavender_wink.png', 'lavender_hello.png'],
+        'thinking': ['lavender_thinking.png', 'lavender_idea.png'],
+        'playful': ['lavender_wink.png'],
+        'smug': ['lavender_proud.png'],
+        'sleepy': ['lavender_sleeping.png', 'lavender_sleeping_zzz.png'],
+    }
+
     async def add_emotion_reaction(msg: discord.Message, emotion: str = 'neutral'):
         """Add a contextual emoji reaction based on Aiko's emotional state."""
         try:
@@ -422,7 +441,7 @@ async def run_discord_bot():
                     if not clean_text.strip():
                         full_msg = full_msg.replace(reply_context, reply_context + voice_text)
 
-                response, emotion, audio_path = await get_hub_response(full_msg, message.author.id, local_attachments)
+                response, emotion, audio_path, gif_url = await get_hub_response(full_msg, message.author.id, local_attachments)
                 
                 # LaTeX
                 latex_file = None
@@ -444,13 +463,27 @@ async def run_discord_bot():
                 if audio_path and os.path.exists(audio_path):
                     audio_file = discord.File(audio_path, filename="aiko_voice.wav")
                 
+                # Sticker attachment selection based on active emotion (60% chance to attach a cute sticker response)
+                sticker_file = None
+                if emotion and random.random() < 0.6:
+                    stickers_dir = "stickers"
+                    if os.path.exists(stickers_dir):
+                        possible_stickers = EMOTION_STICKERS.get(emotion, EMOTION_STICKERS['neutral'])
+                        chosen_sticker = random.choice(possible_stickers)
+                        sticker_path = os.path.join(stickers_dir, chosen_sticker)
+                        if os.path.exists(sticker_path):
+                            sticker_file = discord.File(sticker_path, filename="aiko_sticker.png")
+
                 files = []
                 if audio_file: files.append(audio_file)
                 if latex_file: files.append(latex_file)
+                if sticker_file: files.append(sticker_file)
                 
                 # Discord has a 2000 char limit
                 if len(response) > 1900:
                     response = response[:1900] + "..."
+                if gif_url:
+                    response = f"{response}\n{gif_url}"
                 
                 try:
                     if files: await message.reply(response, files=files)
@@ -509,6 +542,42 @@ async def run_telegram_bot():
         logger.warning("Telegram token missing. Satellite offline.")
         return
 
+    # Restricted default reaction emojis safe for Telegram
+    TELEGRAM_EMOTION_EMOJIS = {
+        'happy': '🥰',
+        'love': '❤️',
+        'excited': '🔥',
+        'sad': '😢',
+        'angry': '👎',
+        'yandere': '❤️',
+        'shy': '🥰',
+        'curious': '🤔',
+        'victory': '🎉',
+        'panic': '😱',
+        'neutral': '👍',
+        'thinking': '🤔',
+        'playful': '🔥',
+        'smug': '👍',
+        'sleepy': '😴',
+    }
+
+    async def add_telegram_emotion_reaction(update: Update, context: ContextTypes.DEFAULT_TYPE, emotion: str = 'neutral'):
+        """Add a contextual emoji reaction to Telegram message based on Aiko's emotional state."""
+        if not update.message:
+            return
+        try:
+            emoji_char = TELEGRAM_EMOTION_EMOJIS.get(emotion, '👍')
+            chat_id = update.message.chat_id
+            message_id = update.message.message_id
+            
+            await context.bot.set_message_reaction(
+                chat_id=chat_id,
+                message_id=message_id,
+                reaction=[ReactionTypeEmoji(emoji=emoji_char)]
+            )
+        except Exception as e:
+            logger.warning(f"Failed to set Telegram reaction: {e}")
+
     app = ApplicationBuilder().token(token).build()
 
     async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -529,8 +598,11 @@ async def run_telegram_bot():
             if not text: text = "[Image]"
 
         meta_prefix = f"[TELEGRAM_METADATA: Handle: @{user.username}, Name: {user.full_name}, Status: {'MASTER' if str(user.id) == os.getenv('MASTER_ID','0') else 'guest'}] "
-        response, _, audio_path = await get_hub_response(meta_prefix + text, user.id, local_attachments)
+        response, emotion, audio_path, gif_url = await get_hub_response(meta_prefix + text, user.id, local_attachments)
         
+        # React to the user's message
+        await add_telegram_emotion_reaction(update, context, emotion or 'neutral')
+
         # Audio
         if audio_path and os.path.exists(audio_path):
             with open(audio_path, 'rb') as f:
@@ -545,6 +617,8 @@ async def run_telegram_bot():
                     await context.bot.send_photo(chat_id=update.effective_chat.id, photo=f)
 
         if response:
+            if gif_url:
+                response = f"{response}\n\n{gif_url}"
             await update.message.reply_text(response, parse_mode='Markdown' if '```' in response else None)
 
     app.add_handler(MessageHandler(filters.TEXT | filters.PHOTO, chat_handler))

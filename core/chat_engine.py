@@ -16,7 +16,7 @@ from datetime import datetime
 from functools import lru_cache
 from dotenv import load_dotenv
 from .persona import get_persona_prompt, get_core_brain_prompt, detect_emotion
-from .gifs import get_emotion_category, get_random_gif
+from .gifs import get_emotion_category, get_random_gif, search_gif
 from .game_bridge import game_manager
 from .orchestrator import orchestrator
 from .sandbox_bridge import SandboxBridge
@@ -33,23 +33,12 @@ load_dotenv()
 logger = logging.getLogger("Brain")
 from .config_manager import config
 
-# PRE-COMPILED REGEX PATTERNS (Performance Optimization)
-RUN_PYTHON_PATTERN = re.compile(r'\[RUN_PYTHON\s*:\s*(.*?)\]', re.IGNORECASE | re.DOTALL)
-LATEX_PATTERN = re.compile(r'\[LATEX\s*:\s*(.*?)\]', re.IGNORECASE | re.DOTALL)
-OPEN_PATTERN = re.compile(r'\[OPEN\s*:\s*(.*?)\]', re.IGNORECASE)
-TYPE_PATTERN = re.compile(r'\[TYPE\s*:\s*(.*?)\]', re.IGNORECASE)
-CLICK_PATTERN = re.compile(r'\[CLICK\s*:\s*(.*?)\]', re.IGNORECASE)
-PRESS_PATTERN = re.compile(r'\[PRESS\s*:\s*(.*?)\]', re.IGNORECASE)
-TASK_PATTERN = re.compile(r'\[TASK\s*:\s*(.*?)\]', re.IGNORECASE | re.DOTALL)
-NOTE_PATTERN = re.compile(r'\[NOTE\s*:\s*(.*?)\]', re.IGNORECASE | re.DOTALL)
-READ_PATTERN = re.compile(r'\[READ\s*:\s*(.*?)\]', re.IGNORECASE)
-WRITE_PATTERN = re.compile(r'\[WRITE\s*:\s*([^|\]]+?)\s*\|\s*(.*?)\]', re.IGNORECASE | re.DOTALL)
-DRAW_PATTERN = re.compile(r'\[DRAW\s*:\s*(.*?)\]', re.IGNORECASE)
-VIDEO_PATTERN = re.compile(r'\[VIDEO\s*:\s*(.*?)\]', re.IGNORECASE)
-MCP_PATTERN  = re.compile(r'\[MCP\s*:\s*(\w+)\s*(?:\|\s*(.*?))?\]', re.IGNORECASE | re.DOTALL)
-IMAGE_PATTERN = re.compile(r'\[IMAGE\s*:\s*(.*?)\]', re.IGNORECASE)
-RECALL_PATTERN = re.compile(r'\[RECALL\s*:\s*(.*?)(?:\s*\|\s*(.*?))?\]', re.IGNORECASE)
-BIO_REGISTER_PATTERN = re.compile(r'\[BIO_REGISTER\]', re.IGNORECASE)
+from .agent_executor import (
+    AgentExecutor,
+    RUN_PYTHON_PATTERN, LATEX_PATTERN, OPEN_PATTERN, TYPE_PATTERN, CLICK_PATTERN, PRESS_PATTERN,
+    TASK_PATTERN, NOTE_PATTERN, READ_PATTERN, WRITE_PATTERN, DRAW_PATTERN, VIDEO_PATTERN,
+    MCP_PATTERN, IMAGE_PATTERN, GIF_PATTERN, RECALL_PATTERN, BIO_REGISTER_PATTERN
+)
 
 # Connection pool - shared across all instances
 _session_pool = None
@@ -98,6 +87,7 @@ class AikoBrain:
         self.obsidian = obsidian
         self.sandbox = SandboxBridge()
         self.image_engine = ImageEngine()
+        self.executor = AgentExecutor()
         
         # Reflective Memory
         self._message_count = 0
@@ -295,11 +285,25 @@ class AikoBrain:
         # Process emotion
         from .emotion_engine import emotion_engine
         emotion_engine.process_text(final_response)
+        state = emotion_engine.get_state()
+        active_emotion = state["dominant_emotions"][0]
+
+        # Dynamic GIF extraction (Explicit tag or Implicit Emotion matching)
+        gif_url = None
+        import random
+        # 1. Explicit tag: [GIF: query]
+        gif_match = GIF_PATTERN.search(final_response)
+        if gif_match:
+            gif_query = gif_match.group(1).strip()
+            gif_url = await search_gif(gif_query)
+        # 2. Implicit emotional trigger (35% chance on non-neutral states)
+        elif active_emotion not in ("neutral", "thinking", None) and random.random() < 0.35:
+            gif_url = await search_gif(f"{active_emotion} girl")
 
         # Clean Tags - remove XML think/emotion blocks and system tool tags, but PRESERVE personality [Tags]
         cleaned_response = re.sub(r'<think>.*?</think>|<emotion>.*?</emotion>|<.*?>', '', final_response, flags=re.IGNORECASE | re.DOTALL)
-        # Only strip technical tool tags [TOOL:...] or [MCP:...]
-        cleaned_response = re.sub(r'\[(SCAN|MCP|TASK|BIO_REGISTER|GAME|OPEN|TYPE|CLICK|PRESS|WAIT|WALLPAPER|WEATHER|MUSIC|LETTER|VTS_BG|IMAGE|RECALL|LATEX|REFLECTIVE_STATE)[^\]]*?\]', '', cleaned_response, flags=re.IGNORECASE)
+        # Only strip technical tool tags [TOOL:...] or [MCP:...] including [GIF:...]
+        cleaned_response = re.sub(r'\[(SCAN|MCP|TASK|BIO_REGISTER|GAME|OPEN|TYPE|CLICK|PRESS|WAIT|WALLPAPER|WEATHER|MUSIC|LETTER|VTS_BG|IMAGE|RECALL|LATEX|REFLECTIVE_STATE|GIF)[^\]]*?\]', '', cleaned_response, flags=re.IGNORECASE)
         cleaned_response = re.sub(r'\n{3,}', '\n\n', cleaned_response).strip()
 
         # Save & Return
@@ -310,17 +314,15 @@ class AikoBrain:
             mem_text = f"User ({user_id}): {message}\nAiko: {cleaned_response}"
             # Commit to semantic archive
             self.rag.add_memory(mem_text, metadata={"type": "conversation", "user_id": str(user_id), "room": "conversations"})
-        state = emotion_engine.get_state()
-        active_emotion = state["dominant_emotions"][0]
 
         if self.on_thinking:
             self.on_thinking(False)
 
-        return cleaned_response, active_emotion, image_prompts, video_prompts, "[TASK:" in final_response.upper()
+        return cleaned_response, active_emotion, image_prompts, video_prompts, "[TASK:" in final_response.upper(), gif_url
 
     def _get_tools_prompt(self) -> str:
         """Get tools prompt - cached for performance."""
-        tools = """\n\n[TOOLS]:\nUse tags to control PC:\n[OPEN: app]\n[TYPE: text]\n[PRESS: key]\n[CLICK: x, y]\n[WAIT: seconds]\n[SCAN] (See screen)\n[WALLPAPER: image_name]\n[TASK: complex goal]\n[WEATHER: city]\n[MUSIC: action]\n[LETTER: message]\n[VTS_BG: name]\n[GAME: minecraft | command]\n[GAME: factorio | command]\n[IMAGE: descriptive prompt]
+        tools = """\n\n[TOOLS]:\nUse tags to control PC:\n[OPEN: app]\n[TYPE: text]\n[PRESS: key]\n[CLICK: x, y]\n[WAIT: seconds]\n[SCAN] (See screen)\n[WALLPAPER: image_name]\n[TASK: complex goal]\n[WEATHER: city]\n[MUSIC: action]\n[LETTER: message]\n[VTS_BG: name]\n[GAME: minecraft | command]\n[GAME: factorio | command]\n[IMAGE: descriptive prompt]\n[GIF: search_query] (Search and send a Giphy/Tenor GIF matching query)
 [RECALL: question | room] (Search my memory palace)
 [BIO_REGISTER] (Register Master's face)
 [MUSIC: play/pause/skip/prev/now/volume 50/play song name] (Spotify control)"""
@@ -350,194 +352,7 @@ Use MCP tools whenever Master asks about his PC state, files, or wants you to re
 
     async def _execute_tools(self, text: str, observations: list, images_data: list, user_id: str):
         """Execute tools found in the text with Identity-Based Authorization."""
-        
-        # Check authorization for privileged PC-control tools
-        from .security import policy_engine
-        is_admin = policy_engine.is_admin(user_id)
-        
-        try:
-            # --- [BIO_REGISTER] ---
-            if BIO_REGISTER_PATTERN.search(text):
-                orchestrator.emit_tool_call("BIO_REGISTER", "Scanning your face... Stay still, Master~")
-                from .biometrics import biometrics
-                loop = asyncio.get_running_loop()
-                success = await loop.run_in_executor(None, biometrics.register_master)
-                res = "✅ Biometric Registration Complete." if success else "❌ Registration failed."
-                observations.append(f"[TOOL_RESULT]: {res}")
-                orchestrator.emit_tool_result("BIO_REGISTER", res)
-
-            # --- PLUGIN TOOL EXECUTION ---
-            # Try to route through plugins first
-            for tag in re.findall(r'\[([A-Z0-9_]+)\b.*?\]', text, re.I):
-                # Check if this tag looks like a tool name
-                # (Simple check: if it's in our plugin tools list)
-                for tool in self.plugins.get_all_tools():
-                    if tool["function"]["name"].upper() == tag.upper():
-                        # Extract arguments (simple regex for now)
-                        # [TOOL_NAME: arg1 | arg2] or [TOOL_NAME: arg]
-                        arg_match = re.search(rf'\[{tag}\s*:\s*(.*?)\]', text, re.I)
-                        args = {}
-                        if arg_match:
-                            val = arg_match.group(1).strip()
-                            # Basic heuristic for plugins: use 'action', 'command', etc.
-                            # Better: use the JSON schema if the LLM followed it.
-                            # For now, we support the [TAG: value] format.
-                            t_upper = tag.upper()
-                            if t_upper == "SPOTIFY_CONTROL": args = {"action": val}
-                            elif t_upper == "CONNECT_GAME": args = {"game": val}
-                            elif t_upper == "MINECRAFT_COMMAND": args = {"command": val}
-                            elif t_upper == "FACTORIO_COMMAND": args = {"command": val}
-                            else: args = {"query": val} # Default
-
-                        orchestrator.emit_tool_call(tag, f"Plugin execution: {tag}")
-                        res = await self.plugins.execute_tool(tag.lower(), args)
-                        if res:
-                            observations.append(f"[{tag}_RESULT]: {res}")
-                            orchestrator.emit_tool_result(tag, "Success")
-
-            for match in RUN_PYTHON_PATTERN.finditer(text):
-                code = match.group(1).strip()
-                if not is_admin:
-                    observations.append(f"[Security Block: The remote user '{user_id}' is unauthorized to execute Python code.]")
-                    continue
-                if self.sandbox:
-                    res = await self.sandbox.execute_python(code)
-                    observations.append(f"Sandbox Result:\n{res}")
-
-            if "[SCAN]" in text.upper() and self.vision:
-                desc, img = await self.vision.scan_screen()
-                observations.append(f"Screen Analysis: {desc}")
-                if img:
-                    import base64, io
-                    buffered = io.BytesIO()
-                    img.save(buffered, format="JPEG")
-                    images_data.append(base64.b64encode(buffered.getvalue()).decode("utf-8"))
-
-            for match in IMAGE_PATTERN.finditer(text):
-                img_prompt = match.group(1).strip()
-                if self.image_engine:
-                    filename = await self.image_engine.generate_image(img_prompt)
-                    if filename:
-                        observations.append(f"[System: Generated image saved as {filename}]")
-                    else:
-                        observations.append(f"[System: Image generation failed for prompt: {img_prompt}]")
-
-            for match in LATEX_PATTERN.finditer(text):
-                code = match.group(1).strip()
-                if self.latex:
-                    img_path = await self.latex.render_math(code)
-                    if img_path:
-                        observations.append(f"[System: Rendered LaTeX and saved to {img_path}]")
-
-            for match in OPEN_PATTERN.finditer(text):
-                target = match.group(1).strip()
-                if not is_admin:
-                    observations.append(f"[Security Block: Unauthorized user cannot open PC applications.]")
-                    continue
-                try:
-                    import os
-                    if os.name == 'nt':
-                        os.system(f'start "" "{target}"')
-                    else:
-                        os.system(f'open "{target}"' if os.name == 'posix' else f'xdg-open "{target}"')
-                    observations.append(f"[System: Successfully requested OS to open '{target}']")
-                except Exception as e:
-                    observations.append(f"[System Error: Failed to open '{target}': {e}]")
-
-            for match in TYPE_PATTERN.finditer(text):
-                content = match.group(1).strip()
-                if not is_admin:
-                    observations.append(f"[Security Block: Unauthorized user cannot type on the PC.]")
-                    continue
-                try:
-                    import pyautogui
-                    pyautogui.write(content, interval=0.01)
-                    observations.append(f"[System: Successfully typed text: '{content[:20]}...']")
-                except ImportError:
-                    observations.append("[System Error: pyautogui not installed. Please `pip install pyautogui`]")
-                except Exception as e:
-                    observations.append(f"[System Error: Typing failed: {e}]")
-
-            for match in CLICK_PATTERN.finditer(text):
-                target = match.group(1).strip()
-                if not is_admin:
-                    observations.append(f"[Security Block: Unauthorized user cannot click on the PC.]")
-                    continue
-                try:
-                    import pyautogui
-                    coords = [int(x.strip()) for x in target.split(',')]
-                    if len(coords) == 2:
-                        pyautogui.click(x=coords[0], y=coords[1])
-                        observations.append(f"[System: Clicked at ({coords[0]}, {coords[1]})]")
-                    else:
-                        observations.append("[System Error: CLICK command requires 'X, Y' coordinates]")
-                except Exception as e:
-                    observations.append(f"[System Error: Click failed: {e}]")
-
-            for match in PRESS_PATTERN.finditer(text):
-                key = match.group(1).strip().lower()
-                if not is_admin:
-                    observations.append(f"[Security Block: Unauthorized user cannot press PC keys.]")
-                    continue
-                try:
-                    import pyautogui
-                    # Handle combinations like "ctrl+c"
-                    keys = [k.strip() for k in key.split("+")]
-                    if len(keys) > 1:
-                        pyautogui.hotkey(*keys)
-                    else:
-                        pyautogui.press(key)
-                    observations.append(f"[System: Pressed key(s) '{key}']")
-                except Exception as e:
-                    observations.append(f"[System Error: Key press failed: {e}]")
-
-            # MCP Tool Calls
-            for match in MCP_PATTERN.finditer(text):
-                tool_name = match.group(1).strip().lower()
-                arg_str = (match.group(2) or "").strip()
-
-                method = getattr(mcp_bridge, {
-                    "read_file": "read_file", "write_file": "write_file",
-                    "list_dir": "list_dir", "find_files": "find_files",
-                    "glob": "glob_files", "grep": "grep_search",
-                    "delete_file": "delete_file", "sysinfo": "get_system_info",
-                    "processes": "list_processes", "kill_proc": "kill_process",
-                    "run_cmd": "run_command", "clipboard": "get_clipboard",
-                    "set_clipboard": "set_clipboard", "downloads": "get_downloads",
-                    "desktop": "get_desktop",
-                }.get(tool_name, ""), None)
-
-                if method:
-                    try:
-                        if "|" in arg_str:
-                            parts = [p.strip() for p in arg_str.split("|")]
-                            result = await method(*parts)
-                        elif arg_str:
-                            result = await method(arg_str)
-                        else:
-                            result = await method()
-                        logger.info(f"[MCP] {tool_name}: {str(result)[:80]}")
-                        observations.append(result)
-                    except Exception as e:
-                        observations.append(f"[MCP ERROR] {tool_name}: {e}")
-                else:
-                    observations.append(f"[MCP] Unknown tool: {tool_name}")
-
-            for match in RECALL_PATTERN.finditer(text):
-                query = match.group(1).strip()
-                room = match.group(2).strip() if match.group(2) else None
-                if self.rag and hasattr(self.rag, 'mempalace'):
-                    res = self.rag.mempalace.search_memory(query, n_results=5, room=room)
-                    if res:
-                        obs = f"\n[RECALL RESULT for '{query}']:\n"
-                        for i, r in enumerate(res, 1):
-                            obs += f"({i}) [{r['meta']['room']}]: {r['text']}\n"
-                        observations.append(obs)
-                    else:
-                        observations.append(f"[System: No specific memories found for '{query}']")
-
-        except Exception as e:
-            observations.append(f"Tool Error: {e}")
+        await self.executor.execute_tools(self, text, observations, images_data, user_id)
 
     async def _process_attachments(self, attachment_paths_or_urls: list) -> tuple:
         """Process local file paths or URLs for vision/context."""

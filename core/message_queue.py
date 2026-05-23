@@ -419,7 +419,7 @@ def get_response_for_user(source: str, user_id: str, timeout: float = 30) -> Opt
     return None
 
 
-def send_response(source: str, user_id: str, response: str, emotion: str = "neutral"):
+def send_response(source: str, user_id: str, response: str, emotion: str = "neutral", gif_url: str = None):
     """Send response from Hub back to bot."""
     queue = get_queue()
     payload = {
@@ -427,6 +427,7 @@ def send_response(source: str, user_id: str, response: str, emotion: str = "neut
         'user_id': user_id,
         'response': response,
         'emotion': emotion,
+        'gif_url': gif_url,
         'timestamp': time.time()
     }
     return queue.enqueue(f'{source}_out', payload, priority=3)
