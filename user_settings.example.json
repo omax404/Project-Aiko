@@ -15,6 +15,7 @@
   },
   "plugins": {
     "discord_bot": false,
-    "telegram_bot": false
+    "telegram_bot": false,
+    "hermes_agent": true
   }
 }

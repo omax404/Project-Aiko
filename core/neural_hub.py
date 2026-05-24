@@ -42,6 +42,7 @@ sys.path.insert(0, str(BASE))
 from core.chat_engine import AikoBrain
 from core.memory import MemoryManager
 from core.rag_memory import RAGMemorySystem
+from core.hermes_agent import AikoHermesAgent
 
 from core.vision import VisionEngine
 from core.persona import detect_emotion
@@ -146,6 +147,9 @@ except Exception as _obs_err:
 # Initialize Proactive Agent
 proactive_agent = ProactiveAgent(brain=None, vision=vision, pc_manager=pc, voice=voice_engine)
 
+# Initialize Hermes Agent (linked to Aiko's mind)
+hermes = AikoHermesAgent()
+
 # OPTIMIZED: Create brain with cached prompts
 brain = AikoBrain(
     memory_manager=memory,
@@ -153,10 +157,13 @@ brain = AikoBrain(
     pc_manager=pc,
     vision_engine=vision,
     vts_connector=None,
-    action_bridge=None,
+    action_bridge=hermes,
     latex_engine=latex,
     obsidian=obsidian
 )
+
+# Late bind brain to hermes agent
+hermes.attach_brain(brain)
 
 # Link components to proactive agent
 proactive_agent.brain = brain

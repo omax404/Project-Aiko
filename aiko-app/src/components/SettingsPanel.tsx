@@ -59,7 +59,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, o
     llm: { url: 'http://127.0.0.1:11434/api/chat', model: 'qwen3.5:397b-cloud' },
     tts: { enabled: true, voice: 'vivian', speed: 0.9 },
     persona: { custom_prompt: 'You are a highly capable AI agent designed to assist with anything the user needs. Always be polite, concise, and helpful.' },
-    plugins: { discord_bot: false, telegram_bot: false }
+    plugins: { discord_bot: false, telegram_bot: false, hermes_agent: true }
   };
 
   const [settings, setSettings] = useState<any>(defaultSettings);
@@ -244,6 +244,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, o
                   <div className="space-y-3">
                     <Checkbox label="Discord Bot (Satellite)" checked={settings.plugins.discord_bot} onChange={v => setSettings({...settings, plugins: {...settings.plugins, discord_bot: v}})} />
                     <Checkbox label="Telegram Bot (Satellite)" checked={settings.plugins.telegram_bot} onChange={v => setSettings({...settings, plugins: {...settings.plugins, telegram_bot: v}})} />
+                    <Checkbox label="Hermes AI Agent (Cognitive Bridge)" checked={settings.plugins.hermes_agent} onChange={v => setSettings({...settings, plugins: {...settings.plugins, hermes_agent: v}})} />
                   </div>
                 </div>
               )}

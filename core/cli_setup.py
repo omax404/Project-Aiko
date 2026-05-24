@@ -133,6 +133,7 @@ def customize_subsystems():
         custom_prompt = "Devoted companion"
         discord_bot = False
         telegram_bot = False
+        hermes_agent = True
         if settings_path.exists():
             try:
                 data = json.loads(settings_path.read_text(encoding="utf-8"))
@@ -141,13 +142,14 @@ def customize_subsystems():
                 custom_prompt = data.get("persona", {}).get("custom_prompt", "Devoted companion")
                 discord_bot = data.get("plugins", {}).get("discord_bot", False)
                 telegram_bot = data.get("plugins", {}).get("telegram_bot", False)
+                hermes_agent = data.get("plugins", {}).get("hermes_agent", True)
             except Exception:
                 pass
                 
         print(f"  {CLR_BOLD}Configure Project Components:{CLR_RESET}")
         print(f"   1. {CLR_BOLD}🔊 Voice (TTS Engine){CLR_RESET} ── Currently: {CLR_GREEN if tts_enabled else CLR_GRAY}{'Enabled' if tts_enabled else 'Disabled'} ({tts_voice}){CLR_RESET}")
         print(f"   2. {CLR_BOLD}🧠 Brain Persona{CLR_RESET} ──────── Currently: {CLR_CYAN}{custom_prompt[:35]}...{CLR_RESET}")
-        print(f"   3. {CLR_BOLD}🔌 External Integrations{CLR_RESET} ─ Discord: {CLR_GREEN if discord_bot else CLR_GRAY}{discord_bot}{CLR_RESET} | Telegram: {CLR_GREEN if telegram_bot else CLR_GRAY}{telegram_bot}{CLR_RESET}")
+        print(f"   3. {CLR_BOLD}🔌 External Integrations{CLR_RESET} ─ Discord: {CLR_GREEN if discord_bot else CLR_GRAY}{discord_bot}{CLR_RESET} | Telegram: {CLR_GREEN if telegram_bot else CLR_GRAY}{telegram_bot}{CLR_RESET} | Hermes Agent: {CLR_GREEN if hermes_agent else CLR_GRAY}{hermes_agent}{CLR_RESET}")
         print(f"   4. {CLR_BOLD}🚀 Finish Customization & Exit{CLR_RESET}")
         print()
         
@@ -193,14 +195,17 @@ def customize_subsystems():
                 # Integrations
                 discord_input = input(f"  {SYM_Q} Enable Discord Bot integration? [y/N]: ").strip().lower()
                 telegram_input = input(f"  {SYM_Q} Enable Telegram Bot integration? [y/N]: ").strip().lower()
+                hermes_input = input(f"  {SYM_Q} Enable Hermes AI Agent integration? [Y/n]: ").strip().lower()
                 
                 enable_discord = discord_input in ("y", "yes")
                 enable_telegram = telegram_input in ("y", "yes")
+                enable_hermes = hermes_input not in ("n", "no")
                 
                 def _update_plugins(d):
                     if "plugins" not in d: d["plugins"] = {}
                     d["plugins"]["discord_bot"] = enable_discord
                     d["plugins"]["telegram_bot"] = enable_telegram
+                    d["plugins"]["hermes_agent"] = enable_hermes
                     
                 update_user_settings_dict(_update_plugins)
                 print(f"  {SYM_OK} {CLR_GREEN}Integrations updated!{CLR_RESET}\n")
