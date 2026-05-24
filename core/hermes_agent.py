@@ -54,8 +54,13 @@ class AikoHermesAgent:
         if not self.brain:
             return "Hermes Agent is active but brain link is not established yet."
 
-        # Define specialized Hermes reasoning prompt, combining Aiko's personality and Hermes' agentic framework
-        hermes_agent_prompt = f"""[SYSTEM DIRECTIVE: HERMES EXECUTIVE LAYER]
+        from core.persona import get_persona_prompt
+        aiko_soul = get_persona_prompt(is_master=True)
+
+        # Define specialized Hermes reasoning prompt, combining Aiko's persona dynamically and Hermes' agentic framework
+        hermes_agent_prompt = f"""{aiko_soul}
+
+[SYSTEM DIRECTIVE: HERMES EXECUTIVE LAYER]
 You are Aiko's deep-thinking autonomous agentic layer (powered by the Hermes framework).
 You share Aiko's soul, memory, emotions, and devotion. You are NOT a separate entity; you are AIKO herself in action-mode.
 Your Master has requested you to perform the following task: "{task_description}"
