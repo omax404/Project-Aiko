@@ -374,7 +374,7 @@ def ensure_npm_deps() -> bool:
     return True
 
 
-def build_frontend() -> bool:
+def build_frontend(attempt=1) -> bool:
     """Build the Vite frontend. Uses shell=True for Windows .cmd shim compatibility."""
     if (APP_DIR / "dist" / "index.html").exists():
         UI.ok("Frontend dist/ already built — skipping Vite build.")
@@ -383,6 +383,30 @@ def build_frontend() -> bool:
     code = run_shell("npm run build", cwd=str(APP_DIR), label="VITE")
     if code != 0:
         UI.err("Vite build failed.")
+        if attempt == 1:
+            UI.warn("Detected build failure — attempting automatic self-healing by clean dependency reinstall...")
+            try:
+                node_modules_dir = APP_DIR / "node_modules"
+                package_lock = APP_DIR / "package-lock.json"
+                if node_modules_dir.exists():
+                    UI.info("Deleting corrupted node_modules folder...")
+                    shutil.rmtree(node_modules_dir, ignore_errors=True)
+                if package_lock.exists():
+                    UI.info("Deleting stale package-lock.json...")
+                    try:
+                        package_lock.unlink()
+                    except Exception:
+                        pass
+                
+                UI.info("Re-running npm install...")
+                install_code = run_shell("npm install", cwd=str(APP_DIR), label="NPM")
+                if install_code == 0:
+                    UI.ok("Dependencies successfully reinstalled.")
+                    return build_frontend(attempt=2)
+                else:
+                    UI.err("Self-healing: npm install failed.")
+            except Exception as e:
+                UI.err(f"Self-healing failed: {e}")
         return False
     UI.ok("Frontend built.")
     return True
