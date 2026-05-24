@@ -501,7 +501,16 @@ Use MCP tools whenever Master asks about his PC state, files, or wants you to re
 
         async def stream_ollama(mdl: str, msgs: list, imgs: list) -> tuple:
             """Stream from Ollama native API."""
-            url = "http://127.0.0.1:11434/api/chat"
+            url = config.get("LLM_URL", "http://127.0.0.1:11434/api/chat")
+            if not url.endswith(("/chat", "/api/chat")):
+                if url.endswith("/api") or url.endswith("/api/"):
+                    url = url.rstrip("/") + "/chat"
+                else:
+                    url = url.rstrip("/") + "/api/chat"
+
+            headers = {}
+            if API_KEY:
+                headers["Authorization"] = f"Bearer {API_KEY}"
 
             ollama_msgs = []
             # Find the index of the LAST user message to attach images to
@@ -546,7 +555,7 @@ Use MCP tools whenever Master asks about his PC state, files, or wants you to re
             }
 
             try:
-                async with session.post(url, json=payload) as resp:
+                async with session.post(url, json=payload, headers=headers) as resp:
                     if resp.status != 200:
                         body = await resp.text()
                         logger.error(f"[Brain] Ollama → {resp.status}: {body[:200]}")
