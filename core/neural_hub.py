@@ -42,7 +42,7 @@ sys.path.insert(0, str(BASE))
 from core.chat_engine import AikoBrain
 from core.memory import MemoryManager
 from core.rag_memory import RAGMemorySystem
-from core.clawdbot_bridge import AikoActionBridge
+
 from core.vision import VisionEngine
 from core.persona import detect_emotion
 from core.latex_engine import LatexEngine
@@ -131,7 +131,7 @@ memory = MemoryManager()
 # RAG will be local here, as this IS the hub
 os.environ["REMOTE_RAG_URL"] = ""
 rag = RAGMemorySystem()
-bridge = AikoActionBridge()
+
 latex = LatexEngine()
 vision = VisionEngine()
 pc = PCManager()
@@ -153,7 +153,7 @@ brain = AikoBrain(
     pc_manager=pc,
     vision_engine=vision,
     vts_connector=None,
-    action_bridge=bridge,
+    action_bridge=None,
     latex_engine=latex,
     obsidian=obsidian
 )
@@ -867,17 +867,7 @@ async def handle_relationship(req):
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
 
-async def handle_bridge_status(req):
-    """Proxy to check if OpenClaw bridge is alive on 8765."""
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get("http://127.0.0.1:8765/status", timeout=2) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    return web.json_response({"status": "connected", "data": data})
-                return web.json_response({"status": "error", "code": resp.status})
-    except Exception as e:
-        return web.json_response({"status": "disconnected", "error": str(e)})
+
 
 async def handle_latex_render(req):
     """Render a LaTeX snippet to a high-res image."""
@@ -944,7 +934,7 @@ def build_hub_app():
     app.router.add_post("/api/settings/reload", handle_reload_settings)
     app.router.add_get("/api/settings", handle_get_settings)
     app.router.add_get("/api/project/structure", handle_project_structure)
-    app.router.add_get("/api/bridge/status", handle_bridge_status)
+
     app.router.add_post("/api/latex/render", handle_latex_render)
     app.router.add_get("/api/latex/image/{filename}", handle_latex_image)
     app.router.add_post("/api/upload", handle_upload)

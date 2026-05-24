@@ -100,7 +100,6 @@ You don't need to touch any code to change her!
 - 🌸 Obsidian Connector — knowledge base integration
 - 🌸 LaTeX Engine — math rendering to image
 - 🌸 Image Generation — AI image creation
-- [x] OpenClaw delegation — complex task handoff
 
 ### 🎮 Games
 - [x] Minecraft bridge (autonomous play)

@@ -18,7 +18,7 @@ class SecurityManager:
 
     def generate_auth_token(self, agent_id: str = "Aiko_Main") -> str:
         """
-        Generate a short-lived HMAC token for OpenClaw API handshakes.
+        Generate a short-lived HMAC token for API handshakes.
         """
         timestamp = str(int(time.time()))
         payload = f"{agent_id}:{timestamp}:{self._secret}"

@@ -15,7 +15,6 @@
   },
   "plugins": {
     "discord_bot": false,
-    "telegram_bot": false,
-    "openclaw_bridge": false
+    "telegram_bot": false
   }
 }

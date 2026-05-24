@@ -6,7 +6,6 @@ use std::path::PathBuf;
 use std::process::{Command, Child, Stdio};
 use std::sync::{Arc, Mutex, RwLock};
 use std::fs;
-use std::thread;
 use std::time::{Duration, Instant};
 use tokio::time::interval;
 use serde::{Serialize, Deserialize};
@@ -41,7 +40,6 @@ pub struct ProcessStatusDto {
 pub struct ProcessManager {
     hub: Mutex<Option<Child>>,
     bots: Mutex<Vec<Child>>,
-    bridge: Mutex<Option<Child>>,
     ollama: Mutex<Option<Child>>,
     project_root: PathBuf,
     python_exe: PathBuf,
@@ -62,7 +60,6 @@ impl ProcessManager {
         ProcessManager {
             hub: Mutex::new(None),
             bots: Mutex::new(Vec::new()),
-            bridge: Mutex::new(None),
             ollama: Mutex::new(None),
             project_root,
             python_exe,
@@ -223,31 +220,6 @@ impl ProcessManager {
         }
     }
 
-    /// Start OpenClaw Bridge
-    pub fn start_bridge(&self) {
-        let log_dir = self.project_root.join(".logs");
-        fs::create_dir_all(&log_dir).ok();
-
-        if let Ok(log_file) = fs::File::create(log_dir.join("openclaw_bridge.log")) {
-            let log_err = log_file.try_clone().unwrap_or_else(|_| {
-                fs::File::create(log_dir.join("openclaw_bridge_err.log")).unwrap()
-            });
-
-            if let Ok(child) = Command::new(&self.python_exe)
-                .arg("-m")
-                .arg("core.openclaw_bridge_enhanced")
-                .current_dir(&self.project_root)
-                .stdout(Stdio::from(log_file))
-                .stderr(Stdio::from(log_err))
-                .spawn()
-            {
-                let pid = child.id();
-                *self.bridge.lock().unwrap() = Some(child);
-                self.register_process("openclaw_bridge", pid);
-                println!("[Aiko/Rust] OpenClaw Bridge started (PID: {})", pid);
-            }
-        }
-    }
 
     /// Register a process for monitoring
     fn register_process(&self, name: &str, pid: u32) {
@@ -362,12 +334,7 @@ impl ProcessManager {
             "telegram_bot" => {
                 self.restart_bot("telegram_bot.py", "telegram_bot.log");
             }
-            "openclaw_bridge" => {
-                if let Some(mut child) = self.bridge.lock().unwrap().take() {
-                    let _ = child.kill();
-                }
-                self.start_bridge();
-            }
+
             "ollama" => {
                 if let Some(mut child) = self.ollama.lock().unwrap().take() {
                     let _ = child.kill();
@@ -459,11 +426,7 @@ impl ProcessManager {
             let _ = child.kill();
         }
 
-        // Kill bridge
-        if let Some(mut child) = self.bridge.lock().unwrap().take() {
-            println!("[Aiko/Rust] Shutting down OpenClaw Bridge...");
-            let _ = child.kill();
-        }
+
 
         // Kill bots
         for (i, mut child) in self.bots.lock().unwrap().drain(..).enumerate() {

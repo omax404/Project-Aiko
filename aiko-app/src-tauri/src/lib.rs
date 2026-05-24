@@ -181,7 +181,6 @@ pub fn run() {
                     println!("[Aiko/Rust] Neural Hub already online — skipping process startup");
 
                     // Still start monitoring in background
-                    let pm_monitor = pm.clone();
                     std::thread::spawn(move || {
                         let rt = tokio::runtime::Runtime::new().unwrap();
                         rt.block_on(async {
@@ -214,7 +213,6 @@ pub fn run() {
                             let ready = process_manager::wait_for_hub("127.0.0.1", 8000, 150).await;
                             if ready {
                                 println!("[Aiko/Rust] Neural Hub ONLINE — starting satellites");
-                                pm_async.start_bridge();
                                 tokio::time::sleep(std::time::Duration::from_millis(500)).await;
                                 pm_async.start_bots();
                                 println!("[Aiko/Rust] ALL SYSTEMS GO");

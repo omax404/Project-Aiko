@@ -58,18 +58,7 @@ class AikoCallbackServer:
         self.ws_thread = None
 
     def _setup_routes(self):
-        @self.app.route('/clawdbot_callback', methods=['POST'])
-        def clawdbot_callback():
-            data = request.json or {}
-            logger.info(f"Received callback from Clawdbot: {data}")
-            if self.callback_handler:
-                message = data.get("message", "Task completed!")
-                status  = data.get("status", "success")
-                task    = data.get("task", "Unknown Task")
-                asyncio.run_coroutine_threadsafe(
-                    self.callback_handler(task, message, status), self.loop
-                )
-            return jsonify({"status": "received"}), 200
+
 
         @self.app.route('/status', methods=['GET'])
         def status():
