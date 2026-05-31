@@ -42,6 +42,12 @@ class MessageQueue:
         if not hasattr(self._local, 'conn') or self._local.conn is None:
             self._local.conn = sqlite3.connect(self.db_path, check_same_thread=False)
             self._local.conn.row_factory = sqlite3.Row
+            # Enable WAL (Write-Ahead Logging) mode and busy timeout to prevent database locks
+            try:
+                self._local.conn.execute("PRAGMA journal_mode=WAL")
+                self._local.conn.execute("PRAGMA busy_timeout=5000")
+            except Exception as e:
+                logger.warning(f"Failed to configure database optimizations: {e}")
         return self._local.conn
 
     def _init_db(self):

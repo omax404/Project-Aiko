@@ -50,7 +50,11 @@ pub struct ProcessManager {
 
 impl ProcessManager {
     pub fn new(project_root: PathBuf) -> Self {
-        let venv_python = project_root.join(".venv").join("Scripts").join("python.exe");
+        let venv_python = if cfg!(target_os = "windows") {
+            project_root.join(".venv").join("Scripts").join("python.exe")
+        } else {
+            project_root.join(".venv").join("bin").join("python")
+        };
         let python_exe = if venv_python.exists() {
             venv_python
         } else {
@@ -73,7 +77,11 @@ impl ProcessManager {
         let mut sys = System::new_all();
         sys.refresh_all();
 
-        let kill_names = ["python.exe"];
+        let kill_names = if cfg!(target_os = "windows") {
+            vec!["python.exe", "python"]
+        } else {
+            vec!["python", "python3"]
+        };
         let our_pid = std::process::id();
 
         for (pid, process) in sys.processes() {
