@@ -96,17 +96,96 @@ class VisionEngine:
             return "I tried to look, but the image data is corrupted, Master."
 
     async def _analyze(self, image: Image.Image) -> str:
-        """Send image to Moondream Cloud or local Ollama fallback."""
-        if API_KEY:
+        """Send image to local HF Transformers MiniCPM-V or local Ollama fallback."""
+        vision_provider = config.get("VISION_PROVIDER", "").lower()
+        model_name = config.get("VISION_MODEL", "gemma4:31b-cloud")
+        
+        # 1. Native Local Hugging Face Model (e.g. MiniCPM-V-4.6)
+        if vision_provider == "transformers" or "minicpm-v-4.6" in model_name.lower() or "openbmb" in model_name.lower():
             try:
-                loop = asyncio.get_event_loop()
-                description = await loop.run_in_executor(None, self._send_request, image)
-                return description
+                return await self._analyze_transformers(image)
             except Exception as e:
-                logger.warning(f"Cloud Vision failed: {e}. Falling back to Local Ollama.")
+                logger.error(f"Local Transformers Vision failed: {e}. Falling back to Ollama.")
                 
-        # 100% Offline / Non-HF Fallback using Ollama
+        # 2. 100% Offline Fallback using Ollama
         return await self._analyze_ollama(image)
+
+    async def _analyze_transformers(self, image: Image.Image) -> str:
+        """High-performance on-device vision using AutoModelForImageTextToText."""
+        import torch
+        from transformers import AutoProcessor, AutoModelForImageTextToText
+        
+        model_name = config.get("VISION_MODEL", "openbmb/MiniCPM-V-4.6")
+        if "/" not in model_name:
+            # Fallback wrapper if just passed "minicpm-v-4.6"
+            model_name = "openbmb/MiniCPM-V-4.6"
+
+        # Lazy loading to preserve boot RAM/VRAM
+        if not hasattr(self, "_hf_model") or self._hf_model is None:
+            logger.info(f"[Vision] Lazy-loading {model_name} onto device...")
+            
+            # Auto detect best precision & device
+            if torch.cuda.is_available():
+                device_args = {"torch_dtype": torch.float16, "device_map": "auto"}
+                logger.info("[Vision] CUDA detected! Loading with Float16 acceleration.")
+            elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                device_args = {"torch_dtype": torch.float16, "device_map": "auto"}
+                logger.info("[Vision] MPS (Apple Silicon) detected! Loading with Float16 acceleration.")
+            else:
+                device_args = {"torch_dtype": torch.float32}
+                logger.info("[Vision] CPU Only mode. Loading with Float32 (might be slow).")
+                
+            self._hf_processor = AutoProcessor.from_pretrained(model_name, trust_remote_code=True)
+            self._hf_model = AutoModelForImageTextToText.from_pretrained(
+                model_name, 
+                trust_remote_code=True,
+                **device_args
+            )
+            self._hf_model.eval()
+
+        loop = asyncio.get_event_loop()
+        def _generate():
+            with torch.no_grad():
+                # Format using MiniCPM-V chat template
+                messages = [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "image", "image": image},
+                            {"type": "text", "text": "Describe this image in detail. What objects, text, or actions are visible?"}
+                        ]
+                    }
+                ]
+                
+                inputs = self._hf_processor.apply_chat_template(
+                    messages,
+                    add_generation_prompt=True,
+                    tokenize=True,
+                    return_dict=True,
+                    return_tensors="pt"
+                )
+                
+                # Move to same device as model
+                device = next(self._hf_model.parameters()).device
+                for k, v in inputs.items():
+                    if isinstance(v, torch.Tensor):
+                        inputs[k] = v.to(device)
+
+                outputs = self._hf_model.generate(
+                    **inputs,
+                    max_new_tokens=250,
+                    repetition_penalty=1.1,
+                    temperature=0.7,
+                    do_sample=True
+                )
+                
+                # Decode and slice out prompt tokens
+                input_len = inputs["input_ids"].shape[-1]
+                response = self._hf_processor.decode(outputs[0][input_len:], skip_special_tokens=True)
+                return response.strip()
+
+        return await loop.run_in_executor(None, _generate)
+
 
     async def _analyze_ollama(self, image: Image.Image) -> str:
         """Native local vision using Ollama or LM Studio."""
@@ -121,8 +200,8 @@ class VisionEngine:
         # Ensure we don't accidentally send image bytes to a Text-Only LLM (like Gemma4 or Qwen).
         model = config.get("VISION_MODEL")
         if not model:
-            # If no Vision Model is explicitly set, default strictly to moondream for vision.
-            model = "moondream"
+            # If no Vision Model is explicitly set, default strictly to gemma4:31b-cloud for vision.
+            model = "gemma4:31b-cloud"
 
         
         try:

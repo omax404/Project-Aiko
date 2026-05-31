@@ -38,7 +38,7 @@ The easiest way to meet Aiko!
 
 ---
 
-## ⚙️ How to Customize Aiko
+### ⚙️ How to Customize Aiko
 
 You don't need to touch any code to change her!
 - Click the **Gear icon ⚙️** in the top right of the dashboard.
@@ -58,7 +58,8 @@ You don't need to touch any code to change her!
 - 🌸 Context-aware conversation with rolling buffers
 
 ### 👁️ Eyes (Vision)
-- 🌸 Multimodal image analysis via Gemma-4 Vision
+- 🌸 **MiniCPM-V 4.6 (Local Flagship)** — high-speed local multimodal understanding (~1.3B SigLIP2 + Qwen3.5 early ViT token compression)
+- 🌸 **Gemma-4 (31b-cloud Fallback)** — robust vision reasoning backup via Ollama
 - 🌸 Discord image processing (photos, screenshots, memes)
 - 🌸 Screen capture and analysis
 - 🌸 Support for `.jpg`, `.png`, `.webp`, `.gif`, `.bmp`, `.avif`
@@ -70,11 +71,10 @@ You don't need to touch any code to change her!
 - 🌸 Client-side talking detection
 
 ### 🎙️ Voice (Mouth)
-- 🌸 Pocket-TTS local synthesis (offline, no API needed)
-- 🌸 Voice cloning from audio sample
-- 🌸 Full-message chunked TTS (no 300-char limit)
+- 🌸 **Pocket-TTS v2.1.0 (Local flagship)** — high-fidelity local voice synthesis (no API keys needed)
+- 🌸 **Advanced Yuki Voice Cloning** — pre-compiled high-quality voice fingerprints loaded instantly
+- 🌸 **JIT Speech Stabilization** — optimized `0.65` temperature limits, completely removing robotic glitching or hallucinations
 - 🌸 Action text `*...*` stripping (clean speech output)
-- 🌸 Graceful fallback to built-in voices (alba, cosette, etc.)
 - 🌸 Audio sent as Discord attachment
 
 ### 💾 Memory
@@ -106,16 +106,17 @@ You don't need to touch any code to change her!
 - [x] Factorio bridge (autonomous play)
 
 ### 🌐 Platforms
-- [x] Discord Bot (mentions, DMs, voice messages, images, slash commands)
-- [x] Telegram Bot (groups, DMs)
+- [x] **Self-Healing Discord Bot** — consolidation mode with dynamic tuple mapping and 2000-char dynamic budget tracking
+- [x] **Telegram Bot** — group and DM markdown error-safe loops
 - [x] Tauri Desktop App (Live2D overlay, chat interface, global shortcuts)
 - [x] REST API (port 8000)
 
 ### 🖥️ Desktop Interface (Tauri)
 - 🌸 **Global Hotkey** — `Ctrl + Alt + A` to toggle visibility instantly
-- 🌸 **Mascot Mode** — Click-through overlay that stays on top of your windows
-- 🌸 **Live2D Avatar** — Smooth animations driven by her current emotional state
-- 🌸 **Unified Dashboard** — Chat history, system stats, and project intelligence
+- 🌸 **Pixel-Perfect click-through overlay** — click transparent zones with zero "ghost hitbox" interference
+- 🌸 **Dynamic Hover Zones** — models and controls automatically restore cursor focus instantly on mouse enter
+- 🌸 **Live2D Avatar** — smooth animations driven by her current emotional state
+- 🌸 **Unified Dashboard** — chat history, system stats, and project intelligence
 
 ---
 

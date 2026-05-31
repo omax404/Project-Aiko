@@ -33,6 +33,8 @@ def _warmup_tts():
         from pocket_tts import TTSModel
         logger.info("🔊 Loading Pocket-TTS model...")
         _tts_model = TTSModel.load_model()
+        # Optimize temperature for crystal-clear voice modulation (no robotic clicks or hallucinations)
+        _tts_model.temp = 0.65
 
         # Voice selection: try cloning first, fall back to built-in
         # Resolve assets directory relative to core/ folder
