@@ -158,12 +158,15 @@ class VisionEngine:
                 }
                 def _req():
                     try:
-                        resp = requests.post(f"http://127.0.0.1:11434/api/generate", json=payload, timeout=30)
+                        resp = requests.post(f"http://127.0.0.1:11434/api/generate", json=payload, timeout=90)
                         resp.raise_for_status()
                         return resp.json().get("response", "I see something, but I can't quite describe it, Master.")
                     except Exception as e:
                         logger.error(f"Ollama internal error: {e}")
-                        return f"Ollama is having trouble seeing this: {e}"
+                        err_str = str(e)
+                        if "404" in err_str or "not found" in err_str.lower():
+                            return f"I need a local vision model to see, Master. Please run 'ollama pull {model}' in your terminal to install it!"
+                        return f"Ollama is having trouble seeing this: {e}. (Make sure 'ollama pull {model}' has been run successfully)"
             
             return await loop.run_in_executor(None, _req)
         except Exception as e:

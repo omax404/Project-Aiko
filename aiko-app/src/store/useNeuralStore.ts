@@ -119,12 +119,24 @@ function scheduleReconnect() {
 }
 
 function connectSocket() {
+  const wsUrl = hubUrl.replace('http', 'ws') + '/ws';
+
+  if (socket) {
+    if (socket.url === wsUrl && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
+    if (socket.url !== wsUrl) {
+      console.log(`[Aiko] Link URL changed from ${socket.url} to ${wsUrl}. Re-linking...`);
+      try {
+        socket.close();
+      } catch (_) {}
+      socket = null;
+    }
+  }
+
   if (isConnecting) return;
-  if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) return;
-  
   isConnecting = true;
   try {
-    const wsUrl = hubUrl.replace('http', 'ws') + '/ws';
     socket = new WebSocket(wsUrl);
     
     let heartbeatInterval: ReturnType<typeof setInterval>;

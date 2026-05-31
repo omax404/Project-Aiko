@@ -33,10 +33,19 @@ export default function MascotApp() {
   const toolbarTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Connect to Neural Hub
+  // Tauri Click-Through Helper
+  const setIgnoreCursor = useCallback((ignore: boolean) => {
+    const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI__;
+    if (isTauri) {
+      getCurrentWindow().setIgnoreCursorEvents(ignore).catch(() => {});
+    }
+  }, []);
+
+  // Connect to Neural Hub and set default click-through
   useEffect(() => {
     try { connect('http://127.0.0.1:8000'); } catch (_) {}
     fetchBridgeStatus();
+    setIgnoreCursor(true); // Clicks on transparent areas fall through by default
   }, []);
 
   // Auto-focus input when chat opens
@@ -97,7 +106,8 @@ export default function MascotApp() {
       <div
         className="mascot-model-zone"
         onMouseDown={handleDrag}
-        onMouseEnter={showToolbar}
+        onMouseEnter={() => { showToolbar(); setIgnoreCursor(false); }}
+        onMouseLeave={() => setIgnoreCursor(true)}
         onMouseMove={showToolbar}
         data-tauri-drag-region
       >
@@ -139,6 +149,8 @@ export default function MascotApp() {
             transition={{ type: 'spring', stiffness: 400, damping: 25 }}
             className="mascot-speech-bubble"
             onClick={() => setChatOpen(true)}
+            onMouseEnter={() => setIgnoreCursor(false)}
+            onMouseLeave={() => setIgnoreCursor(true)}
           >
             <p>{bubbleText}</p>
             <div className="mascot-speech-tail" />
@@ -157,6 +169,8 @@ export default function MascotApp() {
             exit={{ opacity: 0, y: 8 }}
             transition={{ duration: 0.2 }}
             className="mascot-toolbar"
+            onMouseEnter={() => setIgnoreCursor(false)}
+            onMouseLeave={() => setIgnoreCursor(true)}
           >
             <button
               onClick={() => setChatOpen(true)}
@@ -201,6 +215,8 @@ export default function MascotApp() {
             exit={{ opacity: 0, y: 20, scale: 0.92 }}
             transition={{ type: 'spring', stiffness: 380, damping: 28 }}
             className="mascot-chat-panel"
+            onMouseEnter={() => setIgnoreCursor(false)}
+            onMouseLeave={() => setIgnoreCursor(true)}
           >
             {/* Chat header */}
             <div className="mascot-chat-header">

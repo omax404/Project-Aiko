@@ -172,10 +172,20 @@ class AikoBrain:
         if initial_images:
             processed_images, file_context = await self._process_attachments(initial_images)
             
-            # Images are passed directly to the main LLM (Gemma 4 is multimodal)
-            # No need for a separate vision model — the brain can see
             if processed_images:
-                file_context += f"\n[VISUAL_INPUT]: {len(processed_images)} image(s) attached. Describe what you see."
+                # Dynamically determine if the active LLM is a vision-capable multimodal model
+                active_model = config.get("MODEL_NAME", self.model or "qwen3.5:cloud")
+                is_vision_model = any(keyword in active_model.lower() for keyword in ["vision", "vl", "llava", "moondream", "minicpm", "multimodal", "gpt-4o", "claude-3"])
+                
+                if not is_vision_model and self.vision:
+                    logger.info(f"[ChatEngine] Active LLM '{active_model}' is text-only. Pre-processing {len(processed_images)} image(s) using Vision Engine...")
+                    for idx, img_b64 in enumerate(processed_images):
+                        description = await self.vision.analyze_base64(img_b64)
+                        file_context += f"\n[IMAGE_{idx+1}_ANALYSIS]: {description}"
+                    # Clear processed_images so we don't send raw bytes to a text-only LLM
+                    processed_images = []
+                else:
+                    file_context += f"\n[VISUAL_INPUT]: {len(processed_images)} image(s) attached. Describe what you see."
 
             if file_context:
                 message = f"{message}\n\n[SENSORY_CONTEXT]:\n{file_context}"

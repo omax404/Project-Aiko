@@ -27,12 +27,12 @@ async def get_hub_response(message: str, user_id: str, attachments: list = None)
             async with session.post(f"{HUB_URL}/api/chat", json=payload, timeout=300) as resp:
                 if resp.status == 200:
                     data = await resp.json()
-                    return data.get("response"), data.get("emotion"), data.get("audio_path")
+                    return data.get("response"), data.get("emotion"), data.get("audio_path"), data.get("gif_url")
                 else:
                     logger.error(f"Hub returned error status: {resp.status}")
     except Exception as e:
         logger.error(f"Hub connection error: {e!r}")
-    return "Master, my neural links are fuzzy...", "sad", None
+    return "Master, my neural links are fuzzy...", "sad", None, None
 
 async def render_latex(snippet: str):
     try:
@@ -343,8 +343,15 @@ async def run_discord_bot():
 
     @bot.event
     async def on_message(message):
-        logger.info(f"Received Discord message: {message.content} from {message.author}")
+        logger.info(f"Received Discord message: '{message.content}' from {message.author}")
         if message.author == bot.user or message.author.bot: return
+
+        # Intent Check Diagnostics
+        if not message.content.strip() and not message.attachments and not isinstance(message.channel, discord.DMChannel):
+            logger.warning(
+                "Discord message content is completely empty. "
+                "If this is unexpected, please verify that 'MESSAGE CONTENT INTENT' is enabled in the Discord Developer Portal under the Bot tab."
+            )
         
         # Process slash commands first
         await bot.process_commands(message)
@@ -479,9 +486,10 @@ async def run_discord_bot():
                 if latex_file: files.append(latex_file)
                 if sticker_file: files.append(sticker_file)
                 
-                # Discord has a 2000 char limit
-                if len(response) > 1900:
-                    response = response[:1900] + "..."
+                # Discord has a 2000 char limit — reserve space for gif_url if present
+                max_text_len = 1900 - (len(gif_url) + 1 if gif_url else 0)
+                if len(response) > max_text_len:
+                    response = response[:max_text_len] + "..."
                 if gif_url:
                     response = f"{response}\n{gif_url}"
                 
@@ -619,7 +627,11 @@ async def run_telegram_bot():
         if response:
             if gif_url:
                 response = f"{response}\n\n{gif_url}"
-            await update.message.reply_text(response, parse_mode='Markdown' if '```' in response else None)
+            try:
+                await update.message.reply_text(response, parse_mode='Markdown' if '```' in response else None)
+            except Exception as tg_send_err:
+                logger.warning(f"Telegram reply with Markdown failed: {tg_send_err}. Falling back to plain text.")
+                await update.message.reply_text(response)
 
     app.add_handler(MessageHandler(filters.TEXT | filters.PHOTO, chat_handler))
     
