@@ -108,7 +108,7 @@ html,body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;ov
    HERO TITLE
 ══════════════════════════════════ */
 .hero__title{
-  position:absolute;top:13%;left:45%;z-index:40;pointer-events:none;
+  position:absolute;top:13%;left:8%;z-index:40;pointer-events:none;
   line-height:.85;
 }
 .eyebrow{
@@ -181,7 +181,7 @@ html,body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;ov
 ══════════════════════════════════ */
 .floating-layer{
   position:absolute;bottom:6%;left:0;right:0;padding:0 48px;z-index:30;
-  display:grid;grid-template-columns:110px 420px 1fr 280px;
+  display:grid;grid-template-columns:110px 370px 1fr 370px;
   gap:24px;align-items:end;pointer-events:none;
 }
 .floating-layer>*{pointer-events:auto}
@@ -716,6 +716,18 @@ html,body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;ov
 
     <!-- MIDDLE COLUMN (SPACY PLACE) -->
     <div style="min-height:1px;pointer-events:none;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;padding-bottom:14px;">
+    </div>
+
+    <!-- RIGHT COL -->
+    <div class="right-col" style="display:flex;flex-direction:column;gap:14px;align-items:flex-end;">
+
+      <!-- STATS -->
+      <div class="stats-row">
+        <div class="stat-pill"><div class="sp-v">22+</div><div class="sp-l">emotions</div></div>
+        <div class="stat-pill"><div class="sp-v">37</div><div class="sp-l">modules</div></div>
+        <div class="stat-pill"><div class="sp-v">8</div><div class="sp-l">providers</div></div>
+      </div>
+
       <!-- IDENTITY TICKET -->
       <div class="tw tw1" style="pointer-events:auto;">
         <div class="uv-t">
@@ -750,24 +762,6 @@ html,body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;ov
           </div>
         </div>
       </div>
-    </div>
-
-    <!-- RIGHT COL -->
-    <div class="right-col">
-
-      <!-- STATS -->
-      <div class="stats-row">
-        <div class="stat-pill"><div class="sp-v">22+</div><div class="sp-l">emotions</div></div>
-        <div class="stat-pill"><div class="sp-v">37</div><div class="sp-l">modules</div></div>
-        <div class="stat-pill"><div class="sp-v">8</div><div class="sp-l">providers</div></div>
-      </div>
-
-      <!-- MOCKINGBIRD BUTTON -->
-      <button class="mockingbird" onclick="window.open('https://github.com/omax404/Project-Aiko')" aria-label="Open Project Aiko on GitHub">
-        <span class="mc-sub">Project Aiko v2.0</span>
-        DEVOTED<br>COMPANION<br>SYSTEM
-        <div class="glitch-kanji" id="kanjiBtn" aria-hidden="true"></div>
-      </button>
 
       <!-- WARNING TICKET -->
       <div class="tw tw4">
