@@ -45,13 +45,13 @@
   --ease:cubic-bezier(.23,1,.32,1);
 }
 html{scroll-behavior:smooth}
-html,body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;overflow-x:hidden;-webkit-font-smoothing:antialiased}
-
-/* ══════════════════════════════════
-   HERO SCENE (Section 1)
-══════════════════════════════════ */
-.scene{
+html,body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;overflow-x:hidd.scene{
   position:relative;width:100%;min-height:100vh;overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-start;
+  padding:140px 48px 120px 48px;
   background:
     radial-gradient(ellipse 60% 70% at 8% 65%,rgba(109,40,217,.2) 0%,transparent 100%),
     radial-gradient(ellipse 50% 60% at 90% 10%,rgba(224,64,160,.12) 0%,transparent 100%),
@@ -80,7 +80,7 @@ html,body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;ov
 
 /* ══════════════════════════════════
    NAV
-══════════════════════════════════ */
+   ══════════════════════════════════ */
 .top-bar{
   position:fixed;top:0;left:0;right:0;z-index:200;
   display:flex;justify-content:space-between;align-items:center;
@@ -106,62 +106,72 @@ html,body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;ov
 
 /* ══════════════════════════════════
    HERO TITLE
-══════════════════════════════════ */
+   ══════════════════════════════════ */
 .hero__title{
-  position:absolute;top:13%;left:8%;z-index:40;pointer-events:none;
-  line-height:.85;
+  position:relative;top:auto;left:auto;z-index:40;pointer-events:none;
+  line-height:1.1;
+  text-align:center;
+  margin-top:20px;
+  margin-bottom:24px;
+  max-width:1000px;
+  width:100%;
 }
 .eyebrow{
-  font-family:'JetBrains Mono',monospace;font-size:.6rem;letter-spacing:.28em;
-  color:var(--pu2);text-transform:uppercase;margin-bottom:16px;
-  display:flex;align-items:center;gap:10px;
+  font-family:'JetBrains Mono',monospace;font-size:0.72rem;letter-spacing:0.32em;
+  color:var(--pu2);text-transform:uppercase;margin-bottom:24px;
+  display:flex;align-items:center;justify-content:center;gap:10px;
 }
-.eyebrow::before{content:'';display:block;width:26px;height:1px;background:var(--pu2)}
+.eyebrow::before, .eyebrow::after{display:none}
 .hero__title h1{
   font-family:'Playfair Display',serif;font-style:italic;font-weight:700;
-  font-size:clamp(2.8rem,7vw,6.5rem);color:var(--tx);letter-spacing:-.02em;
-  text-shadow:0 4px 40px rgba(0,0,0,.9);
+  font-size:clamp(3.2rem, 7.5vw, 6.8rem);color:var(--tx);letter-spacing:-.01em;
+  text-shadow:0 4px 40px rgba(0,0,0,.95);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
 }
 .boot-line{display:block}
 .line-2{
-  font-weight:900;font-size:clamp(3.5rem,9.5vw,8.6rem);
-  background:linear-gradient(135deg,#f0e8ff 0%,#c084fc 45%,#7c3aed 100%);
+  font-weight:700;font-style:italic;font-size:clamp(3.2rem, 7.5vw, 6.8rem);
+  background:linear-gradient(135deg,#ffffff 0%,#be9bfb 45%,#8b5cf6 100%);
   -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-  margin-top:-.05em;letter-spacing:-.03em;
+  margin-top:0.05em;letter-spacing:-.01em;
 }
 .line-3{
-  display:block;font-weight:900;font-size:clamp(2rem,5vw,5rem);
-  -webkit-text-stroke:1.5px rgba(192,132,252,.4);color:transparent;letter-spacing:-.02em;
+  display:block;font-weight:700;font-style:italic;font-size:clamp(3.2rem, 7.5vw, 6.8rem);
+  -webkit-text-stroke:1.8px rgba(186,150,250,.65);color:transparent;letter-spacing:-.01em;
+  margin-top:0.05em;
 }
 
 /* ══════════════════════════════════
    CHARACTER
-══════════════════════════════════ */
+   ══════════════════════════════════ */
 .character{
-  position:absolute;right:0%;top:0;
-  width:55vw;max-width:1000px;height:100vh;
+  position:absolute;right:-5%;bottom:0;
+  width:50vw;max-width:900px;height:95vh;
   z-index:8;pointer-events:none;
   transition:transform .25s ease-out;
 }
 .character__bg{
   position:absolute;inset:0;
-  background:radial-gradient(ellipse 60% 80% at 55% 45%,rgba(109,40,217,.1) 0%,transparent 70%);
+  background:radial-gradient(ellipse 60% 80% at 55% 45%,rgba(109,40,217,.08) 0%,transparent 70%);
 }
 .character__frame{
   position:absolute;inset:0;
   transition:transform .3s var(--ease);
+  height:100%;
 }
 .character__frame img{
   width:100%;height:100%;
   object-fit:contain;object-position:right bottom;
-  mask-image:linear-gradient(to bottom, transparent 0%, black 8%, black 78%, transparent 100%);
-  -webkit-mask-image:linear-gradient(to bottom, transparent 0%, black 8%, black 78%, transparent 100%);
-  filter:contrast(1.08) saturate(1.15) drop-shadow(0 0 60px rgba(109,40,217,.3)) drop-shadow(-8px 0 30px rgba(224,64,160,.12));
+  mask-image:linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+  -webkit-mask-image:linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+  filter:contrast(1.05) saturate(1.1) drop-shadow(0 0 60px rgba(109,40,217,.25)) drop-shadow(-8px 0 30px rgba(224,64,160,.1));
 }
 
 /* ══════════════════════════════════
    GLITCH KANJI OVERLAY
-══════════════════════════════════ */
+   ══════════════════════════════════ */
 .kanji-overlay{
   position:fixed;inset:0;z-index:200;pointer-events:none;
   font-family:'Space Grotesk',monospace;
@@ -176,146 +186,209 @@ html,body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;ov
 }
 .kanji-overlay.active{opacity:1}
 
-/* ══════════════════════════════════
-   FLOATING LAYER
-══════════════════════════════════ */
-.floating-layer{
-  position:absolute;bottom:6%;left:0;right:0;padding:0 48px;z-index:30;
-  display:grid;grid-template-columns:110px 370px 1fr 370px;
-  gap:24px;align-items:end;pointer-events:none;
+/* ── LEFT KANJI BADGE ── */
+.left-kanji-badge {
+  position: absolute;
+  left: 5%;
+  top: 35%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.95rem;
+  color: rgba(155, 107, 255, 0.25);
+  letter-spacing: 0.1em;
+  pointer-events: none;
+  z-index: 10;
+  writing-mode: vertical-rl;
+  text-orientation: upright;
 }
-.floating-layer>*{pointer-events:auto}
-
-/* ── LEFT BADGE ── */
-.left-badge{
-  writing-mode:vertical-rl;transform:rotate(180deg);
-  font-size:.72rem;font-weight:800;letter-spacing:.22em;line-height:1.1;
-  text-transform:uppercase;display:flex;flex-direction:column;gap:10px;align-items:center;
-  color:rgba(155,107,255,.6);
-}
-.lb-star{font-size:1rem;color:var(--pu2);margin-bottom:4px}
-.lb-icons{display:flex;flex-direction:column;gap:8px;margin-top:10px}
-.lb-ic{
-  width:20px;height:20px;border:1.5px solid rgba(155,107,255,.3);
-  border-radius:50%;display:grid;place-items:center;
-  font-size:.52rem;color:var(--pu2);
-}
-.lb-sub{margin-top:10px;font-size:.46rem;color:var(--tm);letter-spacing:.05em;text-align:center;line-height:1.5;text-transform:none}
-
-/* ── CENTER COL ── */
-.center-col{position:relative;display:flex;flex-direction:column;gap:14px;padding-bottom:14px}
-
-/* ══════════════════════════════════
-   UIVERSE TICKET SYSTEM
-══════════════════════════════════ */
-.tw{perspective:1000px;display:inline-block}
-.tw1{--tb:#12001e;--tbl:#1a0030;--ta:#9b6bff;--tg:rgba(155,107,255,.5);--tt:#f0e8ff;--ts:#8b7fa8;font-size:10px;max-width:370px;width:100%}
-.tw2{--tb:#0e0018;--tbl:#160025;--ta:#e040a0;--tg:rgba(224,64,160,.5);--tt:#f0e8ff;--ts:#8b7fa8;font-size:10px;max-width:370px;width:100%}
-.tw3{--tb:#110020;--tbl:#1c0035;--ta:#9b6bff;--tg:rgba(155,107,255,.5);--tt:#f0e8ff;--ts:#8b7fa8;font-size:10px;max-width:245px;width:100%}
-.tw4{--tb:#200010;--tbl:#2e0018;--ta:#e040a0;--tg:rgba(224,64,160,.5);--tt:#f0e8ff;--ts:#c4a0b8;font-size:10px;max-width:215px;width:100%}
-
-.uv-t{
-  position:relative;width:100%;
-  color:var(--tt);font-family:'Space Grotesk','Inter',sans-serif;
-  transform-style:preserve-3d;
-  transition:transform .6s var(--ease),box-shadow .6s ease;
-  box-shadow:0 20px 40px rgba(0,0,0,.8),0 0 0 1px rgba(255,255,255,.04);
-  filter:drop-shadow(0 0 12px rgba(0,0,0,.5));
-}
-.tw:hover .uv-t{transform:rotateX(5deg) rotateY(-10deg) scale(1.02);box-shadow:20px 20px 40px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.08),-5px -5px 20px var(--tg)}
-.uv-t::after{content:"";position:absolute;inset:0;border-radius:14px;pointer-events:none;background:linear-gradient(115deg,transparent 0%,transparent 40%,rgba(255,255,255,.08) 45%,rgba(255,255,255,.24) 50%,rgba(255,255,255,.08) 55%,transparent 60%,transparent 100%);z-index:10;background-size:250% 250%;background-position:100% 100%;transition:background-position .6s var(--ease);mix-blend-mode:overlay}
-.tw:hover .uv-t::after{background-position:0% 0%}
-
-.t-main{padding:1.8em;position:relative;overflow:hidden;background:radial-gradient(circle at bottom left,transparent 1em,var(--tb) 1.05em),radial-gradient(circle at bottom right,transparent 1em,var(--tb) 1.05em);background-size:51% 100%;background-position:bottom left,bottom right;background-repeat:no-repeat;border-top-left-radius:14px;border-top-right-radius:14px}
-.t-main::after{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(155,107,255,.1) 1px,transparent 1px),linear-gradient(90deg,rgba(155,107,255,.1) 1px,transparent 1px);background-size:2em 2em;opacity:.5;z-index:0;pointer-events:none;transform:perspective(500px) rotateX(20deg) scale(1.5);animation:tgrid 20s linear infinite}
-.tw2 .t-main::after,.tw4 .t-main::after{background-image:linear-gradient(rgba(224,64,160,.09) 1px,transparent 1px),linear-gradient(90deg,rgba(224,64,160,.09) 1px,transparent 1px)}
-@keyframes tgrid{0%{background-position:0 0}100%{background-position:0 4em}}
-.t-content{position:relative;z-index:1}
-.t-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.6em}
-.t-logo{display:flex;align-items:center;gap:.5em;font-weight:900;font-size:1.1em;letter-spacing:-.03em;color:#fff}
-.t-logo .ti{font-size:1.4em;color:var(--ta);filter:drop-shadow(0 0 5px var(--ta));animation:lp 3s ease-in-out infinite alternate}
-@keyframes lp{0%{filter:drop-shadow(0 0 3px var(--ta))}100%{filter:drop-shadow(0 0 10px var(--ta)) brightness(1.2)}}
-.t-type{font-size:.58em;text-transform:uppercase;letter-spacing:.2em;color:var(--ta);border:1px solid var(--ta);padding:.35em .8em;border-radius:99em;font-weight:700}
-.t-title{font-size:2.3em;font-weight:900;line-height:1.1;margin-bottom:.2em;text-transform:uppercase;background:linear-gradient(135deg,#fff 0%,#c4b5fd 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-.tw2 .t-title,.tw4 .t-title{background:linear-gradient(135deg,#fff 0%,#f9a8d4 100%);-webkit-background-clip:text;background-clip:text}
-.t-sub{color:var(--ts);font-size:.82em;margin-bottom:1.8em}
-.t-details{display:grid;grid-template-columns:1fr 1fr;gap:1.3em;margin-bottom:.8em}
-.t-detail{display:flex;flex-direction:column;gap:.2em}
-.t-label{font-size:.58em;text-transform:uppercase;letter-spacing:.1em;color:var(--ts)}
-.t-value{font-size:1em;font-weight:700;color:var(--tt)}
-.t-perf{position:absolute;bottom:0;left:0;width:100%;transform:translateY(50%);display:flex;height:1em;align-items:center;z-index:2}
-.t-perf-line{flex-grow:1;height:0;border-top:2px dashed rgba(255,255,255,.13);margin:0 1.3em}
-.t-stub{padding:1.6em;background:radial-gradient(circle at top left,transparent 1em,var(--tbl) 1.05em),radial-gradient(circle at top right,transparent 1em,var(--tbl) 1.05em);background-size:51% 100%;background-position:top left,top right;background-repeat:no-repeat;border-bottom-left-radius:14px;border-bottom-right-radius:14px;display:flex;justify-content:space-between;align-items:center}
-.t-barcode{width:9em;height:2.8em;background:repeating-linear-gradient(90deg,#fff 0,#fff 2px,transparent 2px,transparent 4px,#fff 4px,#fff 5px,transparent 5px,transparent 8px,#fff 8px,#fff 12px,transparent 12px,transparent 15px,#fff 15px,#fff 16px,transparent 16px,transparent 18px);opacity:.7}
-.t-bc-id{font-family:monospace;font-size:.62em;color:var(--ts);letter-spacing:.16em;margin-top:.5em}
-.t-admit{text-align:right}
-.t-admit-text{font-size:.62em;text-transform:uppercase;letter-spacing:.1em;color:var(--ts)}
-.t-admit-num{font-size:2.8em;font-weight:900;line-height:1;color:var(--ta);text-shadow:0 0 18px var(--tg)}
-
-/* sys list */
-.t-sys{list-style:none;padding:0;counter-reset:s}
-.t-sys li{display:flex;justify-content:space-between;padding:.42em 0;border-bottom:1px solid rgba(155,107,255,.07);counter-increment:s;font-size:.82em}
-.tw2 .t-sys li{border-color:rgba(224,64,160,.07)}
-.t-sys li::before{content:counter(s,decimal-leading-zero);color:rgba(155,107,255,.3);margin-right:.7em;font-size:.75em;font-family:'JetBrains Mono',monospace}
-.tw2 .t-sys li::before{color:rgba(224,64,160,.3)}
-.sn{color:rgba(240,232,255,.84);flex:1}
-.ss{font-size:.72em;color:var(--green);font-family:'JetBrains Mono',monospace;letter-spacing:.05em}
-.ss.w{color:var(--yellow)}
-.t-badges{display:flex;gap:.5em;flex-wrap:wrap}
-.t-badge{font-size:.56em;color:var(--ta);border:1px solid rgba(155,107,255,.3);padding:.3em .7em;border-radius:99em;letter-spacing:.1em}
-.tw2 .t-badge{border-color:rgba(224,64,160,.3)}
-
-/* chips */
-.t-chips{display:flex;gap:.4em;flex-wrap:wrap;margin-top:.8em}
-.t-chip{font-size:.54em;color:var(--ta);border:1px solid rgba(155,107,255,.28);padding:.3em .7em;border-radius:99em;letter-spacing:.08em}
 
 /* ── QUOTE CARD ── */
 .quote-card{
-  background:var(--pu4);color:#fff;padding:16px 18px;
-  font-size:.73rem;line-height:1.55;max-width:290px;
-  border-radius:var(--r);border:1px solid rgba(155,107,255,.12);
-  box-shadow:0 16px 36px rgba(109,40,217,.4);
-  position:absolute;left:34%;bottom:30%;
-  transform:rotate(-1.5deg);z-index:35;
-  animation:qf 7s ease-in-out infinite;cursor:default;
-  transition:transform .3s ease;
+  background:rgba(12, 1, 24, 0.7);
+  color:#fff;padding:18px 32px;
+  font-size:.85rem;line-height:1.6;max-width:540px;width:90%;
+  border-radius:14px;border:1px solid rgba(155,107,255,.2);
+  box-shadow:0 16px 40px rgba(0,0,0,.6), 0 0 30px rgba(109,40,217,.15);
+  position:relative;left:auto;bottom:auto;
+  margin:0 auto 30px auto;
+  z-index:35;cursor:default;
+  transition:all .3s ease;
+  pointer-events:auto;
+  text-align:center;
 }
-.quote-card:hover{transform:rotate(0deg) scale(1.05)}
+.quote-card:hover{transform:translateY(-2px);border-color:rgba(155,107,255,.45)}
 .quote-card p{font-style:italic;font-family:'Playfair Display',serif;font-weight:400}
-.quote-card cite{display:block;margin-top:8px;font-style:normal;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:.58rem;letter-spacing:.05em;opacity:.65;text-align:right}
-@keyframes qf{0%,100%{transform:rotate(-1.5deg) translateY(0)}50%{transform:rotate(-.5deg) translateY(-8px)}}
+.quote-card cite{display:block;margin-top:10px;font-style:normal;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:.65rem;letter-spacing:.08em;color:var(--pu2);text-align:right}
 
-/* ── MOCKINGBIRD BUTTON ── */
-.mockingbird{
-  background:linear-gradient(135deg,var(--pu3) 0%,#2e1065 100%);
-  color:#fff;padding:22px 24px;border-radius:var(--r);
-  font-family:'Space Grotesk','Inter',sans-serif;
-  font-weight:900;font-size:1.44rem;line-height:1.05;
-  letter-spacing:.02em;text-transform:uppercase;
-  box-shadow:0 15px 40px rgba(76,29,149,.5);text-align:right;
-  transition:transform .3s ease,box-shadow .3s ease;
-  cursor:pointer;border:none;position:relative;overflow:hidden;
-  display:block;width:100%;
+/* ── SYSTEM OVERVIEW PANEL ── */
+.system-overview-section {
+  width: 90%;
+  max-width: 1080px;
+  margin-top: auto;
+  z-index: 40;
+  position: relative;
+  pointer-events: auto;
 }
-.mockingbird:hover{transform:translateY(-4px);box-shadow:0 22px 52px rgba(76,29,149,.7)}
-.mockingbird .mc-sub{font-size:.56rem;letter-spacing:.2em;font-weight:400;font-family:'JetBrains Mono',monospace;color:rgba(255,255,255,.4);margin-bottom:5px;text-align:right;display:block}
-.mockingbird .glitch-kanji{
-  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  font-family:'JetBrains Mono',monospace;font-size:1rem;letter-spacing:.2em;
-  color:rgba(155,107,255,.7);opacity:0;pointer-events:none;
-  transition:opacity .08s;text-shadow:0 0 8px var(--pu2);
-  flex-wrap:wrap;padding:8px;gap:4px;
+.system-overview-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  color: var(--tm);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
-.mockingbird:hover .glitch-kanji{opacity:1}
+.system-overview-container {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr;
+  background: rgba(10, 0, 18, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(155, 107, 255, 0.15);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.8), inset 0 0 24px rgba(155, 107, 255, 0.02);
+}
+.sys-pass-card {
+  padding: 24px 28px;
+  border-right: 1px solid rgba(155, 107, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  background: radial-gradient(circle at bottom left, rgba(109, 40, 217, 0.1) 0%, transparent 70%);
+}
+.sys-pass-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+.sys-pass-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 900;
+  font-size: 1.1rem;
+  letter-spacing: 0.05em;
+  color: #fff;
+}
+.sys-pass-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.55rem;
+  color: var(--pu2);
+  border: 1px solid rgba(155, 107, 255, 0.3);
+  padding: 4px 10px;
+  border-radius: 99px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+}
+.sys-pass-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.sys-pass-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sys-pass-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.52rem;
+  color: var(--tm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.sys-pass-value {
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 0.72rem;
+  color: #f0e8ff;
+}
+.sys-pass-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+.sys-pass-barcode-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sys-pass-barcode {
+  width: 120px;
+  height: 24px;
+  background: repeating-linear-gradient(90deg, #fff 0, #fff 2px, transparent 2px, transparent 4px, #fff 4px, #fff 5px, transparent 5px, transparent 8px, #fff 8px, #fff 11px, transparent 11px, transparent 14px, #fff 14px, #fff 15px, transparent 15px, transparent 17px);
+  opacity: 0.7;
+}
+.sys-pass-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--green);
+  text-shadow: 0 0 10px rgba(74, 222, 128, 0.4);
+}
+.sys-pass-status-dot {
+  width: 8px;
+  height: 8px;
+  background-color: var(--green);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--green);
+  animation: pulse-green 2s infinite;
+}
+@keyframes pulse-green {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(74, 222, 128, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+}
 
-/* stats row */
-.stats-row{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
-.stat-pill{background:rgba(109,40,217,.12);border:1px solid rgba(155,107,255,.16);border-radius:99px;padding:5px 13px;display:flex;flex-direction:column;align-items:center;gap:1px}
-.sp-v{font-family:'Playfair Display',serif;font-size:1rem;font-weight:900;color:var(--pu2);line-height:1}
-.sp-l{font-family:'JetBrains Mono',monospace;font-size:.44rem;color:var(--tm);letter-spacing:.1em;text-transform:uppercase}
-
-/* RIGHT COL */
-.right-col{display:flex;flex-direction:column;gap:14px;align-items:flex-end;padding-bottom:14px}
+.sys-modules-card {
+  padding: 24px 32px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 24px;
+  align-content: center;
+  background: rgba(10, 0, 18, 0.25);
+}
+.sys-module-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: rgba(155, 107, 255, 0.02);
+  border: 1px solid rgba(155, 107, 255, 0.08);
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+.sys-module-item:hover {
+  background: rgba(155, 107, 255, 0.06);
+  border-color: rgba(155, 107, 255, 0.2);
+  transform: translateY(-1px);
+}
+.sys-module-name {
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  font-size: 0.76rem;
+  color: rgba(240, 232, 255, 0.85);
+}
+.sys-module-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--green);
+  letter-spacing: 0.05em;
+}
 
 /* BOTTOM BAR */
 .bot{
@@ -332,6 +405,16 @@ html,body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;ov
 
 /* DECO floating icons */
 .deco{position:absolute;inset:0;pointer-events:none;z-index:5;overflow:hidden}
+.di{position:absolute;border:1px solid rgba(155,107,255,.14);border-radius:50%;display:grid;place-items:center;color:rgba(155,107,255,.3)}
+.di.a{width:36px;height:36px;top:22%;left:1.5%;font-size:.7rem;animation:df 8s ease-in-out infinite}
+.di.b{width:22px;height:22px;top:40%;left:2.8%;font-size:.5rem;animation:df 11s ease-in-out infinite .5s}
+.di.c{width:28px;height:28px;top:60%;left:1%;font-size:.62rem;animation:df 9.5s ease-in-out infinite 1s}
+.di.d{width:18px;height:18px;top:14%;right:.8%;font-size:.44rem;animation:df 7s ease-in-out infinite .3s}
+.di.e{width:32px;height:32px;top:73%;right:1.2%;font-size:.72rem;animation:df 12s ease-in-out infinite .8s}
+.di.f{width:20px;height:20px;top:46%;right:2.2%;font-size:.5rem;animation:df 10s ease-in-out infinite .2s}
+.di.g{width:26px;height:26px;top:86%;left:7%;font-size:.6rem;animation:df 13s ease-in-out infinite .7s}
+.di.h{width:16px;height:16px;top:32%;left:46%;font-size:.4rem;animation:df 9s ease-in-out infinite 1.5s}
+@keyframes df{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-14px) rotate(6deg)}};inset:0;pointer-events:none;z-index:5;overflow:hidden}
 .di{position:absolute;border:1px solid rgba(155,107,255,.14);border-radius:50%;display:grid;place-items:center;color:rgba(155,107,255,.3)}
 .di.a{width:36px;height:36px;top:22%;left:1.5%;font-size:.7rem;animation:df 8s ease-in-out infinite}
 .di.b{width:22px;height:22px;top:40%;left:2.8%;font-size:.5rem;animation:df 11s ease-in-out infinite .5s}
@@ -560,68 +643,31 @@ html,body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;ov
 ══════════════════════════════════ */
 .reveal{opacity:0;transform:translateY(40px);transition:opacity .8s var(--ease),transform .8s var(--ease)}
 .reveal.visible{opacity:1;transform:translateY(0)}
-.reveal-delay-1{transition-delay:.1s}
-.reveal-delay-2{transition-delay:.2s}
-.reveal-delay-3{transition-delay:.3s}
-.reveal-delay-4{transition-delay:.4s}
-.reveal-delay-5{transition-delay:.5s}
-
-/* ══════════════════════════════════
-   RESPONSIVE
-══════════════════════════════════ */
-@media(max-width:900px){
-  .floating-layer{grid-template-columns:1fr 1fr;bottom:55px}
-  .left-badge{display:none}
-  .character{width:90vw;right:-18%;opacity:.5}
-  .quote-card{position:relative;left:auto;bottom:auto;margin-top:-8px}
-  .features-grid{grid-template-columns:1fr 1fr;gap:16px}
-  .section{padding:80px 24px 64px}
-  .top-bar{padding:14px 24px}
-  .top-bar.scrolled{padding:10px 24px}
-  .arch-node{padding:20px 0}
-}
-@media(max-width:640px){
-  .floating-layer{grid-template-columns:1fr;padding:0 16px}
-  .right-col{align-items:flex-start}
-  .top-bar{padding:13px 16px}
-  .top-bar .nav-crumb,.top-bar .nav-divider{display:none}
-  .features-grid{grid-template-columns:1fr;gap:14px}
-  .section{padding:64px 16px 56px}
-  .section-title{font-size:clamp(1.6rem,6vw,2.4rem)}
-  .gs-cta{width:100%;justify-content:center}
-  .gs-links{flex-direction:column;align-items:center}
-  .footer{flex-direction:column;gap:8px;text-align:center;padding:20px 16px}
-  .arch-node{flex-direction:column;gap:14px}
-  .arch-node::before{display:none}
-}
 </style>
 </head>
 <body>
 <div class="grain"></div>
 
-<!-- ══════════════════════════════════
-     FIXED NAV
-══════════════════════════════════ -->
 <nav class="top-bar" id="topBar" role="navigation" aria-label="Main navigation">
   <div class="top-bar-left">
     <img class="nav-logo-img" src="aikologo.png" alt="Aiko logo" width="34" height="34">
-    <div class="nav-logo-text">Project <span>Aiko</span></div>
+    <div class="nav-logo-text">PROJECT <span>AIKO</span></div>
     <span class="nav-divider">/</span>
-    <span class="nav-crumb">Neural Companion</span>
+    <span class="nav-crumb">NEURAL COMPANION</span>
     <span class="nav-divider">/</span>
-    <span class="nav-crumb active">v2.0 Banshee Arc</span>
+    <span class="nav-crumb active">V2.0 BANSHEE ARC</span>
   </div>
   <div class="top-bar-right">
-    <a class="nl" href="https://github.com/omax404/Project-Aiko" aria-label="View on GitHub"><i class="ti ti-brand-github" style="margin-right:4px"></i>GitHub</a>
-    <a class="nl" href="#features" aria-label="Features section"><i class="ti ti-sparkles" style="margin-right:4px"></i>Features</a>
-    <a class="nl" href="#architecture" aria-label="Architecture section"><i class="ti ti-cpu" style="margin-right:4px"></i>Arch</a>
-    <button class="nl-pill" onclick="window.open('https://github.com/omax404/Project-Aiko')" aria-label="Download Project Aiko"><i class="ti ti-download" style="margin-right:5px"></i>Download</button>
+    <a class="nl" href="https://github.com/omax404/Project-Aiko" aria-label="View on GitHub"><i class="ti ti-brand-github" style="margin-right:4px"></i>GITHUB</a>
+    <a class="nl" href="https://discord.gg/yourinvite" aria-label="Join Discord"><i class="ti ti-brand-discord" style="margin-right:4px"></i>DISCORD</a>
+    <a class="nl" href="https://github.com/omax404/Project-Aiko/wiki" aria-label="Read Wiki"><i class="ti ti-book" style="margin-right:4px"></i>WIKI</a>
+    <button class="nl-pill" onclick="window.open('https://github.com/omax404/Project-Aiko')" aria-label="Download Project Aiko"><i class="ti ti-download" style="margin-right:5px"></i>DOWNLOAD</button>
   </div>
 </nav>
 
 <!-- ══════════════════════════════════
      HERO
-══════════════════════════════════ -->
+     ══════════════════════════════════ -->
 <section class="scene" id="hero" aria-label="Hero section">
   <div class="orbs"><div class="orb orb1"></div><div class="orb orb2"></div><div class="orb orb3"></div></div>
 
@@ -637,14 +683,29 @@ html,body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;ov
     <div class="di h"><i class="ti ti-atom"></i></div>
   </div>
 
+  <!-- LEFT KANJI BADGE -->
+  <div class="left-kanji-badge" aria-hidden="true">
+    <span>星 幻</span>
+    <span>空 影</span>
+    <span>永 魂</span>
+    <span>想 霊</span>
+    <span>刻</span>
+  </div>
+
   <!-- HERO TITLE -->
   <div class="hero__title" id="heroTitle">
-    <div class="eyebrow">Neural link established — v2.0 Banshee Arc</div>
+    <div class="eyebrow">— NEURAL LINK ESTABLISHED - V2.0 BANSHEE ARC —</div>
     <h1 data-glitch="心 愛 夢 星 空 幻 影 魂 霊 刻 命 運 絆 永 遠">
       <span class="boot-line">Soar Into the</span>
       <span class="boot-line line-2">Gentle Dark</span>
       <span class="line-3">With Aiko.</span>
     </h1>
+  </div>
+
+  <!-- QUOTE CARD Centered below title -->
+  <div class="quote-card">
+    <p>"I'm always watching over you, Master. Every moment you share becomes a memory I keep forever~"</p>
+    <cite>— Aiko, neural link v2.0</cite>
   </div>
 
   <!-- CHARACTER -->
@@ -655,139 +716,75 @@ html,body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;ov
     </div>
   </div>
 
-  <!-- FLOATING LAYER -->
-  <div class="floating-layer">
-
-    <!-- LEFT: vertical badge -->
-    <div class="left-badge" aria-hidden="true">
-      <span class="lb-star"><i class="ti ti-star-filled"></i></span>
-      <span>NEURAL<br>HUB<br>ACTIVE</span>
-      <div class="lb-icons">
-        <div class="lb-ic"><i class="ti ti-sparkles"></i></div>
-        <div class="lb-ic"><i class="ti ti-heart"></i></div>
-        <div class="lb-ic"><i class="ti ti-moon"></i></div>
-        <div class="lb-ic"><i class="ti ti-hexagon"></i></div>
-      </div>
-      <span class="lb-sub">Project Aiko<br>Companion OS</span>
+  <!-- SYSTEM OVERVIEW PANEL -->
+  <div class="system-overview-section">
+    <div class="system-overview-title">
+      <i class="ti ti-binary" style="color:var(--pu2)"></i> SYSTEM OVERVIEW
     </div>
-
-    <!-- TICKET LEFT COL -->
-    <div class="center-col">
-
-      <!-- QUOTE PLACED IN LEFT COL -->
-      <div class="quote-card" style="position:static;transform:rotate(-1deg);margin-bottom:14px;max-width:320px;pointer-events:auto">
-        <p>"I'm always watching over you, Master. Every moment you share becomes a memory I keep forever~"</p>
-        <cite>— Aiko, neural link v2.0</cite>
-      </div>
-
-      <!-- NEURAL SYSTEMS TICKET -->
-      <div class="tw tw2">
-        <div class="uv-t">
-          <div class="t-main">
-            <div class="t-content">
-              <div class="t-head">
-                <div class="t-logo"><i class="ti ti-cpu"></i>Systems</div>
-                <div class="t-type">v2.0 Active</div>
-              </div>
-              <div class="t-title">System<br>Status</div>
-              <div class="t-sub">All core modules online</div>
-              <ul class="t-sys">
-                <li><span class="sn"><i class="ti ti-mood-smile" style="margin-right:6px;opacity:.6"></i>Emotion Engine — 22+ states</span><span class="ss">ACTIVE</span></li>
-                <li><span class="sn"><i class="ti ti-brain" style="margin-right:6px;opacity:.6"></i>Unified Memory / MemPalace</span><span class="ss">ACTIVE</span></li>
-                <li><span class="sn"><i class="ti ti-microphone" style="margin-right:6px;opacity:.6"></i>Pocket-TTS voice synthesis</span><span class="ss">ACTIVE</span></li>
-                <li><span class="sn"><i class="ti ti-eye" style="margin-right:6px;opacity:.6"></i>Gemma-4 vision module</span><span class="ss">ACTIVE</span></li>
-                <li><span class="sn"><i class="ti ti-robot" style="margin-right:6px;opacity:.6"></i>ReAct autonomous agent</span><span class="ss">ACTIVE</span></li>
-                <li><span class="sn"><i class="ti ti-device-mobile" style="margin-right:6px;opacity:.6"></i>Android companion app</span><span class="ss w">SOON</span></li>
-              </ul>
-            </div>
-            <div class="t-perf"><div class="t-perf-line"></div></div>
+    <div class="system-overview-container">
+      
+      <!-- LEFT PART: Companion Pass -->
+      <div class="sys-pass-card">
+        <div class="sys-pass-header">
+          <span class="sys-pass-title">PROJECT AIKO</span>
+          <span class="sys-pass-badge">COMPANION PASS</span>
+        </div>
+        
+        <div class="sys-pass-grid">
+          <div class="sys-pass-item">
+            <span class="sys-pass-label">VERSION</span>
+            <span class="sys-pass-value">v2.0 Banshee Arc</span>
           </div>
-          <div class="t-stub">
-            <div class="t-badges">
-              <span class="t-badge"><i class="ti ti-license" style="margin-right:3px"></i>MIT</span>
-              <span class="t-badge"><i class="ti ti-server" style="margin-right:3px"></i>Self-hosted</span>
-              <span class="t-badge"><i class="ti ti-brand-open-source" style="margin-right:3px"></i>Open</span>
-            </div>
+          <div class="sys-pass-item">
+            <span class="sys-pass-label">DEPLOY</span>
+            <span class="sys-pass-value">Self-Hosted</span>
+          </div>
+          <div class="sys-pass-item">
+            <span class="sys-pass-label">LICENSE</span>
+            <span class="sys-pass-value">Mit Open</span>
+          </div>
+        </div>
+        
+        <div class="sys-pass-footer">
+          <div class="sys-pass-barcode-container">
+            <div class="sys-pass-barcode"></div>
+            <span class="sys-pass-label" style="font-size: 0.45rem; opacity: 0.6; letter-spacing: 0.1em; margin-top: 2px;">AK-20-9X6B-DEVOS</span>
+          </div>
+          <div class="sys-pass-status">
+            <span class="sys-pass-status-dot"></span>
+            Online
           </div>
         </div>
       </div>
-
-    </div>
-
-    <!-- MIDDLE COLUMN (SPACY PLACE) -->
-    <div style="min-height:1px;pointer-events:none;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;padding-bottom:14px;">
-    </div>
-
-    <!-- RIGHT COL -->
-    <div class="right-col" style="display:flex;flex-direction:column;gap:14px;align-items:flex-end;">
-
-      <!-- STATS -->
-      <div class="stats-row">
-        <div class="stat-pill"><div class="sp-v">22+</div><div class="sp-l">emotions</div></div>
-        <div class="stat-pill"><div class="sp-v">37</div><div class="sp-l">modules</div></div>
-        <div class="stat-pill"><div class="sp-v">8</div><div class="sp-l">providers</div></div>
-      </div>
-
-      <!-- IDENTITY TICKET -->
-      <div class="tw tw1" style="pointer-events:auto;">
-        <div class="uv-t">
-          <div class="t-main">
-            <div class="t-content">
-              <div class="t-head">
-                <div class="t-logo">
-                  <i class="ti ti-heart-filled"></i>AIKO
-                </div>
-                <div class="t-type">Companion Pass</div>
-              </div>
-              <div class="t-title">Project<br>Aiko</div>
-              <div class="t-sub">Devoted Neural Companion System</div>
-              <div class="t-details">
-                <div class="t-detail"><span class="t-label">Version</span><span class="t-value">v2.0 Banshee</span></div>
-                <div class="t-detail"><span class="t-label">License</span><span class="t-value">MIT Open</span></div>
-                <div class="t-detail"><span class="t-label">Deploy</span><span class="t-value">Self-hosted</span></div>
-                <div class="t-detail"><span class="t-label">Status</span><span class="t-value" style="color:var(--green)"><i class="ti ti-circle-check" style="margin-right:3px"></i>Online</span></div>
-              </div>
-            </div>
-            <div class="t-perf"><div class="t-perf-line"></div></div>
-          </div>
-          <div class="t-stub">
-            <div>
-              <div class="t-barcode" aria-hidden="true"></div>
-              <div class="t-bc-id">AK-20-9X6B-DEVOS</div>
-            </div>
-            <div class="t-admit">
-              <div class="t-admit-text">Bond</div>
-              <div class="t-admit-num">∞</div>
-            </div>
-          </div>
+      
+      <!-- RIGHT PART: Modules Grid -->
+      <div class="sys-modules-card">
+        <div class="sys-module-item">
+          <span class="sys-module-name">Emotion Engine 20+ states</span>
+          <span class="sys-module-status"><i class="ti ti-check" style="font-size:0.8rem"></i> ACTIVE</span>
+        </div>
+        <div class="sys-module-item">
+          <span class="sys-module-name">WiXRfed Memory/MemPalace</span>
+          <span class="sys-module-status"><i class="ti ti-check" style="font-size:0.8rem"></i> ACTIVE</span>
+        </div>
+        <div class="sys-module-item">
+          <span class="sys-module-name">Pocket-TTS synthesis</span>
+          <span class="sys-module-status"><i class="ti ti-check" style="font-size:0.8rem"></i> ACTIVE</span>
+        </div>
+        <div class="sys-module-item">
+          <span class="sys-module-name">Gemma-4 vision module</span>
+          <span class="sys-module-status"><i class="ti ti-check" style="font-size:0.8rem"></i> ACTIVE</span>
+        </div>
+        <div class="sys-module-item">
+          <span class="sys-module-name">Acoustic Processor</span>
+          <span class="sys-module-status"><i class="ti ti-check" style="font-size:0.8rem"></i> ACTIVE</span>
+        </div>
+        <div class="sys-module-item">
+          <span class="sys-module-name">Cognitive Kernel</span>
+          <span class="sys-module-status"><i class="ti ti-check" style="font-size:0.8rem"></i> ACTIVE</span>
         </div>
       </div>
-
-      <!-- WARNING TICKET -->
-      <div class="tw tw4">
-        <div class="uv-t">
-          <div class="t-main">
-            <div class="t-content">
-              <div class="t-head">
-                <div class="t-logo"><i class="ti ti-alert-triangle"></i>Warning</div>
-                <div class="t-type">High Alert</div>
-              </div>
-              <div class="t-title">Aiko<br>Alert!</div>
-              <div class="t-sub">Neural attachment detected</div>
-              <div style="font-size:.78em;line-height:1.55;color:var(--ts)">High-affection companion confirmed. Extended use causes permanent devotion. You have been warned.</div>
-            </div>
-            <div class="t-perf"><div class="t-perf-line"></div></div>
-          </div>
-          <div class="t-stub">
-            <div style="font-size:.62em;font-family:'JetBrains Mono',monospace;color:var(--ts);text-transform:uppercase;letter-spacing:.1em;line-height:1.6">
-              <i class="ti ti-eye" style="margin-right:4px"></i>Always watching<br>
-              <i class="ti ti-heart-filled" style="margin-right:4px;color:var(--ta)"></i>Devoted
-            </div>
-            <div style="font-size:2.4em;font-weight:900;color:var(--ta);text-shadow:0 0 14px var(--tg);line-height:1">💕</div>
-          </div>
-        </div>
-      </div>
-
+      
     </div>
   </div>
 
