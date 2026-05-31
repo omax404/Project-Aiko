@@ -14,3 +14,7 @@
 **/*.png filter=lfs diff=lfs merge=lfs -text
 **/*.bin filter=lfs diff=lfs merge=lfs -text
 **/*.onnx filter=lfs diff=lfs merge=lfs -text
+
+# Exclude GitHub Pages docs images from LFS so they render natively
+docs/*.png filter= diff= merge= -text
+docs/*.jpg filter= diff= merge= -text

@@ -339,8 +339,10 @@ Somatic Translation: You feel {somatic_str}."""
         modifiers["presence_penalty"] = (d * 0.8) - (c * 0.2)
         modifiers["frequency_penalty"] = (a * 1.0)
 
-        # Relaxed token limit: baseline 512, drops to ~200 under extreme stress (c=1.0)
-        modifiers["max_tokens"] = int(512 * math.exp(-1.0 * c))
+        # Keep max_tokens safely high (2000) to avoid ugly mid-sentence API truncation.
+        # Emotional state (like tsundere/stress) naturally guides Aiko to speak in shorter 
+        # bursts via system prompts, but the hard API token limit must never cut her off mid-word.
+        modifiers["max_tokens"] = 2000
 
         # Clamp all values to safe bounds for standard LLM APIs
         modifiers["temperature"] = max(0.1, min(2.0, modifiers["temperature"]))
