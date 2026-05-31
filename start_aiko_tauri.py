@@ -187,6 +187,9 @@ def spawn_background(cmd, cwd=None, label="BG", log_file=None, use_shell=False) 
     # Windows: Hide background process windows
     if IS_WINDOWS and not use_shell:
         kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+    elif not IS_WINDOWS:
+        # Unix: Create a new process group to allow killing entire process tree
+        kwargs["preexec_fn"] = os.setsid
 
     proc = subprocess.Popen(cmd, **kwargs)
     running_procs.append(proc)
@@ -225,7 +228,8 @@ def kill_all():
                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
                 )
             else:
-                p.terminate()
+                import signal
+                os.killpg(os.getpgid(p.pid), signal.SIGTERM)
         except Exception:
             pass
 
@@ -302,6 +306,30 @@ def cleanup_old_instances():
             )
         except Exception:
             pass
+    else:
+        # macOS / Linux: Kill any running 'aiko-app' processes
+        try:
+            subprocess.call(
+                ["pkill", "-f", "aiko-app"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+            )
+        except Exception:
+            pass
+        # Free port 8000 if squatted
+        try:
+            pids = subprocess.check_output(["lsof", "-t", "-i", ":8000"], stderr=subprocess.DEVNULL).decode().strip().split()
+            for pid in pids:
+                if pid:
+                    import signal
+                    os.kill(int(pid), signal.SIGKILL)
+        except Exception:
+            try:
+                subprocess.call(
+                    "fuser -k 8000/tcp",
+                    shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                )
+            except Exception:
+                pass
     UI.ok("Workspace cleaned.")
 
 

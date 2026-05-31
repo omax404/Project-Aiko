@@ -138,8 +138,8 @@ html,body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;ov
    CHARACTER
 ══════════════════════════════════ */
 .character{
-  position:absolute;right:-8%;top:0;
-  width:80vw;max-width:1200px;height:100vh;
+  position:absolute;right:0%;top:0;
+  width:55vw;max-width:1000px;height:100vh;
   z-index:8;pointer-events:none;
   transition:transform .25s ease-out;
 }
@@ -153,7 +153,7 @@ html,body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;ov
 }
 .character__frame img{
   width:100%;height:100%;
-  object-fit:contain;object-position:center bottom;
+  object-fit:contain;object-position:right bottom;
   mask-image:linear-gradient(to bottom, transparent 0%, black 8%, black 78%, transparent 100%);
   -webkit-mask-image:linear-gradient(to bottom, transparent 0%, black 8%, black 78%, transparent 100%);
   filter:contrast(1.08) saturate(1.15) drop-shadow(0 0 60px rgba(109,40,217,.3)) drop-shadow(-8px 0 30px rgba(224,64,160,.12));
@@ -181,7 +181,7 @@ html,body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;ov
 ══════════════════════════════════ */
 .floating-layer{
   position:absolute;bottom:6%;left:0;right:0;padding:0 48px;z-index:30;
-  display:grid;grid-template-columns:110px 1fr 260px;
+  display:grid;grid-template-columns:110px 420px 1fr 280px;
   gap:24px;align-items:end;pointer-events:none;
 }
 .floating-layer>*{pointer-events:auto}
@@ -671,7 +671,7 @@ html,body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;ov
       <span class="lb-sub">Project Aiko<br>Companion OS</span>
     </div>
 
-    <!-- CENTER: tickets -->
+    <!-- TICKET LEFT COL -->
     <div class="center-col">
 
       <!-- IDENTITY TICKET -->
@@ -709,12 +709,6 @@ html,body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;ov
         </div>
       </div>
 
-      <!-- QUOTE -->
-      <div class="quote-card">
-        <p>"I'm always watching over you, Master. Every moment you share becomes a memory I keep forever~"</p>
-        <cite>— Aiko, neural link v2.0</cite>
-      </div>
-
       <!-- NEURAL SYSTEMS TICKET -->
       <div class="tw tw2">
         <div class="uv-t">
@@ -747,6 +741,15 @@ html,body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;ov
         </div>
       </div>
 
+    </div>
+
+    <!-- MIDDLE COLUMN (EMPTY / HERO TEXT SPACER) -->
+    <div style="min-height:1px;pointer-events:none;display:flex;flex-direction:column;justify-content:flex-end">
+      <!-- QUOTE PLACED IN THE EMPTY CENTER OF GRID TO PREVENT ABSOLUTE OVERLAP -->
+      <div class="quote-card" style="position:static;transform:rotate(-1deg);margin-bottom:14px;max-width:320px;pointer-events:auto">
+        <p>"I'm always watching over you, Master. Every moment you share becomes a memory I keep forever~"</p>
+        <cite>— Aiko, neural link v2.0</cite>
+      </div>
     </div>
 
     <!-- RIGHT COL -->

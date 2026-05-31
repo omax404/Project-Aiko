@@ -144,6 +144,10 @@ desktop.ini
 # Claude Code
 .claude/
 
+# Testsprite & Developer Tools
+.testsprite/
+.tools/
+
 # User Personalized Persona
 # core/persona.py (unignored for sync)
 

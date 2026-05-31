@@ -35,7 +35,11 @@ def _warmup_tts():
         _tts_model = TTSModel.load_model()
 
         # Voice selection: try cloning first, fall back to built-in
-        # Check for voice samples in order of priority
+        # Resolve assets directory relative to core/ folder
+        core_dir = os.path.dirname(os.path.abspath(__file__))
+        base_dir = os.path.dirname(core_dir)
+        assets_dir = os.path.join(base_dir, "assets")
+
         clone_path = None
         # Priority 1: Yuki samples
         # Priority 2: Vivian samples
@@ -48,6 +52,12 @@ def _warmup_tts():
         ]
         
         for sample_name in potential_samples:
+            # 1. Try assets/ directory
+            candidate = os.path.join(assets_dir, sample_name)
+            if os.path.exists(candidate):
+                clone_path = candidate
+                break
+            # 2. Try root directory (backwards compatibility)
             candidate = os.path.join(os.getcwd(), sample_name)
             if os.path.exists(candidate):
                 clone_path = candidate

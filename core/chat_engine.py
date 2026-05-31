@@ -47,12 +47,13 @@ def get_session():
     """Get or create shared aiohttp session with connection pooling."""
     global _session_pool
     if _session_pool is None or _session_pool.closed:
-        # Optimized configuration for local LLM (Ollama) stability
+        # Optimized configuration for local & remote/cloud LLM stability
         timeout = aiohttp.ClientTimeout(total=400, connect=20, sock_read=380)
         connector = aiohttp.TCPConnector(
             limit=50,  # Increased capacity
             limit_per_host=20,
-            force_close=True,  # Crucial: Don't reuse sockets that might have gone stale
+            force_close=False,  # Allow Keep-Alive for remote/cloud LLM stability
+            enable_cleanup_closed=True
         )
         _session_pool = aiohttp.ClientSession(
             timeout=timeout,
@@ -456,12 +457,16 @@ Use MCP tools whenever Master asks about his PC state, files, or wants you to re
 
                     full = ""
                     cur = ""
+                    stream_completed = False
                     async for line in resp.content:
                         if not line:
                             continue
                         
                         decoded = line.decode("utf-8").strip()
-                        if not decoded or decoded == "data: [DONE]":
+                        if not decoded:
+                            continue
+                        if decoded == "data: [DONE]":
+                            stream_completed = True
                             continue
                         if decoded.startswith("data: "):
                             decoded = decoded[6:]
@@ -490,6 +495,11 @@ Use MCP tools whenever Master asks about his PC state, files, or wants you to re
 
                     if cur.strip():
                         self._emit_sentence(cur.strip())
+                    
+                    if not stream_completed and full:
+                        logger.warning(f"[Brain] Warning: OpenAI stream from {url} was closed prematurely.")
+                        full += f"\n\n*(Note: Connection to {PROVIDER} was closed prematurely by the server/proxy. The response may be incomplete.)*"
+
                     return full, 200
 
             except asyncio.TimeoutError:
@@ -563,6 +573,7 @@ Use MCP tools whenever Master asks about his PC state, files, or wants you to re
 
                     full = ""
                     cur = ""
+                    stream_completed = False
                     async for line in resp.content:
                         if not line:
                             continue
@@ -575,6 +586,8 @@ Use MCP tools whenever Master asks about his PC state, files, or wants you to re
                             if not single_json.strip(): continue
                             try:
                                 data = json.loads(single_json)
+                                if data.get("done") is True:
+                                    stream_completed = True
                                 tok = data.get("message", {}).get("content", "")
                             except:
                                 continue
@@ -592,6 +605,11 @@ Use MCP tools whenever Master asks about his PC state, files, or wants you to re
 
                     if cur.strip():
                         self._emit_sentence(cur.strip())
+
+                    if not stream_completed and full:
+                        logger.warning(f"[Brain] Warning: Ollama stream from {url} was closed prematurely.")
+                        full += f"\n\n*(Note: Connection to {PROVIDER} Cloud was closed prematurely by the server/proxy. The response may be incomplete.)*"
+
                     return full, 200
 
             except asyncio.TimeoutError:
