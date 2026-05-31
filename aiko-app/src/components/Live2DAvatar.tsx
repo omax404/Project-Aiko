@@ -242,97 +242,146 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
     } catch (_) {}
   }, [isThinking, emotion]);
 
-  // SPECIAL PARAMETER ANIMATION (Reactive to specific keywords)
+  // SPECIAL PARAMETER ANIMATION (VTuber-Grade Deep Animation for Vivian)
   useEffect(() => {
     const app = appRef.current;
     if (!app || !modelRef.current) return;
 
+    // Track dynamic animation phases (e.g. tear flows)
+    let tearPhase = 0;
+    let jitterPhase = 0;
+
     const tickerCallback = () => {
         const core = modelRef.current?.internalModel?.coreModel;
         if (!core) return;
+        
+        const delta = app.ticker.elapsedMS / 1000;
         const time = app.ticker.lastTime / 1000;
+        
+        const chem = chemicalsRef.current;
+        const { dopamine, serotonin, cortisol, adrenaline } = chem || { dopamine: 0.5, serotonin: 0.5, cortisol: 0, adrenaline: 0 };
+        const aState = animationState.current;
 
-        // Custom Parameter Hooks
         try {
-            // 1. Boba wobble if emotion is boba
+            // 1. Somatic Breathing & Physical Leaning (Respond to Adrenaline)
+            const breathFreq = 1.5 + (adrenaline * 2.0) + (cortisol * 1.0);
+            const somaticBreath = (Math.sin(time * breathFreq) * 0.5 + 0.5) * 0.02;
+            core.setParameterValueById('ParamBodyAngleY', somaticBreath * 2);
+            
+            // Forward Leaning (Paramqq) triggers when dopamine (excitement/interest) is high
+            const forwardLean = Math.max(0, (dopamine - 0.4) * 1.2);
+            core.setParameterValueById('Paramqq', forwardLean);
+
+            // 2. High-Frequency Panic/Nervous Jitter (Cortisol & Adrenaline)
+            if (cortisol > 0.6 || adrenaline > 0.7) {
+                jitterPhase += delta * 25;
+                const jitter = Math.sin(jitterPhase) * 0.15 * Math.max(cortisol, adrenaline);
+                core.setParameterValueById('Param141', 0.5 + jitter); // 慌张1
+                core.setParameterValueById('Param142', 0.5 + Math.cos(jitterPhase * 0.8) * 0.1); // 慌张2
+                core.setParameterValueById('Param132', Math.min(1.0, Math.max(cortisol, adrenaline))); // 慌張 state
+            } else {
+                core.setParameterValueById('Param141', 0);
+                core.setParameterValueById('Param142', 0);
+                core.setParameterValueById('Param132', 0);
+            }
+
+            // 3. Dynamic Tears & Crying physics (High Cortisol + Low Dopamine)
+            if (cortisol > 0.5 && dopamine < 0.45) {
+                tearPhase += delta * (0.8 + cortisol * 1.2);
+                const tearPulse = (Math.sin(tearPhase) * 0.5 + 0.5) * cortisol;
+                core.setParameterValueById('Param144', cortisol); // 哭 state
+                core.setParameterValueById('Param145', tearPulse); // 哭1 (Tear flow)
+                core.setParameterValueById('Param146', (Math.cos(tearPhase * 1.3) * 0.5 + 0.5) * cortisol); // 哭2
+            } else {
+                core.setParameterValueById('Param144', 0);
+                core.setParameterValueById('Param145', 0);
+                core.setParameterValueById('Param146', 0);
+            }
+
+            // 4. Boba wobble (Dynamic wobbles on idle)
             if (emotion === 'boba') {
                 core.setParameterValueById('Param117', Math.sin(time * 10) * 15);
                 core.setParameterValueById('Param119', Math.cos(time * 8) * 10);
             } else {
-                core.setParameterValueById('Param117', 0);
-                core.setParameterValueById('Param119', 0);
+                // Subtle organic sway even on idle
+                core.setParameterValueById('Param117', Math.sin(time * 2) * 2.0);
+                core.setParameterValueById('Param119', Math.cos(time * 1.5) * 1.5);
             }
 
-            // 2. Tongue out if emotion is tongue
-            if (emotion === 'tongue') {
-                core.setParameterValueById('Param22', 1.0);
-            } else {
-                core.setParameterValueById('Param22', 0);
-            }
-
-            // 3. Pout if emotion is pout
-            if (emotion === 'pout') {
-                core.setParameterValueById('Param15', 1.0);
-                core.setParameterValueById('Param16', 0.5); // Bloat cheeks slightly
+            // 5. Cheek-Puffs & Annoyance (Cortisol + low Serotonin)
+            if (emotion === 'pout' || (cortisol > 0.4 && serotonin < 0.4)) {
+                const poutVal = Math.min(1.0, cortisol * 1.2);
+                core.setParameterValueById('Param15', poutVal); // 撅嘴
+                core.setParameterValueById('Param16', poutVal * 0.7); // 鼓脸
             } else {
                 core.setParameterValueById('Param15', 0);
                 core.setParameterValueById('Param16', 0);
             }
 
-            // 4. Blush (ParamCheek) if shy or romantic
-            if (emotion === 'shy' || emotion === 'romantic') {
-                core.setParameterValueById('ParamCheek', 0.8 + Math.sin(time * 2) * 0.2);
+            // 6. Natural Cheek Blushing (Shy / Romantic / Excited)
+            if (emotion === 'shy' || emotion === 'romantic' || dopamine > 0.8) {
+                const blushIntensity = Math.min(1.0, 0.4 + dopamine * 0.4 + adrenaline * 0.2);
+                core.setParameterValueById('ParamCheek', blushIntensity + Math.sin(time * 1.5) * 0.1);
+                core.setParameterValueById('Param149', blushIntensity); // 害羞 overlay
             } else {
                 core.setParameterValueById('ParamCheek', 0);
+                core.setParameterValueById('Param149', 0);
             }
 
-            // 5. Lip-sync (ParamMouthOpenY) based on amplitude
+            // 7. Tongue sticking out
+            if (emotion === 'tongue') {
+                core.setParameterValueById('Param22', 1.0); // 吐舌
+            } else {
+                core.setParameterValueById('Param22', 0);
+            }
+
+            // 8. Custom Lip-sync & Mouth Shapes (driven by real-time audio)
             if (isTalking && amplitude > 5) {
-                // Normalize amplitude (0-100) to parameter range (0-1.5 approx)
-                const mouthOpen = Math.min((amplitude / 60), 1.0); 
+                const mouthOpen = Math.min((amplitude / 65), 1.0); 
                 core.setParameterValueById('ParamMouthOpenY', mouthOpen);
-                core.setParameterValueById('ParamMouthForm', Math.sin(time * 8) * 0.2); 
-            }
-
-            // 6. Embodied Cognition Chemical Mapping
-            const chem = chemicalsRef.current;
-            if (chem) {
-                const { dopamine, serotonin, cortisol, adrenaline } = chem;
-                const aState = animationState.current;
-
-                // Dopamine: Smiling Eyes & Happy Mouth
-                const eyeSmile = dopamine * 0.8;
-                core.setParameterValueById('ParamEyeLSmile', eyeSmile);
-                core.setParameterValueById('ParamEyeRSmile', eyeSmile);
-                if (!isTalking) {
-                    core.setParameterValueById('ParamMouthForm', (dopamine - 0.5) * 2);
-                }
-
-                // Serotonin: Relaxed Gaze (half-lidded)
-                const relaxedEyes = 1.0 - (serotonin * 0.3);
-                if (aState.blinkTimer < aState.nextBlink) {
-                    core.setParameterValueById('ParamEyeLOpen', relaxedEyes);
-                    core.setParameterValueById('ParamEyeROpen', relaxedEyes);
-                }
-
-                // Adrenaline: Wide Eyes & Blush
-                if (adrenaline > 0.6) {
-                    const wideEyes = 1.0 + (adrenaline - 0.6) * 0.5;
-                    core.setParameterValueById('ParamEyeLOpen', wideEyes);
-                    core.setParameterValueById('ParamEyeROpen', wideEyes);
-                    core.setParameterValueById('ParamCheek', adrenaline * 1.0);
-                }
-
-                // Cortisol: Furrowed Brows (Stress)
-                const browStress = (cortisol * -1.0);
-                core.setParameterValueById('ParamBrowLY', browStress);
-                core.setParameterValueById('ParamBrowRY', browStress);
                 
-                // Breath rate increases with Adrenaline/Cortisol
-                const breathFreq = 1.5 + (adrenaline * 2.0) + (cortisol * 1.0);
-                const somaticBreath = (Math.sin(aState.time * breathFreq) * 0.5 + 0.5) * 0.02;
-                core.setParameterValueById('ParamBodyAngleY', somaticBreath * 2);
+                // Form mouth shape: smile slightly while talking if happy/dopamine is high
+                const mouthForm = (dopamine - 0.5) * 2.0 + Math.sin(time * 12) * 0.15;
+                core.setParameterValueById('ParamMouthForm', Math.max(-1.0, Math.min(1.0, mouthForm))); 
+            } else {
+                // Keep default chemical smiling mouth when silent
+                if (dopamine > 0.6) {
+                    core.setParameterValueById('ParamMouthForm', (dopamine - 0.5) * 1.5);
+                } else if (cortisol > 0.5) {
+                    core.setParameterValueById('ParamMouthForm', -0.5); // frown slightly
+                } else {
+                    core.setParameterValueById('ParamMouthForm', 0);
+                }
             }
+
+            // 9. Gaze & Facial Expressions from Neuromodulators
+            // Dopamine: Smiling Eyes
+            const eyeSmile = Math.min(1.0, dopamine * 0.85);
+            core.setParameterValueById('ParamEyeLSmile', eyeSmile);
+            core.setParameterValueById('ParamEyeRSmile', eyeSmile);
+
+            // Serotonin: Relaxed, warm half-lidded eyes
+            const relaxedGaze = 1.0 - (serotonin * 0.25);
+            if (aState.blinkTimer < aState.nextBlink) {
+                core.setParameterValueById('ParamEyeLOpen', relaxedGaze);
+                core.setParameterValueById('ParamEyeROpen', relaxedGaze);
+            }
+
+            // Adrenaline: Wide, alert eyes
+            if (adrenaline > 0.65) {
+                const wideEyes = 1.0 + (adrenaline - 0.65) * 0.6;
+                core.setParameterValueById('ParamEyeLOpen', Math.min(1.4, wideEyes));
+                core.setParameterValueById('ParamEyeROpen', Math.min(1.4, wideEyes));
+            }
+
+            // Cortisol: Brow furrowing (Stress & worry)
+            const browY = -1.0 * cortisol;
+            const browAngle = -0.5 * cortisol;
+            core.setParameterValueById('ParamBrowLY', browY);
+            core.setParameterValueById('ParamBrowRY', browY);
+            core.setParameterValueById('ParamBrowLAngle', browAngle);
+            core.setParameterValueById('ParamBrowRAngle', browAngle);
+
         } catch(e) {}
     };
 
