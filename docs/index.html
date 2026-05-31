@@ -147,8 +147,8 @@ html,body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;ov
    CHARACTER
    ══════════════════════════════════ */
 .character{
-  position:absolute;right:-5%;bottom:0;
-  width:50vw;max-width:900px;height:95vh;
+  position:absolute;right:-1%;bottom:0;
+  width:58vw;max-width:1150px;height:100vh;
   z-index:8;pointer-events:none;
   transition:transform .25s ease-out;
 }
@@ -164,8 +164,8 @@ html,body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;ov
 .character__frame img{
   width:100%;height:100%;
   object-fit:contain;object-position:right bottom;
-  mask-image:linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
-  -webkit-mask-image:linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+  mask-image:linear-gradient(to bottom, transparent 0%, black 6%, black 94%, transparent 100%);
+  -webkit-mask-image:linear-gradient(to bottom, transparent 0%, black 6%, black 94%, transparent 100%);
   filter:contrast(1.05) saturate(1.1) drop-shadow(0 0 60px rgba(109,40,217,.25)) drop-shadow(-8px 0 30px rgba(224,64,160,.1));
 }
 
@@ -670,6 +670,7 @@ html,body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;ov
      ══════════════════════════════════ -->
 <section class="scene" id="hero" aria-label="Hero section">
   <div class="orbs"><div class="orb orb1"></div><div class="orb orb2"></div><div class="orb orb3"></div></div>
+  <canvas id="galaxyCanvas" style="position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none;"></canvas>
 
   <!-- Decorative floating icons -->
   <div class="deco" aria-hidden="true">
@@ -1127,6 +1128,155 @@ const observer = new IntersectionObserver((entries) => {
 }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
 
 document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+/* ─── INTERACTIVE GALAXY CANVAS BACKGROUND ─── */
+(function() {
+  const canvas = document.getElementById('galaxyCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  let width = canvas.width = canvas.offsetWidth;
+  let height = canvas.height = canvas.offsetHeight;
+
+  const stars = [];
+  const numStars = 1500;
+  
+  // Place the center slightly to the left/center of the text, matching the background spiral
+  const galaxyCenter = { x: width * 0.45, y: height * 0.45 };
+
+  function createStar() {
+    // Math.pow gives a higher concentration towards the core
+    const r = Math.pow(Math.random(), 2.8) * (Math.min(width, height) * 0.72);
+    const arm = Math.floor(Math.random() * 3); // 3 spiral arms
+    const armAngle = (arm * 2 * Math.PI) / 3;
+    const spiralForce = 4.2;
+    const theta = (r * spiralForce) / 1000 + armAngle + (Math.random() - 0.5) * 0.4;
+    
+    // Hue shifted around 230 degrees (indigo, violet, neon purple)
+    const hue = 220 + Math.random() * 40; // 220 to 260
+    const sat = 70 + Math.random() * 15; // 70% to 85%
+    const light = 60 + Math.random() * 30; // 60% to 90%
+    
+    return {
+      r: r,
+      baseR: r,
+      theta: theta,
+      baseTheta: theta,
+      size: 0.5 + Math.random() * 1.5,
+      speed: 0.00015 + (1 / (r + 20)) * 0.04 + Math.random() * 0.0001, // Orbit rotation speed
+      twinkleSpeed: 0.015 + Math.random() * 0.04,
+      twinklePhase: Math.random() * Math.PI * 2,
+      twinkleIntensity: 0.25 + Math.random() * 0.45,
+      color: `hsl(${hue}, ${sat}%, ${light}%)`,
+      glow: Math.random() > 0.88,
+      x: galaxyCenter.x + Math.cos(theta) * r,
+      y: galaxyCenter.y + Math.sin(theta) * r
+    };
+  }
+
+  for (let i = 0; i < numStars; i++) {
+    stars.push(createStar());
+  }
+
+  let mouseX = -1000;
+  let mouseY = -1000;
+
+  document.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    mouseX = e.clientX - rect.left;
+    mouseY = e.clientY - rect.top;
+  }, { passive: true });
+
+  document.addEventListener('mouseleave', () => {
+    mouseX = -1000;
+    mouseY = -1000;
+  }, { passive: true });
+
+  function animate() {
+    ctx.clearRect(0, 0, width, height);
+    
+    const time = Date.now() * 0.05;
+    
+    // Render the beautiful core glowing dust
+    const coreGlow = ctx.createRadialGradient(
+      galaxyCenter.x, galaxyCenter.y, 0,
+      galaxyCenter.x, galaxyCenter.y, Math.min(width, height) * 0.32
+    );
+    coreGlow.addColorStop(0, 'rgba(109, 40, 217, 0.22)'); // var(--pu)
+    coreGlow.addColorStop(0.35, 'rgba(224, 64, 160, 0.06)'); // var(--pk)
+    coreGlow.addColorStop(1, 'rgba(6, 0, 10, 0)');
+    ctx.fillStyle = coreGlow;
+    ctx.fillRect(0, 0, width, height);
+    
+    for (let i = 0; i < stars.length; i++) {
+      const star = stars[i];
+      
+      // Update orbit theta angle
+      star.baseTheta += star.speed;
+      
+      // Target position inside rotation orbit
+      const targetX = galaxyCenter.x + Math.cos(star.baseTheta) * star.r;
+      const targetY = galaxyCenter.y + Math.sin(star.baseTheta) * star.r;
+      
+      let forceX = 0;
+      let forceY = 0;
+      
+      // Calculate mouse repulsion
+      if (mouseX > 0 && mouseY > 0) {
+        const dx = targetX - mouseX;
+        const dy = targetY - mouseY;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        const repulsionRadius = 150;
+        
+        if (dist < repulsionRadius) {
+          // Stronger force as distance approaches 0
+          const force = (1.0 - dist / repulsionRadius) * 20;
+          forceX = (dx / dist) * force;
+          forceY = (dy / dist) * force;
+        }
+      }
+      
+      // Ease smoothly to the target position
+      const destX = targetX + forceX;
+      const destY = targetY + forceY;
+      
+      star.x += (destX - star.x) * 0.08;
+      star.y += (destY - star.y) * 0.08;
+      
+      // Star twinkling brightness
+      const twinkle = 1.0 - star.twinkleIntensity + Math.sin(time * star.twinkleSpeed + star.twinklePhase) * star.twinkleIntensity;
+      
+      ctx.fillStyle = star.color;
+      ctx.globalAlpha = Math.max(0.1, Math.min(1.0, twinkle));
+      
+      ctx.beginPath();
+      if (star.glow) {
+        ctx.arc(star.x, star.y, star.size * 1.4, 0, Math.PI * 2);
+        ctx.shadowColor = '#c084fc';
+        ctx.shadowBlur = 8;
+      } else {
+        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+        ctx.shadowBlur = 0;
+      }
+      ctx.fill();
+    }
+    
+    ctx.globalAlpha = 1.0;
+    ctx.shadowBlur = 0;
+    
+    requestAnimationFrame(animate);
+  }
+
+  // Handle window resizing
+  window.addEventListener('resize', () => {
+    width = canvas.width = canvas.offsetWidth;
+    height = canvas.height = canvas.offsetHeight;
+    galaxyCenter.x = width * 0.45;
+    galaxyCenter.y = height * 0.45;
+  }, { passive: true });
+
+  animate();
+})();
 </script>
 </body>
 </html>
