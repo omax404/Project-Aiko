@@ -19,49 +19,52 @@ BASELINES = {
     "dopamine": 0.5,    # Joy/Reward
     "serotonin": 0.5,   # Calm/Affection
     "cortisol": 0.2,    # Stress/Anger
-    "adrenaline": 0.1   # Fear/Energy/Action
+    "adrenaline": 0.1,   # Fear/Energy/Action
+    "oxytocin": 0.3,    # Trust/Bonding/Empathy
+    "melatonin": 0.1    # Drowsiness/Tiredness
 }
 
-# DECAY RATES (How fast they pull back to baseline per second)
-# Adrenaline drops fast, Serotonin drops very slowly.
+# DECAY_RATES (How fast they pull back to baseline per second)
 DECAY_RATES = {
     "dopamine": 0.005,
     "serotonin": 0.001,
     "cortisol": 0.002,
-    "adrenaline": 0.02
+    "adrenaline": 0.02,
+    "oxytocin": 0.003,
+    "melatonin": 0.008
 }
 
-# (Dopamine, Serotonin, Cortisol, Adrenaline) Centers for the UI 25 Emotions
+# (Dopamine, Serotonin, Cortisol, Adrenaline, Oxytocin, Melatonin) Centers for the UI 25 Emotions
 EMOTION_MAP = {
-    "happy": (0.8, 0.6, 0.1, 0.5),
-    "excited": (0.9, 0.5, 0.1, 0.8),
-    "playful": (0.8, 0.5, 0.2, 0.6),
-    "proud": (0.7, 0.7, 0.2, 0.5),
-    "affectionate": (0.7, 0.9, 0.1, 0.4),
-    "caring": (0.6, 0.8, 0.1, 0.3),
-    "content": (0.6, 0.8, 0.1, 0.2),
-    "calm": (0.5, 0.7, 0.1, 0.2),
+    "happy": (0.8, 0.6, 0.1, 0.5, 0.7, 0.1),
+    "excited": (0.9, 0.5, 0.1, 0.8, 0.6, 0.1),
+    "playful": (0.8, 0.5, 0.2, 0.6, 0.7, 0.1),
+    "proud": (0.7, 0.7, 0.2, 0.5, 0.6, 0.1),
+    "affectionate": (0.7, 0.9, 0.1, 0.4, 0.9, 0.1),
+    "caring": (0.6, 0.8, 0.1, 0.3, 0.9, 0.1),
+    "content": (0.6, 0.8, 0.1, 0.2, 0.7, 0.2),
+    "calm": (0.5, 0.7, 0.1, 0.2, 0.6, 0.3),
     
-    "angry": (0.2, 0.1, 0.9, 0.8),
-    "frustrated": (0.3, 0.2, 0.8, 0.7),
-    "annoyed": (0.4, 0.3, 0.6, 0.5),
-    "jealous": (0.2, 0.2, 0.7, 0.6),
-    "protective": (0.5, 0.6, 0.5, 0.8),
+    "angry": (0.2, 0.1, 0.9, 0.8, 0.1, 0.1),
+    "frustrated": (0.3, 0.2, 0.8, 0.7, 0.2, 0.1),
+    "annoyed": (0.4, 0.3, 0.6, 0.5, 0.3, 0.1),
+    "jealous": (0.2, 0.2, 0.7, 0.6, 0.3, 0.1),
+    "protective": (0.5, 0.6, 0.5, 0.8, 0.8, 0.1),
     
-    "sad": (0.2, 0.1, 0.6, 0.2),
-    "disappointed": (0.3, 0.2, 0.5, 0.2),
-    "lonely": (0.2, 0.1, 0.5, 0.2),
-    "worried": (0.4, 0.3, 0.7, 0.7),
+    "sad": (0.2, 0.1, 0.6, 0.2, 0.3, 0.4),
+    "disappointed": (0.3, 0.2, 0.5, 0.2, 0.2, 0.3),
+    "lonely": (0.2, 0.1, 0.5, 0.2, 0.1, 0.4),
+    "worried": (0.4, 0.3, 0.7, 0.7, 0.4, 0.3),
     
-    "shy": (0.5, 0.6, 0.4, 0.6),
-    "embarrassed": (0.4, 0.4, 0.6, 0.6),
-    "smug": (0.7, 0.5, 0.3, 0.4),
-    "sarcastic": (0.5, 0.4, 0.5, 0.4),
-    "mischievous": (0.8, 0.5, 0.3, 0.6),
+    "shy": (0.5, 0.6, 0.4, 0.6, 0.7, 0.2),
+    "embarrassed": (0.4, 0.4, 0.6, 0.6, 0.5, 0.2),
+    "smug": (0.7, 0.5, 0.3, 0.4, 0.4, 0.1),
+    "sarcastic": (0.5, 0.4, 0.5, 0.4, 0.3, 0.1),
+    "mischievous": (0.8, 0.5, 0.3, 0.6, 0.5, 0.1),
     
-    "surprised": (0.6, 0.5, 0.4, 0.9),
-    "distant": (0.4, 0.2, 0.4, 0.2),
-    "neutral": (0.5, 0.5, 0.2, 0.1) # Matches baseline
+    "surprised": (0.6, 0.5, 0.4, 0.9, 0.5, 0.1),
+    "distant": (0.4, 0.2, 0.4, 0.2, 0.2, 0.5),
+    "neutral": (0.5, 0.5, 0.2, 0.1, 0.5, 0.1) # Matches baseline
 }
 
 class EmotionEngine:
@@ -120,12 +123,14 @@ class EmotionEngine:
         self._flush_timer = time.time()
         logger.info(" [EmotionEngine] Neural cache flushed. Chemicals reset to baselines.")
 
-    def apply_delta(self, d_dopa=0.0, d_sero=0.0, d_cort=0.0, d_adre=0.0):
+    def apply_delta(self, d_dopa=0.0, d_sero=0.0, d_cort=0.0, d_adre=0.0, d_oxy=0.0, d_mela=0.0):
         """Apply a spike or drop to the chemical field."""
         self.chemicals["dopamine"] += d_dopa
         self.chemicals["serotonin"] += d_sero
         self.chemicals["cortisol"] += d_cort
         self.chemicals["adrenaline"] += d_adre
+        self.chemicals["oxytocin"] += d_oxy
+        self.chemicals["melatonin"] += d_mela
         
         # Clamp bounds
         for k in self.chemicals:
@@ -156,13 +161,15 @@ class EmotionEngine:
         # Instead of instantly becoming the target, we apply a significant push
         # toward the target centers of the found emotions.
         for em in found_emotions:
-            t_d, t_s, t_c, t_a = EMOTION_MAP[em]
+            t_d, t_s, t_c, t_a, t_oxy, t_mela = EMOTION_MAP[em]
             
             # Move 30% towards the target emotion center per interaction
             self.chemicals["dopamine"] += (t_d - self.chemicals["dopamine"]) * 0.3
             self.chemicals["serotonin"] += (t_s - self.chemicals["serotonin"]) * 0.3
             self.chemicals["cortisol"] += (t_c - self.chemicals["cortisol"]) * 0.3
             self.chemicals["adrenaline"] += (t_a - self.chemicals["adrenaline"]) * 0.3
+            self.chemicals["oxytocin"] += (t_oxy - self.chemicals["oxytocin"]) * 0.3
+            self.chemicals["melatonin"] += (t_mela - self.chemicals["melatonin"]) * 0.3
             
         # Clamp
         for k in self.chemicals:
@@ -233,6 +240,8 @@ class EmotionEngine:
         s = self.chemicals["serotonin"]
         c = self.chemicals["cortisol"]
         a = self.chemicals["adrenaline"]
+        o = self.chemicals["oxytocin"]
+        m = self.chemicals["melatonin"]
         
         def level(val):
             if val > 0.8: return "Very High"
@@ -254,6 +263,8 @@ class EmotionEngine:
         if c > 0.6: somatic.append("stressed/frustrated")
         if c > 0.8: somatic.append("angry/tsundere")
         if a > 0.7: somatic.append("startled/hyper")
+        if o > 0.7: somatic.append("deeply trusting/bonded")
+        if m > 0.6: somatic.append("sleepy/lethargic")
         if heart_rate > 120: somatic.append("heart racing/overwhelmed")
         if muscle_tension > 80: somatic.append("physically tense/exhausted")
         
@@ -264,6 +275,8 @@ Dopamine (Joy/Reward): {d:.2f} ({level(d)})
 Serotonin (Affection/Calm): {s:.2f} ({level(s)})
 Cortisol (Stress/Anger): {c:.2f} ({level(c)})
 Adrenaline (Energy/Fear): {a:.2f} ({level(a)})
+Oxytocin (Bonding/Empathy): {o:.2f} ({level(o)})
+Melatonin (Drowsiness): {m:.2f} ({level(m)})
 
 [PHYSICAL VITALS]
 Heart Rate: {heart_rate} BPM
@@ -279,11 +292,13 @@ Somatic Translation: You feel {somatic_str}."""
         s = self.chemicals["serotonin"]
         c = self.chemicals["cortisol"]
         a = self.chemicals["adrenaline"]
+        o = self.chemicals["oxytocin"]
+        m = self.chemicals["melatonin"]
         
         # Calculate distances to all 25 mapped emotions to find "closest match"
         distances = []
-        for em, (t_d, t_s, t_c, t_a) in EMOTION_MAP.items():
-            dist = math.sqrt((d - t_d)**2 + (s - t_s)**2 + (c - t_c)**2 + (a - t_a)**2)
+        for em, (t_d, t_s, t_c, t_a, t_oxy, t_mela) in EMOTION_MAP.items():
+            dist = math.sqrt((d - t_d)**2 + (s - t_s)**2 + (c - t_c)**2 + (a - t_a)**2 + (o - t_oxy)**2 + (m - t_mela)**2)
             # Inverse distance weighting
             score = max(0, 2.0 - dist)
             distances.append((em, score))
@@ -297,6 +312,8 @@ Somatic Translation: You feel {somatic_str}."""
             "serotonin": round(s, 3),
             "cortisol": round(c, 3),
             "adrenaline": round(a, 3),
+            "oxytocin": round(o, 3),
+            "melatonin": round(m, 3),
             "dominant_emotions": dominant,
             # Forward compatibility for any UI still expecting valence/arousal keys
             "valence": round((d + s - c) / 2.0, 3), 

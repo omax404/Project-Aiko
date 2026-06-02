@@ -35,6 +35,8 @@ class ConfigManager:
             "STT_MODEL": os.getenv("STT_MODEL", "moonshine"),
             "TTS_PROVIDER": os.getenv("TTS_PROVIDER", "Pocket"),
             "TTS_ENABLED": os.getenv("TTS_ENABLED", "true").lower() == "true",
+            "VISION_PROVIDER": os.getenv("VISION_PROVIDER", "transformers"),
+            "VISION_MODEL": os.getenv("VISION_MODEL", "openbmb/MiniCPM-V-4.6"),
         }
         self.load()
 

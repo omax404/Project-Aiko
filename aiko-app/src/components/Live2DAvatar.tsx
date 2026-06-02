@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useNeuralStore } from '../store/useNeuralStore';
 
 interface Live2DAvatarProps {
   modelUrl: string;
@@ -14,6 +15,8 @@ interface Live2DAvatarProps {
     serotonin: number;
     cortisol: number;
     adrenaline: number;
+    oxytocin?: number;
+    melatonin?: number;
   };
 }
 
@@ -26,8 +29,55 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
   height = 500,
   scale: externalScale = 1.0,
   amplitude = 0,
-  chemicals = { dopamine: 0.5, serotonin: 0.5, cortisol: 0, adrenaline: 0 }
+  chemicals
 }) => {
+  const store = useNeuralStore();
+  const currentChemicals = chemicals || store.chemicals;
+
+  const {
+    jitterIntensity = 0.4,
+    tearIntensity = 1.0,
+    leanIntensity = 1.0,
+    blushIntensity = 1.0,
+    poutIntensity = 1.0,
+    bobaIntensity = 1.0,
+    oxytocinIntensity = 1.0,
+    melatoninIntensity = 1.0
+  } = store;
+
+  const scalersRef = useRef({
+    jitterIntensity,
+    tearIntensity,
+    leanIntensity,
+    blushIntensity,
+    poutIntensity,
+    bobaIntensity,
+    oxytocinIntensity,
+    melatoninIntensity
+  });
+
+  useEffect(() => {
+    scalersRef.current = {
+      jitterIntensity,
+      tearIntensity,
+      leanIntensity,
+      blushIntensity,
+      poutIntensity,
+      bobaIntensity,
+      oxytocinIntensity,
+      melatoninIntensity
+    };
+  }, [
+    jitterIntensity,
+    tearIntensity,
+    leanIntensity,
+    blushIntensity,
+    poutIntensity,
+    bobaIntensity,
+    oxytocinIntensity,
+    melatoninIntensity
+  ]);
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const appRef = useRef<any>(null);
   const modelRef = useRef<any>(null);
@@ -43,9 +93,9 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
     isTalking: false,
   });
 
-  // Keep track of props in refs to avoid re-running initialization effect
-  const chemicalsRef = useRef(chemicals);
-  useEffect(() => { chemicalsRef.current = chemicals; }, [chemicals]);
+  // Keep track of props/store in refs to avoid re-running initialization effect
+  const chemicalsRef = useRef(currentChemicals);
+  useEffect(() => { chemicalsRef.current = currentChemicals; }, [currentChemicals]);
 
   useEffect(() => {
     animationState.current.isTalking = !!isTalking;
@@ -259,8 +309,19 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
         const time = app.ticker.lastTime / 1000;
         
         const chem = chemicalsRef.current;
-        const { dopamine, serotonin, cortisol, adrenaline } = chem || { dopamine: 0.5, serotonin: 0.5, cortisol: 0, adrenaline: 0 };
+        const { dopamine, serotonin, cortisol, adrenaline, oxytocin = 0.3, melatonin = 0.1 } = chem || { dopamine: 0.5, serotonin: 0.5, cortisol: 0, adrenaline: 0, oxytocin: 0.3, melatonin: 0.1 };
         const aState = animationState.current;
+
+        const {
+          jitterIntensity,
+          tearIntensity,
+          leanIntensity,
+          blushIntensity,
+          poutIntensity,
+          bobaIntensity,
+          oxytocinIntensity,
+          melatoninIntensity
+        } = scalersRef.current;
 
         try {
             // 1. Somatic Breathing & Physical Leaning (Respond to Adrenaline)
@@ -269,16 +330,16 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
             core.setParameterValueById('ParamBodyAngleY', somaticBreath * 2);
             
             // Forward Leaning (Paramqq) triggers when dopamine (excitement/interest) is high
-            const forwardLean = Math.max(0, (dopamine - 0.4) * 1.2);
+            const forwardLean = Math.max(0, (dopamine - 0.4) * 1.2) * leanIntensity;
             core.setParameterValueById('Paramqq', forwardLean);
 
             // 2. High-Frequency Panic/Nervous Jitter (Cortisol & Adrenaline)
             if (cortisol > 0.6 || adrenaline > 0.7) {
                 jitterPhase += delta * 25;
-                const jitter = Math.sin(jitterPhase) * 0.15 * Math.max(cortisol, adrenaline);
+                const jitter = Math.sin(jitterPhase) * 0.15 * Math.max(cortisol, adrenaline) * jitterIntensity;
                 core.setParameterValueById('Param141', 0.5 + jitter); // 慌张1
-                core.setParameterValueById('Param142', 0.5 + Math.cos(jitterPhase * 0.8) * 0.1); // 慌张2
-                core.setParameterValueById('Param132', Math.min(1.0, Math.max(cortisol, adrenaline))); // 慌張 state
+                core.setParameterValueById('Param142', 0.5 + Math.cos(jitterPhase * 0.8) * 0.1 * jitterIntensity); // 慌张2
+                core.setParameterValueById('Param132', Math.min(1.0, Math.max(cortisol, adrenaline) * jitterIntensity)); // 慌張 state
             } else {
                 core.setParameterValueById('Param141', 0);
                 core.setParameterValueById('Param142', 0);
@@ -287,11 +348,11 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
 
             // 3. Dynamic Tears & Crying physics (High Cortisol + Low Dopamine)
             if (cortisol > 0.5 && dopamine < 0.45) {
-                tearPhase += delta * (0.8 + cortisol * 1.2);
-                const tearPulse = (Math.sin(tearPhase) * 0.5 + 0.5) * cortisol;
-                core.setParameterValueById('Param144', cortisol); // 哭 state
-                core.setParameterValueById('Param145', tearPulse); // 哭1 (Tear flow)
-                core.setParameterValueById('Param146', (Math.cos(tearPhase * 1.3) * 0.5 + 0.5) * cortisol); // 哭2
+                tearPhase += delta * (0.8 + cortisol * 1.2) * tearIntensity;
+                const tearPulse = (Math.sin(tearPhase) * 0.5 + 0.5) * cortisol * tearIntensity;
+                core.setParameterValueById('Param144', Math.min(1.0, cortisol * tearIntensity)); // 哭 state
+                core.setParameterValueById('Param145', Math.min(1.0, tearPulse)); // 哭1 (Tear flow)
+                core.setParameterValueById('Param146', Math.min(1.0, (Math.cos(tearPhase * 1.3) * 0.5 + 0.5) * cortisol * tearIntensity)); // 哭2
             } else {
                 core.setParameterValueById('Param144', 0);
                 core.setParameterValueById('Param145', 0);
@@ -300,17 +361,17 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
 
             // 4. Boba wobble (Dynamic wobbles on idle)
             if (emotion === 'boba') {
-                core.setParameterValueById('Param117', Math.sin(time * 10) * 15);
-                core.setParameterValueById('Param119', Math.cos(time * 8) * 10);
+                core.setParameterValueById('Param117', Math.sin(time * 10) * 15 * bobaIntensity);
+                core.setParameterValueById('Param119', Math.cos(time * 8) * 10 * bobaIntensity);
             } else {
                 // Subtle organic sway even on idle
-                core.setParameterValueById('Param117', Math.sin(time * 2) * 2.0);
-                core.setParameterValueById('Param119', Math.cos(time * 1.5) * 1.5);
+                core.setParameterValueById('Param117', Math.sin(time * 2) * 2.0 * bobaIntensity);
+                core.setParameterValueById('Param119', Math.cos(time * 1.5) * 1.5 * bobaIntensity);
             }
 
             // 5. Cheek-Puffs & Annoyance (Cortisol + low Serotonin)
             if (emotion === 'pout' || (cortisol > 0.4 && serotonin < 0.4)) {
-                const poutVal = Math.min(1.0, cortisol * 1.2);
+                const poutVal = Math.min(1.0, cortisol * 1.2) * poutIntensity;
                 core.setParameterValueById('Param15', poutVal); // 撅嘴
                 core.setParameterValueById('Param16', poutVal * 0.7); // 鼓脸
             } else {
@@ -319,14 +380,14 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
             }
 
             // 6. Natural Cheek Blushing (Shy / Romantic / Excited)
+            let currentBlush = 0;
             if (emotion === 'shy' || emotion === 'romantic' || dopamine > 0.8) {
-                const blushIntensity = Math.min(1.0, 0.4 + dopamine * 0.4 + adrenaline * 0.2);
-                core.setParameterValueById('ParamCheek', blushIntensity + Math.sin(time * 1.5) * 0.1);
-                core.setParameterValueById('Param149', blushIntensity); // 害羞 overlay
-            } else {
-                core.setParameterValueById('ParamCheek', 0);
-                core.setParameterValueById('Param149', 0);
+                currentBlush = Math.min(1.0, (0.4 + dopamine * 0.4 + adrenaline * 0.2) * blushIntensity);
             }
+
+            // Apply blush glow overlay
+            core.setParameterValueById('ParamCheek', currentBlush + Math.sin(time * 1.5) * 0.1 * blushIntensity);
+            core.setParameterValueById('Param149', currentBlush); // 害羞 overlay
 
             // 7. Tongue sticking out
             if (emotion === 'tongue') {
@@ -381,6 +442,38 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
             core.setParameterValueById('ParamBrowRY', browY);
             core.setParameterValueById('ParamBrowLAngle', browAngle);
             core.setParameterValueById('ParamBrowRAngle', browAngle);
+
+            // 10. NEW CHEMICAL: Oxytocin (Loving bonding head-tilt & soft blush overlay)
+            if (oxytocin > 0.4) {
+                // Gentle head tilting (ParamAngleZ)
+                const oxyTilt = Math.sin(time * 1.2) * 4.0 * oxytocin * oxytocinIntensity;
+                core.setParameterValueById('ParamAngleZ', oxyTilt);
+                
+                // Add gentle extra blush
+                const extraBlush = Math.min(0.6, (oxytocin - 0.4) * 0.8 * oxytocinIntensity);
+                core.setParameterValueById('ParamCheek', Math.min(1.0, core.getParameterValueById('ParamCheek') + extraBlush));
+                core.setParameterValueById('Param149', Math.min(1.0, core.getParameterValueById('Param149') + extraBlush));
+                
+                // Extra warm eye smile
+                const oxyEyeSmile = Math.min(1.0, oxytocin * 0.5 * oxytocinIntensity);
+                core.setParameterValueById('ParamEyeLSmile', Math.min(1.0, core.getParameterValueById('ParamEyeLSmile') + oxyEyeSmile));
+                core.setParameterValueById('ParamEyeRSmile', Math.min(1.0, core.getParameterValueById('ParamEyeRSmile') + oxyEyeSmile));
+            }
+
+            // 11. NEW CHEMICAL: Melatonin (Droopy, sluggish eyes & accelerated sleepy blinks)
+            if (melatonin > 0.3) {
+                const sleepyMaxOpen = Math.max(0.3, 1.0 - (melatonin * 0.5 * melatoninIntensity));
+                if (aState.blinkTimer < aState.nextBlink) {
+                    core.setParameterValueById('ParamEyeLOpen', Math.min(sleepyMaxOpen, core.getParameterValueById('ParamEyeLOpen')));
+                    core.setParameterValueById('ParamEyeROpen', Math.min(sleepyMaxOpen, core.getParameterValueById('ParamEyeROpen')));
+                }
+                
+                // Induce sleepy blinking frequency scaling (blinks happen more frequently/heavily)
+                if (Math.random() < 0.002 * melatonin * melatoninIntensity) {
+                    // Trigger a heavy blink early
+                    aState.blinkTimer = aState.nextBlink - 0.05;
+                }
+            }
 
         } catch(e) {}
     };

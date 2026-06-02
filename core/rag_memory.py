@@ -106,6 +106,7 @@ class RAGMemorySystem:
     def is_available(self) -> bool:
         self._ensure_initialized()
         if self.remote_url: return True
+        if self.use_mempalace and self.mempalace.is_available(): return True
         return self.collection is not None
         
     def add_memory(self, text: str, metadata: dict = None):

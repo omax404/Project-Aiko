@@ -95,6 +95,19 @@ class AgentExecutor:
                     img.save(buffered, format="JPEG")
                     images_data.append(base64.b64encode(buffered.getvalue()).decode("utf-8"))
 
+            if "[CAMERA]" in text.upper() and brain.vision:
+                try:
+                    img = await brain.vision.capture_camera()
+                    desc = await brain.vision._analyze(img)
+                    observations.append(f"Camera Analysis: {desc}")
+                    if img:
+                        import base64, io
+                        buffered = io.BytesIO()
+                        img.save(buffered, format="JPEG")
+                        images_data.append(base64.b64encode(buffered.getvalue()).decode("utf-8"))
+                except Exception as cam_err:
+                    observations.append(f"Camera Error: Could not capture from webcam. ({cam_err})")
+
             for match in IMAGE_PATTERN.finditer(text):
                 img_prompt = match.group(1).strip()
                 if brain.image_engine:

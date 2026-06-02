@@ -9,6 +9,7 @@ import { SkeletonLoader } from './components/SkeletonLoader';
 import { RotatingOrbital } from './components/AnimatedIcons';
 import { ProjectIntelligence } from './components/ProjectIntelligence';
 import { Live2DAvatar } from './components/Live2DAvatar';
+import { NeuralControlPanel } from './components/NeuralControlPanel';
 import { OnboardingWizard } from './components/OnboardingWizard';
 import { useNeuralStore } from './store/useNeuralStore';
 import ReactMarkdown from 'react-markdown';
@@ -156,7 +157,7 @@ function DashboardStats({
       </div>
 
       {/* Stats — bottom section */}
-      <div className="px-3.5 pb-4 pt-3.5 flex flex-col gap-2.5 flex-shrink-0">
+      <div className="px-3.5 pb-4 pt-3.5 flex flex-col gap-2.5 overflow-y-auto max-h-[450px] shrink-0 custom-scrollbar">
         <div className="flex items-center justify-between">
           <div className="text-[9px] font-bold text-[rgba(212,149,106,0.4)] tracking-[2px] uppercase">
             System Core
@@ -182,6 +183,9 @@ function DashboardStats({
           <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--acc)] group-hover:text-black">Mascot Mode</span>
           <ExternalLink size={14} className="text-[var(--acc)] group-hover:text-black" />
         </button>
+
+        {/* Neural Control Deck */}
+        <NeuralControlPanel />
 
         {/* Avatar Scale Slider */}
         <div className="bg-[rgba(212,149,106,0.03)] border border-[rgba(212,149,106,0.1)] rounded-lg p-2.5 px-3 flex flex-col gap-1.5">

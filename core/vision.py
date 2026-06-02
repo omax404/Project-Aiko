@@ -1,6 +1,6 @@
 """
-AIKO VISION ENGINE (CLOUD)
-Analysis of screens and images using Moondream Cloud API.
+AIKO VISION ENGINE (LOCAL)
+Analysis of screens and images using local on-device MiniCPM-V 4.6.
 """
 
 import os
@@ -12,10 +12,6 @@ from core.utils import retry
 from .config_manager import config
 
 logger = logging.getLogger("Vision")
-
-# Configuration
-API_KEY = config.get("MOONDREAM_API_KEY", "")
-API_URL = "https://api.moondream.ai/v1/query"
 
 class VisionEngine:
     def __init__(self):
@@ -98,7 +94,7 @@ class VisionEngine:
     async def _analyze(self, image: Image.Image) -> str:
         """Send image to local HF Transformers MiniCPM-V or local Ollama fallback."""
         vision_provider = config.get("VISION_PROVIDER", "").lower()
-        model_name = config.get("VISION_MODEL", "gemma4:31b-cloud")
+        model_name = config.get("VISION_MODEL", "openbmb/MiniCPM-V-4.6")
         
         # 1. Native Local Hugging Face Model (e.g. MiniCPM-V-4.6)
         if vision_provider == "transformers" or "minicpm-v-4.6" in model_name.lower() or "openbmb" in model_name.lower():
@@ -200,8 +196,8 @@ class VisionEngine:
         # Ensure we don't accidentally send image bytes to a Text-Only LLM (like Gemma4 or Qwen).
         model = config.get("VISION_MODEL")
         if not model:
-            # If no Vision Model is explicitly set, default strictly to gemma4:31b-cloud for vision.
-            model = "gemma4:31b-cloud"
+            # If no Vision Model is explicitly set, default strictly to minicpm-v for local vision.
+            model = "minicpm-v"
 
         
         try:
@@ -252,40 +248,7 @@ class VisionEngine:
             logger.error(f"Local Vision Error ({provider}): {e}")
             return "My local visual cortex is having trouble processing this frame, Master... 👁️‍🗨️"
 
-    @retry(max_attempts=3)
-    def _send_request(self, image: Image.Image) -> str:
-        import requests
-        import base64
-        from PIL import ImageDraw
-        from datetime import datetime
 
-        stamped = image.copy()
-        draw = ImageDraw.Draw(stamped)
-        ts = f"TIMESTAMP: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-        # Draw a black box for text readability
-        draw.rectangle([10, 10, 350, 40], fill="black")
-        draw.text((20, 15), ts, fill="white")
-        
-        buffered = io.BytesIO()
-        stamped.save(buffered, format="JPEG")
-        img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
-        data_uri = f"data:image/jpeg;base64,{img_str}"
-        
-        payload = {
-            "image_url": data_uri,
-            "question": "Identify CURRENT active windows and explain what is happening NOW. Check the burned-in timestamp at the top left and ignore any other dates in the background if they conflict. Be brief but accurate.",
-            "stream": False
-        }
-        
-        headers = {
-            "Content-Type": "application/json",
-            "X-Moondream-Auth": API_KEY
-        }
-        
-        response = requests.post(API_URL, json=payload, headers=headers, timeout=20)
-        response.raise_for_status()
-        result = response.json()
-        return result.get("answer", "No answer provided.")
 
     async def capture_camera(self) -> Image.Image:
         """Capture a frame from the default camera."""

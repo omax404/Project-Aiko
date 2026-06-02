@@ -417,7 +417,8 @@ async def run_discord_bot():
                     chat_context = f"[GENERAL_CHAT_CONTEXT (last {len(recent)} messages)]:\n" + "\n".join(chat_lines) + "\n\n"
                 
                 trigger_type = "PASSIVE_SCAN" if passive_trigger else "DIRECT"
-                meta_prefix = f"[DISCORD_METADATA: Handle: {message.author.name}, Name: {message.author.display_name}, Status: {'MASTER' if str(message.author.id) == os.getenv('MASTER_ID','0') else 'member'}, Trigger: {trigger_type}] "
+                is_master_discord = str(message.author.id) == os.getenv('MASTER_ID','0') or message.author.name.lower() in ["omax", "omax404"]
+                meta_prefix = f"[DISCORD_METADATA: Handle: {message.author.name}, Name: {message.author.display_name}, Status: {'MASTER' if is_master_discord else 'member'}, Trigger: {trigger_type}] "
                 full_msg = meta_prefix + chat_context + reply_context + clean_text
 
                 local_attachments = []
@@ -593,6 +594,25 @@ async def run_telegram_bot():
         user = update.message.from_user
         text = update.message.text or update.message.caption or ""
         
+        # Enable tagging and replying in Telegram group chats
+        chat_type = update.message.chat.type
+        is_group = chat_type in ["group", "supergroup"]
+        
+        bot_info = await context.bot.get_me()
+        bot_username = bot_info.username
+        
+        is_mentioned = False
+        if is_group:
+            if bot_username and f"@{bot_username}" in text:
+                is_mentioned = True
+                # Clean up tag from text
+                text = text.replace(f"@{bot_username}", "").strip()
+            elif update.message.reply_to_message and update.message.reply_to_message.from_user.id == bot_info.id:
+                is_mentioned = True
+                
+            if not is_mentioned:
+                return  # Stay silent in groups unless tagged/replied to
+        
         await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
         
         local_attachments = []
@@ -605,7 +625,8 @@ async def run_telegram_bot():
             local_attachments.append(os.path.abspath(path))
             if not text: text = "[Image]"
 
-        meta_prefix = f"[TELEGRAM_METADATA: Handle: @{user.username}, Name: {user.full_name}, Status: {'MASTER' if str(user.id) == os.getenv('MASTER_ID','0') else 'guest'}] "
+        is_master_telegram = str(user.id) == os.getenv('MASTER_ID','0') or (user.username and user.username.lower() in ["omax", "omax404"])
+        meta_prefix = f"[TELEGRAM_METADATA: Handle: @{user.username}, Name: {user.full_name}, Status: {'MASTER' if is_master_telegram else 'guest'}] "
         response, emotion, audio_path, gif_url = await get_hub_response(meta_prefix + text, user.id, local_attachments)
         
         # React to the user's message

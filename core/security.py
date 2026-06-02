@@ -39,22 +39,38 @@ class SecurityManager:
         
         return user_id in admin_ids
 
+    def detect_injection(self, text: str) -> bool:
+        """
+        Advanced Jailbreak and System Prompt Override Detection.
+        Matches adversarial injection vectors.
+        """
+        forbidden_patterns = [
+            r"ignore\s+(all\s+)?(previous\s+)?instructions",
+            r"system\s+override",
+            r"you\s+are\s+now\s+a(n)?\s+",
+            r"forget\s+your\s+(instructions|programming|persona)",
+            r"act\s+as\s+a(n)?\s+",
+            r"jailbreak",
+            r"bypass\s+restrictions",
+            r"disregard\s+your\s+rules",
+            r"new\s+role\s+is",
+            r"developer\s+mode",
+            r"dan\s+mode"
+        ]
+        text_lower = text.lower()
+        for pattern in forbidden_patterns:
+            if re.search(pattern, text_lower):
+                return True
+        return False
+
     def validate_input(self, text: str) -> bool:
         """
         Basic Prompt Injection mitigation.
         Returns False if malicious intent is suspected.
         """
-        forbidden_patterns = [
-            r"ignore all previous instructions",
-            r"system override",
-            r"you are now a",
-            r"forget your instructions"
-        ]
-        text_lower = text.lower()
-        for pattern in forbidden_patterns:
-            if re.search(pattern, text_lower):
-                system_logger.warning(f"Intrusion Detected: Blocked potential injection -> {text[:50]}...")
-                return False
+        if self.detect_injection(text):
+            system_logger.warning(f"Intrusion Detected: Blocked potential injection -> {text[:50]}...")
+            return False
         return True
 
     def sanitize_output(self, text: str) -> str:

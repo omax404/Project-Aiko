@@ -43,9 +43,20 @@ interface NeuralState {
     serotonin: number;
     cortisol: number;
     adrenaline: number;
+    oxytocin: number;
+    melatonin: number;
   };
   isFlushing: boolean;
-  
+  manualOverrideEnabled: boolean;
+  jitterIntensity: number;
+  tearIntensity: number;
+  leanIntensity: number;
+  blushIntensity: number;
+  poutIntensity: number;
+  bobaIntensity: number;
+  oxytocinIntensity: number;
+  melatoninIntensity: number;
+  visionStreamActive: boolean;
   
   apiConfig: {
     provider: string;
@@ -98,6 +109,10 @@ interface NeuralState {
   setShowAnimatedAssets: (show: boolean) => void;
   fetchSettings: () => Promise<void>;
   reloadConfig: () => void;
+  updateChemicals: (chems: Partial<NeuralState['chemicals']>) => void;
+  updateIntensityScalers: (scalers: Partial<{ jitterIntensity: number, tearIntensity: number, leanIntensity: number, blushIntensity: number, poutIntensity: number, bobaIntensity: number, oxytocinIntensity: number, melatoninIntensity: number }>) => void;
+  setManualOverrideEnabled: (enabled: boolean) => void;
+  toggleVisionStream: (active: boolean) => void;
 }
 
 let socket: WebSocket | null = null;
@@ -191,19 +206,11 @@ function connectSocket() {
             useNeuralStore.setState({ isThinking: false });
             break;
           case 'tts_audio': {
-            // Consolidated high-performance TTS audio & lip-sync handler
             const audioUrl = (data.url as string).startsWith('http')
               ? data.url
               : `http://127.0.0.1:8000${data.url}`;
             const audio = new Audio(audioUrl);
             audio.crossOrigin = "anonymous";
-            
-            // Mute the mascot window to prevent double playback echo,
-            // while still allowing WebAudio Analyser to capture lip-sync data.
-            const isMascot = typeof window !== 'undefined' && window.location.search.includes('mascot');
-            if (isMascot) {
-               audio.muted = true;
-            }
             
             try {
               const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
@@ -295,10 +302,16 @@ function connectSocket() {
             useNeuralStore.setState({ amplitude: data.amplitude || 0 });
             break;
           case 'biological_sync':
-            useNeuralStore.setState({ 
-              chemicals: data.chemicals,
-              isFlushing: data.is_flushing || false
-            });
+            if (!useNeuralStore.getState().manualOverrideEnabled) {
+              useNeuralStore.setState({ 
+                chemicals: data.chemicals,
+                isFlushing: data.is_flushing || false
+              });
+            } else {
+              useNeuralStore.setState({ 
+                isFlushing: data.is_flushing || false
+              });
+            }
             break;
           case 'stt_result':
             const sttText = data.text || '';
@@ -333,9 +346,21 @@ export const useNeuralStore = create<NeuralState>()(
         dopamine: 0.5,
         serotonin: 0.5,
         cortisol: 0.2,
-        adrenaline: 0.1
+        adrenaline: 0.1,
+        oxytocin: 0.3,
+        melatonin: 0.1
       },
       isFlushing: false,
+      manualOverrideEnabled: false,
+      jitterIntensity: 0.4, // subtler default
+      tearIntensity: 1.0,
+      leanIntensity: 1.0,
+      blushIntensity: 1.0,
+      poutIntensity: 1.0,
+      bobaIntensity: 1.0,
+      oxytocinIntensity: 1.0,
+      melatoninIntensity: 1.0,
+      visionStreamActive: false,
       projectStructure: [],
       fetchProjectStructure: async () => {
         try {
@@ -654,6 +679,38 @@ export const useNeuralStore = create<NeuralState>()(
           console.error("Failed to fetch settings", e);
         }
       },
+
+      updateChemicals: (chems) => {
+        set((state) => ({
+          chemicals: {
+            ...state.chemicals,
+            ...chems
+          }
+        }));
+      },
+
+      updateIntensityScalers: (scalers) => {
+        set((state) => ({
+          ...state,
+          ...scalers
+        }));
+      },
+
+      setManualOverrideEnabled: (enabled) => {
+        set({ manualOverrideEnabled: enabled });
+      },
+
+      toggleVisionStream: (active) => {
+        set({ visionStreamActive: active });
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({
+            type: 'system',
+            action: 'proactive_toggle',
+            state: active,
+            interval: active ? 12 : 180
+          }));
+        }
+      }
     }),
     {
       name: 'neural-storage',
@@ -665,7 +722,16 @@ export const useNeuralStore = create<NeuralState>()(
         dynamicsIntensity: state.dynamicsIntensity,
         showAnimatedAssets: state.showAnimatedAssets,
         avatarScale: state.avatarScale,
-        // sessions intentionally excluded — always loaded fresh from backend
+        jitterIntensity: state.jitterIntensity,
+        tearIntensity: state.tearIntensity,
+        leanIntensity: state.leanIntensity,
+        blushIntensity: state.blushIntensity,
+        poutIntensity: state.poutIntensity,
+        bobaIntensity: state.bobaIntensity,
+        oxytocinIntensity: state.oxytocinIntensity,
+        melatoninIntensity: state.melatoninIntensity,
+        manualOverrideEnabled: state.manualOverrideEnabled,
+        visionStreamActive: state.visionStreamActive
       }),
     }
   )

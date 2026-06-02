@@ -576,6 +576,12 @@ async def handle_ws(req):
                         config.load()
                         # Also propagate changes to voice engine and chat engine
                         voice_engine.enabled = config.get("TTS_ENABLED", True)
+                    elif action == "proactive_toggle":
+                        state = data.get("state", False)
+                        interval = data.get("interval", 180)
+                        proactive_agent.toggle(state)
+                        proactive_agent.interval = interval
+                        logger.info(f" [Hub] Proactive Mode: {state}, Interval: {interval}s")
                         
                 elif m_type == "listen":
                     # STT Request
