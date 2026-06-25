@@ -1,5 +1,5 @@
 <div align="center">
-<img width="2460" height="1358" alt="aiko" src="https://github.com/user-attachments/assets/0f2dda07-04d4-408d-91ed-9a7deb8cd5be" />
+<img width="3114" height="1344" alt="Gemini_Generated_Image_srqtdjsrqtdjsrqt" src="https://github.com/user-attachments/assets/fb4425f7-6108-4eb7-9b41-db4629b33602" />
 
 # 💖 Aiko Desktop 🌸
 
