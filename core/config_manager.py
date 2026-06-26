@@ -16,6 +16,26 @@ logger = logging.getLogger("Config")
 
 CONFIG_FILE = Path("data/config.json")
 
+def normalize_llm_url(url: str) -> str:
+    """Normalize OpenAI-compatible and Anthropic endpoints to correct suffixes."""
+    normalized_url = url.strip()
+    if not normalized_url:
+        return normalized_url
+
+    openai_like_domains = ["api.openai.com", "openrouter.ai", "generativelanguage.googleapis.com", "api.deepseek.com"]
+    if any(domain in normalized_url for domain in openai_like_domains):
+        if normalized_url.endswith("/v1"):
+            normalized_url += "/chat/completions"
+        elif normalized_url.endswith("/v1/"):
+            normalized_url += "chat/completions"
+        elif not normalized_url.endswith("/chat/completions"):
+            normalized_url = normalized_url.rstrip("/") + "/chat/completions"
+    elif "api.anthropic.com" in normalized_url:
+        if not (normalized_url.endswith("/messages") or normalized_url.endswith("/chat/completions")):
+            normalized_url = normalized_url.rstrip("/") + "/messages"
+    return normalized_url
+
+
 class ConfigManager:
     def __init__(self):
         load_dotenv()
@@ -37,6 +57,11 @@ class ConfigManager:
             "TTS_ENABLED": os.getenv("TTS_ENABLED", "true").lower() == "true",
             "VISION_PROVIDER": os.getenv("VISION_PROVIDER", "transformers"),
             "VISION_MODEL": os.getenv("VISION_MODEL", "openbmb/MiniCPM-V-4.6"),
+            "VISION_GRID_OVERLAY": os.getenv("VISION_GRID_OVERLAY", "true").lower() == "true",
+            "theme_color": "#e8a87c",
+            "avatar_scale": 1.0,
+            "dynamics_intensity": 80,
+            "show_animated_assets": True,
         }
         self.load()
 
@@ -64,35 +89,7 @@ class ConfigManager:
                         api_key = llm_info.get("api_key", "")
                         
                         if url:
-                            normalized_url = url.strip()
-                            if "api.openai.com" in normalized_url:
-                                if normalized_url.endswith("/v1"):
-                                    normalized_url += "/chat/completions"
-                                elif normalized_url.endswith("/v1/"):
-                                    normalized_url += "chat/completions"
-                                elif not normalized_url.endswith("/chat/completions"):
-                                    normalized_url = normalized_url.rstrip("/") + "/chat/completions"
-                            elif "openrouter.ai" in normalized_url:
-                                if normalized_url.endswith("/v1"):
-                                    normalized_url += "/chat/completions"
-                                elif normalized_url.endswith("/v1/"):
-                                    normalized_url += "chat/completions"
-                                elif not normalized_url.endswith("/chat/completions"):
-                                    normalized_url = normalized_url.rstrip("/") + "/chat/completions"
-                            elif "generativelanguage.googleapis.com" in normalized_url:
-                                if not normalized_url.endswith("/chat/completions"):
-                                    normalized_url = normalized_url.rstrip("/") + "/chat/completions"
-                            elif "api.deepseek.com" in normalized_url:
-                                if normalized_url.endswith("/v1"):
-                                    normalized_url += "/chat/completions"
-                                elif normalized_url.endswith("/v1/"):
-                                    normalized_url += "chat/completions"
-                                elif not normalized_url.endswith("/chat/completions"):
-                                    normalized_url = normalized_url.rstrip("/") + "/chat/completions"
-                            elif "api.anthropic.com" in normalized_url:
-                                if not (normalized_url.endswith("/messages") or normalized_url.endswith("/chat/completions")):
-                                    normalized_url = normalized_url.rstrip("/") + "/messages"
-                            
+                            normalized_url = normalize_llm_url(url)
                             self._config["LLM_URL"] = normalized_url
                             
                             # Infer Provider based on URL
@@ -132,6 +129,18 @@ class ConfigManager:
                     if "persona" in user_data:
                         if "custom_prompt" in user_data["persona"]: 
                             self._config["custom_prompt"] = user_data["persona"]["custom_prompt"]
+                            
+                    if "appearance" in user_data:
+                        app_data = user_data["appearance"]
+                        if "theme_color" in app_data: self._config["theme_color"] = app_data["theme_color"]
+                        if "avatar_scale" in app_data: self._config["avatar_scale"] = app_data["avatar_scale"]
+                        if "dynamics_intensity" in app_data: self._config["dynamics_intensity"] = app_data["dynamics_intensity"]
+                        if "show_animated_assets" in app_data: self._config["show_animated_assets"] = app_data["show_animated_assets"]
+                            
+                    if "vision" in user_data:
+                        if "provider" in user_data["vision"]: self._config["VISION_PROVIDER"] = user_data["vision"]["provider"]
+                        if "model" in user_data["vision"]: self._config["VISION_MODEL"] = user_data["vision"]["model"]
+                        if "grid_overlay" in user_data["vision"]: self._config["VISION_GRID_OVERLAY"] = user_data["vision"]["grid_overlay"]
             except Exception as e:
                 logger.error(f"Failed to load user_settings.json: {e}")
 

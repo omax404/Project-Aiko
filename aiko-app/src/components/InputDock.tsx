@@ -1,20 +1,17 @@
 import { useState, useRef, useEffect } from "react";
 import { 
-  Send, 
-  Mic, 
   Plus,
-  Volume2,
-  VolumeX,
   Sparkles,
   Image as ImageIcon,
   X,
   Paperclip
 } from "lucide-react";
-import { motion } from "framer-motion";
 import { clsx } from 'clsx';
 import { useNeuralStore } from "../store/useNeuralStore";
 import { GifPicker } from "./GifPicker";
 import { AnimatePresence } from "framer-motion";
+import { GothicButton } from "./GothicButton";
+
 
 interface InputDockProps {
   onOpenProject: () => void;
@@ -76,15 +73,22 @@ export function InputDock({ onOpenProject }: InputDockProps) {
   return (
     <div className="w-full max-w-4xl mx-auto px-4 pb-2">
       <div className="relative">
-        <div className="absolute -inset-2 bg-pink-600/5 blur-2xl rounded-3xl opacity-0 group-focus-within:opacity-100 transition-opacity" />
+        <div className="w-full mb-2">
+          <div className="flex items-center gap-3 w-full opacity-30 select-none pointer-events-none">
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[var(--acc)]/30 to-transparent" />
+            <div className="w-1 h-1 rotate-45 border border-[var(--acc)]/20" />
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[var(--acc)]/30 to-transparent" />
+          </div>
+        </div>
+        <div className="absolute -inset-2 bg-[var(--accent)]/5 blur-2xl rounded-3xl opacity-0 group-focus-within:opacity-100 transition-opacity" />
         
-        <div className="relative flex flex-col gap-2 p-1.5 glass-pane rounded-3xl shadow-2xl focus-within:border-pink-500/30 transition-all duration-500">
+        <div className="relative flex flex-col gap-2 p-1.5 glass-pane rounded-3xl shadow-2xl focus-within:border-accent/30 transition-all duration-500">
           
           <div className="flex items-center justify-between px-4 py-2 border-b border-white/5 mb-1">
              <div className="flex items-center gap-2.5">
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-pink-600/10 border border-pink-500/20">
-                   <Sparkles size={11} className="text-pink-400" />
-                   <span className="text-[9px] font-bold text-pink-400 uppercase tracking-widest">{apiConfig.model}</span>
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-accent/10 border border-accent/20">
+                   <Sparkles size={11} className="text-accent" />
+                   <span className="text-[11px] font-bold text-[var(--accent)] uppercase tracking-widest">{apiConfig.model}</span>
                 </div>
                 <div className="h-4 w-px bg-white/5" />
                 <button 
@@ -97,36 +101,34 @@ export function InputDock({ onOpenProject }: InputDockProps) {
              </div>
 
              <div className="flex items-center gap-2 text-slate-500">
-                <button 
+                <GothicButton 
+                  icon="volume"
+                  size="sm"
                   title={ttsEnabled ? "TTS Active" : "TTS Muted"}
+                  aria-label={ttsEnabled ? "Text-to-speech is active" : "Text-to-speech is muted"}
                   onClick={() => setTtsEnabled(!ttsEnabled)}
-                  className={clsx(
-                    "p-2 rounded-xl transition-all",
-                    ttsEnabled ? "text-pink-400 bg-pink-400/5 shadow-[0_0_10px_rgba(212,149,106,0.1)]" : "hover:text-white hover:bg-white/5"
-                  )}
-                >
-                  {ttsEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
-                </button>
+                  active={ttsEnabled}
+                  className={!ttsEnabled ? "opacity-40 grayscale" : ""}
+                />
                 <div className="w-px h-3 bg-white/5 mx-1" />
-                <button 
+                <GothicButton 
+                  icon="mic"
+                  size="sm"
                   onClick={() => {
                     if (!isListening) {
                       startListening();
                     }
                   }}
                   title={isListening ? "Listening..." : "Voice Input"}
-                  className={clsx(
-                    "p-2 rounded-xl transition-all",
-                    isListening ? "text-red-500 bg-red-500/10 animate-pulse" : "hover:text-white hover:bg-white/5"
-                  )}
-                >
-                  <Mic size={15} />
-                </button>
+                  aria-label={isListening ? "Microphone is listening" : "Start voice input"}
+                  active={isListening}
+                  className={isListening ? "animate-pulse ring-2 ring-red-500 shadow-[0_0_20px_rgba(239,68,68,0.5)]" : ""}
+                />
              </div>
            </div>
            
            {/* Attachment Preview Area */}
-           {pendingFiles.length > 0 && (
+           {(pendingFiles.length > 0 || isUploading) && (
              <div className="flex flex-wrap gap-2 px-4 py-2 border-b border-white/5">
                 {pendingFiles.map((file, idx) => (
                   <div key={idx} className="relative group/file">
@@ -142,6 +144,7 @@ export function InputDock({ onOpenProject }: InputDockProps) {
                     )}
                     <button 
                       onClick={() => removeFile(idx)}
+                      aria-label={`Remove file ${file.filename}`}
                       title="Remove file"
                       className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/file:opacity-100 transition-opacity"
                     >
@@ -150,7 +153,7 @@ export function InputDock({ onOpenProject }: InputDockProps) {
                   </div>
                 ))}
                 {isUploading && (
-                  <div className="w-10 h-10 flex items-center justify-center animate-spin text-pink-500">
+                  <div className="w-10 h-10 flex items-center justify-center animate-spin text-accent">
                     <Sparkles size={16} />
                   </div>
                 )}
@@ -170,6 +173,7 @@ export function InputDock({ onOpenProject }: InputDockProps) {
           <div className="flex items-end gap-3 px-3 pb-2 pt-1">
             <button 
               onClick={handleAttach}
+              aria-label="Attach file"
               title="Attach File" className="p-3 rounded-2xl text-slate-500 hover:text-white hover:bg-white/5 transition-all mb-1"
             >
               <Plus size={18} strokeWidth={2.5} />
@@ -178,10 +182,11 @@ export function InputDock({ onOpenProject }: InputDockProps) {
             <div className="relative mb-1">
                <button 
                  onClick={() => setShowGifPicker(!showGifPicker)}
+                 aria-label="Open animated assets picker"
                  title="Animated Assets" 
                  className={clsx(
                    "p-3 rounded-2xl transition-all",
-                   showGifPicker ? "text-pink-400 bg-pink-400/5" : "text-slate-500 hover:text-[var(--acc)] hover:bg-[var(--acc)]/5"
+                   showGifPicker ? "text-accent bg-accent/5" : "text-slate-500 hover:text-[var(--acc)] hover:bg-[var(--acc)]/5"
                  )}
                >
                  <ImageIcon size={18} strokeWidth={2.5} className={clsx(showGifPicker && "animate-pulse")} />
@@ -209,27 +214,29 @@ export function InputDock({ onOpenProject }: InputDockProps) {
                   e.preventDefault();
                   handleSend();
                 }
+                if (e.key === 'Enter' && e.ctrlKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
               }}
               title="Message input"
+              aria-label="Message input. Press Enter to send, Shift+Enter for new line."
               placeholder="Ask Aiko anything..."
               className="flex-1 text-[15px] text-gray-100 placeholder:text-slate-600 max-h-48 custom-scrollbar leading-[1.6] py-3 font-normal focus:outline-none focus:ring-0 focus:border-0 bg-transparent outline-none shadow-none border-none resize-none"
               rows={1}
             />
 
-            <motion.button
-              whileTap={{ scale: 0.96 }}
+            <GothicButton
+              icon="send"
+              size="md"
               onClick={handleSend}
               title="Send Message"
               disabled={(!text.trim() && pendingFiles.length === 0) || isThinking || isUploading}
               className={clsx(
-                "w-11 h-11 rounded-2xl flex items-center justify-center transition-all shadow-xl mb-1",
-                (!text.trim() && pendingFiles.length === 0) || isThinking || isUploading 
-                  ? "bg-white/[0.02] text-slate-700 cursor-not-allowed border border-white/5" 
-                  : "bg-white text-black hover:bg-pink-400 hover:text-white"
+                "mb-1 shadow-[0_0_15px_rgba(212,149,106,0.3)] hover:shadow-[0_0_25px_rgba(212,149,106,0.6)]",
+                isThinking && "animate-pulse"
               )}
-            >
-              <Send size={16} strokeWidth={2.5} className={clsx("transition-transform", isThinking && "animate-pulse")} />
-            </motion.button>
+            />
           </div>
         </div>
       </div>

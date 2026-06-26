@@ -190,7 +190,8 @@ Each entry is timestamped and categorized for better understanding.
                         'date': date_str,
                         'content': content
                     })
-            except:
+            except Exception as e:
+                logger.warning(f"Failed to read thought file {file_path}: {e}")
                 continue
 
         return thoughts[-5:]  # Last 5 files
@@ -215,7 +216,8 @@ class FileMemoryGraph:
         if self.links_file.exists():
             try:
                 self._cache = json.loads(self.links_file.read_text(encoding='utf-8'))
-            except:
+            except Exception as e:
+                logger.error(f"Failed to load file links: {e}")
                 self._cache = {}
         else:
             self._cache = {}
@@ -328,12 +330,18 @@ class UnifiedMemoryManager:
         self._last_save = time.time()
         self._save_interval = 60  # seconds
 
+        # Migrate legacy memory if new history is empty (must be after reminders_file is initialized)
+        shared_memory_path = self.data_dir / "shared_memory.json"
+        if shared_memory_path.exists() and (not self.history_file.exists() or self.history_file.stat().st_size <= 2):
+            self._migrate_legacy_memory(shared_memory_path)
+
     def _load_history(self):
         """Load conversation history from disk."""
         if self.history_file.exists():
             try:
                 self.history = json.loads(self.history_file.read_text(encoding='utf-8'))
-            except:
+            except Exception as e:
+                logger.error(f"Failed to load conversation history: {e}")
                 self.history = {}
 
     def _load_profiles(self):
@@ -341,15 +349,60 @@ class UnifiedMemoryManager:
         if self.profiles_file.exists():
             try:
                 self.user_profiles = json.loads(self.profiles_file.read_text(encoding='utf-8'))
-            except:
+            except Exception as e:
+                logger.error(f"Failed to load user profiles: {e}")
                 self.user_profiles = {}
+
+    def _migrate_legacy_memory(self, legacy_path: Path):
+        logger.info("[Memory] Migrating legacy shared_memory.json...")
+        try:
+            from core.security import memory_cipher
+            encrypted_data = legacy_path.read_bytes()
+            try:
+                decrypted_json = memory_cipher.decrypt(encrypted_data)
+                data = json.loads(decrypted_json)
+            except Exception:
+                logger.warning("[Memory] Decryption failed, attempting plain JSON parsing.")
+                data = json.loads(encrypted_data.decode('utf-8'))
+            
+            for uid, content in data.items():
+                if uid == "global":
+                    continue
+                if isinstance(content, dict):
+                    history = content.get("history", [])
+                    affection = content.get("affection", 30)
+                    pinned = content.get("pinned", False)
+                    name = content.get("name")
+                    
+                    new_history = []
+                    for m in history:
+                        if isinstance(m, dict):
+                            new_history.append({
+                                "role": m.get("role", "user"),
+                                "content": m.get("content", ""),
+                                "timestamp": m.get("timestamp", time.time()),
+                                "metadata": m.get("metadata", {})
+                            })
+                    self.history[uid] = new_history
+                    
+                    profile = self.get_profile(uid)
+                    profile["affection"] = affection
+                    profile["pinned"] = pinned
+                    if name:
+                        profile["name"] = name
+            
+            self.save()
+            logger.info("[Memory] Legacy memory migration completed successfully!")
+        except Exception as e:
+            logger.error(f"[Memory] Failed to migrate legacy memory: {e}")
 
     def _load_reminders(self):
         """Load reminders from disk."""
         if self.reminders_file.exists():
             try:
                 self.reminders = json.loads(self.reminders_file.read_text(encoding='utf-8'))
-            except:
+            except Exception as e:
+                logger.error(f"Failed to load reminders: {e}")
                 self.reminders = []
 
     def _maybe_save(self):
@@ -403,7 +456,7 @@ class UnifiedMemoryManager:
 
         # File into MemPalace for high-recall long-term storage
         try:
-            from core.mempalace_bridge import get_mempalace_rag
+            from core.rag_memory import get_mempalace_rag
             mp = get_mempalace_rag()
             if mp.is_available():
                 mp.add_memory(
@@ -439,7 +492,7 @@ class UnifiedMemoryManager:
         
         # Archive the FULL text to MemPalace (High Recall)
         try:
-            from core.mempalace_bridge import get_mempalace_rag
+            from core.rag_memory import get_mempalace_rag
             mp = get_mempalace_rag()
             if mp.is_available():
                 full_archive_text = "CONVERSATION_ARCHIVE:\n" + "\n".join([f"{m['role']}: {m['content']}" for m in to_compress])
@@ -448,7 +501,7 @@ class UnifiedMemoryManager:
                     metadata={"user_id": user_id, "type": "archived_chat"},
                     room="conversations"
                 )
-        except: pass
+        except Exception: pass
 
         # Replace first 20 with 1 summary entry
         archive_entry = {
@@ -462,6 +515,27 @@ class UnifiedMemoryManager:
         logger.info(f"[Memory] Compressed history for {user_id}. Palace archive created.")
 
         self._maybe_save()
+
+    def get_user_data(self, user_id: str) -> tuple:
+        """Get user data for compatibility with legacy memory API."""
+        uid = str(user_id)
+        if uid not in self.history:
+            self.history[uid] = []
+        
+        compat_dict = {
+            uid: {
+                "history": self.history[uid],
+                "affection": self.get_profile(uid).get("affection", 30)
+            }
+        }
+        return compat_dict, uid
+
+    def truncate_history(self, user_id: str, index: int):
+        """Truncate history to a specific index (for branch edits)."""
+        uid = str(user_id)
+        if uid in self.history:
+            self.history[uid] = self.history[uid][:index]
+            self.save()
 
     def get_history(self, user_id: str, limit: int = 20) -> List[Dict]:
         """Get conversation history for user."""
@@ -477,13 +551,91 @@ class UnifiedMemoryManager:
             self.history.clear()
         self.save()
 
+    def clear_memory(self, user_id: str = None) -> bool:
+        """Clear memory for compatibility with legacy API."""
+        self.clear_history(user_id)
+        return True
+
+    def get_stats(self, user_id: str) -> Dict:
+        """Get user stats (affection, etc)."""
+        profile = self.get_profile(user_id)
+        return {"affection": profile.get("affection", 30)}
+
+    def get_recent_sessions(self) -> List[Dict]:
+        """Get list of all chat sessions sorted by recency."""
+        sessions = []
+        for uid, history in self.history.items():
+            if uid == "global": continue
+            profile = self.get_profile(uid)
+            last_msg = history[-1] if history else None
+            preview = last_msg["content"][:60].replace("\n", " ") + "..." if last_msg else "Empty Storage Node"
+            timestamp = last_msg["timestamp"] if last_msg else 0
+            
+            sessions.append({
+                "id": uid,
+                "title": profile.get("name", f"Session_{uid[:4]}"),
+                "preview": preview,
+                "timestamp": time.strftime("%H:%M", time.localtime(timestamp)) if timestamp else "00:00",
+                "pinned": profile.get("pinned", False),
+                "lastActive": timestamp
+            })
+        # Sort by pinned first, then by timestamp newest first
+        sessions.sort(key=lambda x: (x["pinned"], x["lastActive"]), reverse=True)
+        return sessions
+
+    def rename_session(self, session_id: str, new_name: str) -> bool:
+        """Rename a chat session."""
+        if session_id in self.history or session_id in self.user_profiles:
+            profile = self.get_profile(session_id)
+            profile["name"] = new_name
+            self.save()
+            return True
+        return False
+
+    def pin_session(self, session_id: str) -> bool:
+        """Toggle pin status of a session."""
+        if session_id in self.history or session_id in self.user_profiles:
+            profile = self.get_profile(session_id)
+            current = profile.get("pinned", False)
+            profile["pinned"] = not current
+            self.save()
+            return True
+        return False
+
+    def delete_session(self, session_id: str) -> bool:
+        """Delete a chat session entirely."""
+        deleted = False
+        if session_id in self.history:
+            del self.history[session_id]
+            deleted = True
+        if session_id in self.user_profiles:
+            del self.user_profiles[session_id]
+            deleted = True
+        if deleted:
+            self.save()
+            return True
+        return False
+
     # === User Profiles ===
 
     def get_profile(self, user_id: str) -> Dict:
         """Get or create user profile."""
         if user_id not in self.user_profiles:
+            initial_affection = 30
+            if user_id in ("user", "master"):
+                try:
+                    profile_path = self.data_dir / "master_profile.json"
+                    if profile_path.exists():
+                        with open(profile_path, "r", encoding="utf-8") as f:
+                            master_data = json.load(f)
+                            score = master_data.get("relationship", {}).get("score")
+                            if score is not None:
+                                initial_affection = int(float(score) * 10)
+                except Exception as e:
+                    logger.warning(f"Failed to read master_profile.json in get_profile: {e}")
+
             self.user_profiles[user_id] = {
-                'affection': 30,
+                'affection': initial_affection,
                 'interests': [],
                 'preferences': {},
                 'first_seen': time.time(),
@@ -653,8 +805,8 @@ if __name__ == "__main__":
     )
 
     # Test conversations
-    mem.add_message("omax", "user", "Hello Aiko!")
-    mem.add_message("omax", "assistant", "Hi Master! How can I help you today?")
+    mem.add_message("master", "user", "Hello Aiko!")
+    mem.add_message("master", "assistant", "Hi Master! How can I help you today?")
 
     # Save everything
     mem.save()
@@ -664,7 +816,7 @@ if __name__ == "__main__":
     print(f"📁 File links saved to: {FILE_LINKS_DIR}")
     print(f"💭 Recent thoughts: {len(mem.get_recent_thoughts())}")
     print(f"🔗 Linked files: {len(mem.file_graph.get_linked_files())}")
-    print(f"💬 Conversations: {len(mem.get_history('omax'))} messages")
+    print(f"💬 Conversations: {len(mem.get_history('master'))} messages")
 
     # Show personality context
     print(f"\n🧠 Personality Context:\n{mem.get_personality_context()}")

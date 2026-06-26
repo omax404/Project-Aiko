@@ -33,8 +33,7 @@ class MemoryManager:
             
         if not os.path.exists(MEMORY_FILE):
             self._cache = {
-                "global": {"history": [], "affection": 0},
-                "omax404": {"history": [], "affection": 100}
+                "global": {"history": [], "affection": 0}
             }
             return self._cache
             
@@ -56,7 +55,7 @@ class MemoryManager:
                 if isinstance(content, list):
                     data[uid] = {
                         "history": content,
-                        "affection": 100 if uid in ["omax404", "master"] else DEFAULT_AFFECTION
+                        "affection": 100 if uid == "master" else DEFAULT_AFFECTION
                     }
                     migrated = True
                     
@@ -144,6 +143,7 @@ class MemoryManager:
     def truncate_history(self, user_id: str, index: int):
         """Trim history to first `index` entries (used for edit-branching)."""
         mem, uid = self.get_user_data(user_id)
+        index = max(0, min(index, len(mem[uid]["history"])))
         mem[uid]["history"] = mem[uid]["history"][:index]
         self.save_memory(mem)
         
@@ -196,12 +196,7 @@ class MemoryManager:
         self.save_memory(mem)
         return True
 
-    def truncate_history(self, user_id: str, index: int):
-        """Remove history items starting from index."""
-        mem, uid = self.get_user_data(user_id)
-        if 0 <= index < len(mem[uid]["history"]):
-            mem[uid]["history"] = mem[uid]["history"][:index]
-            self.save_memory(mem)
+
 
     def get_recent_sessions(self) -> List[Dict]:
         """Get list of all chat sessions sorted by recency."""

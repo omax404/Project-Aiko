@@ -1,5 +1,5 @@
 <div align="center">
-<img width="3114" height="1344" alt="Gemini_Generated_Image_srqtdjsrqtdjsrqt" src="https://github.com/user-attachments/assets/fb4425f7-6108-4eb7-9b41-db4629b33602" />
+<img width="2460" height="1358" alt="aiko" src="https://github.com/user-attachments/assets/0f2dda07-04d4-408d-91ed-9a7deb8cd5be" />
 
 # 💖 Aiko Desktop 🌸
 
@@ -273,8 +273,8 @@ Aiko supports any OpenAI-compatible API. Here are the tested configurations:
 ## 📂 Project Structure
 
 ```
-aiko/
-├── core/                      # 🧠 AI Backend (37 modules)
+Aiko-desktop/
+├── core/                      # 🧠 AI Backend (39 modules)
 │   ├── neural_hub.py          #    Master orchestrator server
 │   ├── chat_engine.py         #    ReAct agent + multimodal LLM
 │   ├── emotion_engine.py      #    Neuromodulator system
@@ -282,25 +282,26 @@ aiko/
 │   ├── voice.py               #    Chunked Pocket-TTS engine
 │   ├── vision.py              #    Gemma-4 image analysis
 │   ├── hearing.py             #    Moonshine/Whisper STT
-│   ├── bot_manager.py         #    Discord + Telegram handler
 │   ├── persona.py             #    Character definition
 │   ├── proactive.py           #    Autonomous agent loop
 │   ├── game_bridge.py         #    Minecraft/Factorio
 │   ├── mcp_bridge.py          #    File system tools
 │   ├── pc_manager.py          #    System control
-│   └── ...                    #    24 more specialized modules
+│   └── ...                    #    26 more specialized modules
 ├── aiko-app/                  # 🖥️ Tauri + React Desktop Overlay
 │   ├── src/                   #    React components (Live2D, Chat)
 │   └── src-tauri/             #    Rust backend
-├── assets/                    # 🎨 Live2D models, fonts, voice samples
-├── data/                      # 💾 Runtime config, memory, knowledge
+├── android/                   # 📱 Kotlin Android App
+│   ├── app/                   #    Android application module
+│   ├── gradlew                #    Gradle build script
+│   └── ...
+├── assets/                    # 🎨 Brand assets, fonts, voice samples
+├── data/                      # 💾 Runtime config, memory, logs, uploads, knowledge
 ├── directives/                # 📋 Skill prompts (coding, language, etc.)
 ├── docs/                      # 📖 Architecture & setup guides
-├── .github/                   # 🔧 Issue templates
-├── start_aiko_tauri.py        # 🚀 Unified launcher
-├── requirements.txt           # 📦 Python dependencies
-├── docker-compose.yml         # 🐳 Container orchestration
-└── Dockerfile                 # 🐳 Container build
+├── stickers/                  # 🌸 Lavender stickers base assets
+├── launch.py                  # 🚀 Unified cross-platform launcher
+└── requirements.txt           # 📦 Python dependencies
 ```
 
 ---
@@ -313,7 +314,6 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 - Live2D model creation
 - VRM support
 - Additional game bridges
-- Mobile app (React Native / Capacitor)
 - Translations
 - Voice model training
 

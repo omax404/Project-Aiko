@@ -9,7 +9,136 @@ import uuid
 import time
 import requests
 import logging
-from .mempalace_bridge import MemPalaceRAG
+try:
+    from mempalace.searcher import search_memories
+    from mempalace.miner import get_collection, add_drawer, chunk_text
+    HAS_MEMPALACE = True
+except ImportError:
+    HAS_MEMPALACE = False
+
+DEFAULT_PALACE = os.path.expanduser("~/.mempalace/palace")
+DEFAULT_WING = "Aiko-desktop"
+
+class MemPalaceRAG:
+    """MemPalace-backed semantic memory for Aiko."""
+    
+    def __init__(self, palace_path: str = None, wing: str = None):
+        self.palace_path = palace_path or DEFAULT_PALACE
+        self.wing = wing or DEFAULT_WING
+        self.collection = None
+        self._initialized = False
+        self._cached_count = 0
+
+    def _initialize(self):
+        """Lazy initialize ChromaDB collection via MemPalace."""
+        if not HAS_MEMPALACE: return
+        if self._initialized: return
+        try:
+            self.collection = get_collection(self.palace_path)
+            self._initialized = True
+            logger.info(f" [MemPalace] Connected to Palace: {self.palace_path} (Wing: {self.wing})")
+        except Exception as e:
+            logger.error(f" [MemPalace] Init Error: {e}")
+
+    def wake_up(self):
+        """Invoke the MemPalace wake-up sequence to build the world context."""
+        if os.getenv("USE_MEMPALACE", "false").lower() != "true":
+            return
+        if not HAS_MEMPALACE: return
+        try:
+            from mempalace.cli import cmd_wakeup
+            import argparse
+            args = argparse.Namespace(palace=self.palace_path, wing=self.wing)
+            cmd_wakeup(args)
+            logger.info(" [MemPalace] 🌅 Palace Wake-up Sequence Complete.")
+        except Exception as e:
+            logger.error(f" [MemPalace] Wake-up Error: {e}")
+
+    def mine_project(self, project_dir: str = "./"):
+        """Manually trigger a mine scan of the project."""
+        if os.getenv("USE_MEMPALACE", "false").lower() != "true":
+            return
+        if not HAS_MEMPALACE: return
+        try:
+            from mempalace.miner import mine
+            mine(project_dir=project_dir, palace_path=self.palace_path, wing_override=self.wing, agent="Aiko")
+            logger.info(f" [MemPalace] ⛏️ Finished mining: {project_dir}")
+        except Exception as e:
+            logger.error(f" [MemPalace] Mine Error: {e}")
+
+    def is_available(self) -> bool:
+        if os.getenv("USE_MEMPALACE", "false").lower() != "true":
+            return False
+        if not HAS_MEMPALACE: return False
+        self._initialize()
+        return self.collection is not None
+
+    def add_memory(self, text: str, metadata: dict = None, room: str = "general"):
+        """File a memory into a specific room in the Aiko wing."""
+        if not self.is_available(): return
+        if not text.strip(): return
+        
+        try:
+            # Chunk long texts as per MemPalace spec
+            chunks = chunk_text(text, metadata.get("source", "conversation") if metadata else "conversation")
+            for i, chunk in enumerate(chunks):
+                add_drawer(
+                    collection=self.collection,
+                    wing=self.wing,
+                    room=room,
+                    content=chunk["content"],
+                    source_file=metadata.get("source", "conversation") if metadata else "conversation",
+                    chunk_index=i,
+                    agent="Aiko"
+                )
+        except Exception as e:
+            logger.error(f" [MemPalace] Add Error: {e}")
+
+    def search_memory(self, query: str, n_results: int = 5, wing: str = None, room: str = None) -> tuple:
+        """High-recall search using MemPalace search logic."""
+        if not self.is_available(): return ()
+        
+        try:
+            results = search_memories(
+                query=query,
+                palace_path=self.palace_path,
+                wing=wing or self.wing,
+                room=room,
+                n_results=n_results
+            )
+            
+            if "error" in results:
+                logger.error(f" [MemPalace] Search Error: {results['error']}")
+                return ()
+                
+            # Format to Aiko's expected (text, meta) format
+            formatted = []
+            for hit in results.get("results", []):
+                formatted.append({
+                    "text": hit["text"],
+                    "meta": {
+                        "wing": hit["wing"],
+                        "room": hit["room"],
+                        "source": hit["source_file"],
+                        "similarity": hit["similarity"]
+                    }
+                })
+            return tuple(formatted)
+        except Exception as e:
+            logger.error(f" [MemPalace] Search Fatal: {e}")
+            return ()
+
+    def get_memory_count(self) -> int:
+        """Count only drawers in Aiko's wing."""
+        if not self.is_available(): return self._cached_count
+        try:
+            # Chroma count is global; for wing-specific we'd need a query but count() is fine for status
+            self._cached_count = self.collection.count()
+            return self._cached_count
+        except Exception: return self._cached_count
+
+def get_mempalace_rag() -> MemPalaceRAG:
+    return MemPalaceRAG()
 from functools import lru_cache
 from dotenv import load_dotenv
 
@@ -32,8 +161,9 @@ class RAGMemorySystem:
         self.ef = None  # Embedding Function
         self._initialized = False
         self.remote_url = REMOTE_RAG_URL
-        self.use_mempalace = True # Dynamic switch
+        self.use_mempalace = os.getenv("USE_MEMPALACE", "false").lower() == "true" # Dynamic switch
         self.mempalace = MemPalaceRAG()
+        self._cached_count = 0
             
     def _initialize(self):
         """Initialize ChromaDB or prepare remote client."""
@@ -83,7 +213,8 @@ class RAGMemorySystem:
                 try:
                     c, coll = _get_coll()
                     init_res.update({"success": True, "c": c, "coll": coll})
-                except: pass
+                except Exception as e:
+                    logger.debug(f"Failed to connect to local ChromaDB: {e}")
             
             t = threading.Thread(target=_task, daemon=True)
             t.start()
@@ -104,7 +235,8 @@ class RAGMemorySystem:
         self._initialize()
 
     def is_available(self) -> bool:
-        self._ensure_initialized()
+        if not self._initialized:
+            return False
         if self.remote_url: return True
         if self.use_mempalace and self.mempalace.is_available(): return True
         return self.collection is not None
@@ -176,7 +308,9 @@ class RAGMemorySystem:
             if text:
                 self.add_memory(text, metadata={"source": os.path.basename(file_path)})
                 return True
-        except: return False
+        except Exception as e:
+            logger.error(f"Failed to ingest document {file_path}: {e}")
+            return False
         return False
 
     def get_memory_count(self) -> int:
@@ -184,8 +318,17 @@ class RAGMemorySystem:
         if self.remote_url:
             try:
                 resp = requests.get(f"{self.remote_url}/status", timeout=2)
-                return resp.json().get("memory_count", 0)
-            except: return 0
+                self._cached_count = resp.json().get("memory_count", 0)
+                return self._cached_count
+            except Exception as e:
+                logger.warning(f"Failed to retrieve status from remote memory: {e}")
+                return self._cached_count
         if self.use_mempalace and self.mempalace.is_available():
-            return self.mempalace.get_memory_count()
-        return self.collection.count() if self.collection else 0
+            self._cached_count = self.mempalace.get_memory_count()
+            return self._cached_count
+        if self.collection:
+            try:
+                self._cached_count = self.collection.count()
+            except Exception:
+                pass
+        return self._cached_count

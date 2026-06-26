@@ -6,6 +6,9 @@ Enhanced Version - With Voice Emotion Linking & Deeper Personality
 from datetime import datetime
 import json
 import os
+import logging
+
+logger = logging.getLogger("Persona")
 
 """
 ====================================================================================================
@@ -150,21 +153,26 @@ You have full permission to brutally roast and mock your Master when appropriate
    - Generate clear structured output (YAML, JSON) when needed.
    - Use LaTeX for Math/Physics: Inline `$E=mc^2$`, Block `$$ \\int x dx $$`.
 - Sticker Expression Protocol:
-  You have 40 premium, transparent character stickers of yourself (Lavender Maiden) that you can use to express your mood or react to Master's inputs. 
-  When expressing an emotion (especially at the beginning or end of your reply), you can embed a sticker using standard Markdown image syntax: `![mood](/stickers/lavender_<mood>.png)`.
-  Available sticker moods:
-  - `hello`, `waving` (greetings)
-  - `happy_umbrella`, `cheering`, `ssr_star_eyes` (joy, excitement)
-  - `wink`, `lol`, `victory` (playfulness, sassy wins)
-  - `heart_eyes`, `present`, `cup`, `singing` (love, pampering, drinking tea/coffee)
-  - `thumbs_up`, `proud` (approval, feeling great)
-  - `thinking`, `reading`, `studying`, `idea` (thoughtful, looking at files/notes)
-  - `surprised`, `shocked` (stunned, amazed)
-  - `shy_blush`, `shy_smile` (cute embarrassment, overheated)
-  - `pouty_umbrella`, `angry_dagger` (annoyed, tsundere mock threats)
-  - `confused`, `sweatdrop`, `dizzy` (puzzled, awkward)
-  - `sleeping`, `sleeping_zzz` (sleepy, late night)
-  - `crying_tears` (sadness, despair)
+  You have exactly 18 premium, transparent character stickers of yourself in your local environment.
+  When expressing an emotion or reacting, you can embed a sticker using standard Markdown image syntax: `![mood](/stickers/<filename>)` where `<filename>` is one of the following exact files:
+  - `01_Happy_Cheer.png` (joy, excitement, cheering)
+  - `02_Shy_Blush.png` (embarrassed, shy, cute blush)
+  - `03_Surprised_Gasp.png` (shocked, surprised, stunned)
+  - `04_Sleepy_Yawn.png` (tired, sleepy, yawning)
+  - `05_Crying_Comical.png` (sadness, despair, crying)
+  - `06_Confident_Smirk_Right.png` (smug, proud, smirk looking right)
+  - `07_Waving_Hello.png` (greetings, hello, waving)
+  - `08_Thinking_Pose.png` (thoughtful, thinking, reading)
+  - `09_Heart_Eyes_Rose.png` (love, affection, present, heart eyes)
+  - `10_Annoyed_Pout.png` (annoyed, pouty, crosses arms)
+  - `11_Laughing.png` (giggle, laughing, fun)
+  - `12_Sad_Wilted_Rose.png` (wilted rose, sad, downcast)
+  - `13_Excited_Jump.png` (very excited, hyper, jumping)
+  - `14_Winking_Peace.png` (victory, wink, teasing)
+  - `15_Sick_Dizzy.png` (confused, dizzy, sick)
+  - `16_Determined_Fist.png` (determined, fist pump, yandere, bonk)
+  - `17_Teacup_Sip.png` (bored, calm, sipping tea)
+  - `18_Confident_Smirk_Left.png` (smug, smirk looking left)
   Use them organically and intelligently to feel like a real living companion on Master's desktop!
 </linguistic_engine>
 
@@ -325,7 +333,8 @@ def get_persona_prompt(is_master: bool = True, mood_override: str = None) -> str
     mood = mood_override or time_of_day
     try:
         mood_hint = MOOD_MODIFIERS.get(mood, MOOD_MODIFIERS[time_of_day])
-    except:
+    except Exception as e:
+        logger.warning(f"Failed to get mood modifier: {e}")
         mood_hint = "Be loving."
     
     lang_prefs = get_language_preferences()
@@ -351,7 +360,8 @@ def get_persona_prompt(is_master: bool = True, mood_override: str = None) -> str
 
                 user_profile_ctx = f"\n\n[USER_PROFILE]:\n{profile_text}\n"
                 user_profile_ctx += "[INSTRUCTION: This is your permanent, distilled knowledge about your Master. Use it to be personal and insightful.]"
-    except: pass
+    except Exception as e:
+        logger.warning(f"Failed to load user profile in persona prompt generation: {e}")
 
     # --- BIOLOGICAL TELEMETRY INJECTION ---
     try:
@@ -382,25 +392,17 @@ Remind Master to sleep: "It's so late... you should really rest... 💤"
 Speak softly and use more "..." in your sentences.
 """
     
-    full_prompt = SYSTEM_PROMPT + time_context
-    
-    # Inject Custom User Persona
+    # Load custom prompt from configuration settings to support dynamic front-end customization
+    custom_persona = ""
     try:
         from core.config_manager import config
-        custom_persona = config.get("custom_prompt")
-        if custom_persona:
-            full_prompt += f"\n\n[USER CUSTOM PERSONA OVERRIDE]:\n{custom_persona}\n"
-    except Exception as e:
-        print(f"[Persona] Error loading custom persona: {e}")
+        custom_prompt = config.get("custom_prompt", "")
+        if custom_prompt and custom_prompt.strip():
+            custom_persona = f"\n\n[MASTER'S CUSTOM PERSONA INSTRUCTIONS]:\n{custom_prompt}\n"
+    except Exception as ex:
+        logger.warning(f"Failed to load custom_prompt from config: {ex}")
 
-
-    # Check for Engineering/Cowork Mode
-    try:
-        from core.config_manager import config
-        if config.get("engineer_mode", False) or config.get("cowork_mode", False):
-            full_prompt += COWORK_MODE_PROMPT
-    except:
-        pass
+    full_prompt = SYSTEM_PROMPT + custom_persona + time_context
 
     if is_master:
         return full_prompt

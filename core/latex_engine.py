@@ -109,7 +109,7 @@ class LatexEngine:
             # Cleanup temp files
             for ext in [".tex", ".pdf", ".log", ".aux"]:
                 try: os.remove(os.path.join(self.output_dir, f"{filename}{ext}"))
-                except: pass
+                except Exception: pass
 
             return png_path, None
 

@@ -11,18 +11,18 @@ export function SkeletonLoader() {
   return (
     <div className="flex flex-col gap-4 ml-2 w-full max-w-[450px]">
       {bars.map((bar, i) => (
-        <div key={i} className="relative overflow-hidden h-3 rounded-full bg-pink-500/5 border border-pink-500/5" style={{ width: bar.width }}>
+        <div key={i} className="relative overflow-hidden h-3 rounded-full bg-[var(--acc)]/5 border border-[var(--acc)]/5" style={{ width: bar.width }}>
           <motion.div
-            animate={{ 
+            animate={{
               opacity: [0.2, 0.4, 0.2],
             }}
-            transition={{ 
-              duration: 3, 
-              repeat: Infinity, 
+            transition={{
+              duration: 3,
+              repeat: Infinity,
               delay: bar.delay,
               ease: "easeInOut"
             }}
-            className="absolute inset-0 bg-pink-500/10 w-full h-full"
+            className="absolute inset-0 bg-[var(--acc)]/10 w-full h-full"
           />
         </div>
       ))}

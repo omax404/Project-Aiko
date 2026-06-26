@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 /* ── Spin slow animation for Live2D HUD ring ── */
@@ -9,38 +10,40 @@
 
 :root {
   /* Surfaces */
-  --bg-base: #0c0b0a;
-  --bg-sidebar: #111009;
-  --bg-elevated: #181612;
-  --bg-card: #1e1b16;
-  --bg-input: #161410;
-  --bg-hover: rgba(255, 255, 255, 0.04);
-  --bg-active: rgba(216, 180, 254, 0.07);
+  --bg-base: #1C1320;
+  --bg-sidebar: #221729;
+  --bg-elevated: #2A1B30;
+  --bg-surface: #2A1B30;
+  --bg-card: #35223D;
+  --bg-input: #241829;
+  --bg-hover: rgba(201, 168, 217, 0.04);
+  --bg-active: rgba(201, 168, 217, 0.07);
 
   /* Text */
-  --t1: #ede8df;
-  --t2: #a89880;
-  --t3: #6b5e50;
+  --t1: #f0ebe3;
+  --t2: #9a8f7e;
+  --t3: #5a5248;
   --t4: #2e2820;
 
-  /* Accent — neon pink/purple */
-  --acc: #ec4899;
-  --acc2: #c084fc;
-  --acc-soft: rgba(236, 72, 153, 0.12);
-  --acc-glow: rgba(236, 72, 153, 0.25);
+  /* Accent — muted lavender */
+  --accent: #C9A8D9;
+  --acc: var(--accent);
+  --acc2: #B490C4;
+  --acc-soft: rgba(201, 168, 217, 0.12);
+  --acc-glow: rgba(201, 168, 217, 0.25);
 
-  /* Borders */
-  --b1: rgba(216, 180, 254, 0.06);
-  --b2: rgba(216, 180, 254, 0.10);
-  --b3: rgba(216, 180, 254, 0.18);
+  /* Borders — neutral, consistent */
+  --b1: rgba(255, 255, 255, 0.06);
+  --b2: rgba(255, 255, 255, 0.10);
+  --b3: rgba(255, 255, 255, 0.18);
 
   /* Status */
   --green: #4ade80;
   --red: #f87171;
 
-  /* Fonts */
-  --font-ui: 'DM Sans', system-ui, sans-serif;
-  --font-brand: 'Pixelify Sans', cursive;
+  /* Fonts — unified to Inter + JetBrains Mono */
+  --font-ui: 'Inter', system-ui, sans-serif;
+  --font-brand: 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
   /* Layout */
@@ -51,12 +54,11 @@
 
   /* Legacy compatibility (bridging to components) */
   --bg-dark: var(--bg-base);
-  --bg-pane: var(--bg-elevated);
+  --bg-pane: var(--bg-surface);
   --bg-glass: var(--bg-active);
-  --primary: var(--acc);
+  --primary: var(--accent);
   --primary-glow: var(--acc-glow);
   --secondary: var(--acc2);
-  --accent: var(--green);
   --border-light: var(--b1);
   --border-accent: var(--b2);
   --text-main: var(--t1);
@@ -152,7 +154,7 @@ body.mascot-mode {
   cursor: grabbing;
 }
 .mascot-model-zone:hover {
-  filter: drop-shadow(0 0 20px rgba(236, 72, 153, 0.15));
+  filter: drop-shadow(0 0 20px rgba(201, 168, 217, 0.15));
 }
 
 /* ── Thinking dots (orbit below model) ── */
@@ -169,7 +171,7 @@ body.mascot-mode {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--acc, #ec4899);
+  background: var(--acc, #C9A8D9);
   animation: mascot-bounce 1.2s ease-in-out infinite;
 }
 .mascot-thinking span:nth-child(2) { animation-delay: 0.15s; }
@@ -190,22 +192,22 @@ body.mascot-mode {
   background: rgba(30, 27, 22, 0.92);
   -webkit-backdrop-filter: blur(16px);
   backdrop-filter: blur(16px);
-  border: 1px solid rgba(216, 180, 254, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px 14px 14px 4px;
   pointer-events: auto;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 .mascot-speech-bubble:hover {
-  border-color: rgba(236, 72, 153, 0.3);
-  background: rgba(30, 27, 22, 0.96);
+  border-color: rgba(201, 168, 217, 0.3);
+  background: rgba(28, 19, 32, 0.96);
 }
 .mascot-speech-bubble p {
   margin: 0;
   font-size: 12px;
   line-height: 1.5;
-  color: #ede8df;
-  font-family: 'DM Sans', system-ui, sans-serif;
+  color: #f0ebe3;
+  font-family: 'Inter', system-ui, sans-serif;
 }
 .mascot-speech-tail {
   position: absolute;
@@ -214,8 +216,8 @@ body.mascot-mode {
   width: 12px;
   height: 12px;
   background: rgba(30, 27, 22, 0.92);
-  border-bottom: 1px solid rgba(216, 180, 254, 0.12);
-  border-left: 1px solid rgba(216, 180, 254, 0.12);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
   transform: rotate(-45deg);
 }
 
@@ -231,7 +233,7 @@ body.mascot-mode {
   background: rgba(17, 16, 9, 0.88);
   -webkit-backdrop-filter: blur(20px);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(216, 180, 254, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 12px;
   pointer-events: auto;
 }
@@ -245,17 +247,17 @@ body.mascot-mode {
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: rgba(168, 152, 128, 0.7);
+  color: rgba(154, 143, 126, 0.7);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 .mascot-btn:hover {
   background: rgba(255, 255, 255, 0.06);
-  color: #ede8df;
+  color: #f0ebe3;
 }
 .mascot-btn-primary:hover {
-  background: rgba(236, 72, 153, 0.2);
-  color: #ec4899;
+  background: rgba(201, 168, 217, 0.2);
+  color: var(--accent);
 }
 .mascot-btn-danger:hover {
   background: rgba(248, 113, 113, 0.15);
@@ -273,7 +275,7 @@ body.mascot-mode {
   background: rgba(17, 16, 9, 0.94);
   -webkit-backdrop-filter: blur(24px);
   backdrop-filter: blur(24px);
-  border: 1px solid rgba(216, 180, 254, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   display: flex;
   flex-direction: column;
@@ -281,7 +283,7 @@ body.mascot-mode {
   pointer-events: auto;
   box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.4),
-    0 0 0 1px rgba(216, 180, 254, 0.05) inset;
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset;
 }
 
 .mascot-chat-header {
@@ -289,7 +291,7 @@ body.mascot-mode {
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  border-bottom: 1px solid rgba(216, 180, 254, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 .mascot-chat-status {
   display: flex;
@@ -297,8 +299,8 @@ body.mascot-mode {
   gap: 8px;
   font-size: 12px;
   font-weight: 600;
-  color: #ede8df;
-  font-family: 'DM Sans', system-ui, sans-serif;
+  color: #f0ebe3;
+  font-family: 'Inter', system-ui, sans-serif;
   letter-spacing: 0.02em;
 }
 .mascot-dot {
@@ -312,7 +314,7 @@ body.mascot-mode {
   box-shadow: 0 0 6px rgba(74, 222, 128, 0.4);
 }
 .mascot-dot.thinking {
-  background: #ec4899;
+  background: var(--accent);
   animation: mascot-pulse 1.5s ease-in-out infinite;
 }
 
@@ -330,7 +332,7 @@ body.mascot-mode {
   border: none;
   border-radius: 6px;
   background: transparent;
-  color: rgba(168, 152, 128, 0.5);
+  color: rgba(154, 143, 126, 0.5);
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -357,31 +359,31 @@ body.mascot-mode {
   border-radius: 12px;
   max-width: 90%;
   word-break: break-word;
-  font-family: 'DM Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
 }
 .mascot-msg.user {
   align-self: flex-end;
-  background: rgba(236, 72, 153, 0.15);
-  border: 1px solid rgba(236, 72, 153, 0.2);
-  color: #ede8df;
+  background: var(--acc-soft);
+  border: 1px solid var(--acc-glow);
+  color: #f0ebe3;
   border-radius: 12px 12px 4px 12px;
 }
 .mascot-msg.assistant {
   align-self: flex-start;
   background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(216, 180, 254, 0.06);
-  color: #a89880;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: #9a8f7e;
   border-radius: 12px 12px 12px 4px;
 }
 .mascot-msg.streaming {
-  color: #ede8df;
+  color: #f0ebe3;
 }
 .mascot-msg.system {
   align-self: center;
   text-align: center;
   background: transparent;
   border: none;
-  color: rgba(168, 152, 128, 0.4);
+  color: rgba(154, 143, 126, 0.4);
   font-size: 10px;
 }
 .mascot-msg.thinking-msg {
@@ -390,11 +392,41 @@ body.mascot-mode {
   padding: 6px 12px;
 }
 
+/* Markdown inside mascot messages */
+.mascot-msg p,
+.mascot-msg span {
+  margin: 0;
+  padding: 0;
+}
+.mascot-msg img {
+  display: inline-block;
+  vertical-align: middle;
+  max-width: 100%;
+}
+.mascot-msg code {
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+.mascot-msg a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.mascot-msg strong {
+  color: #f0ebe3;
+  font-weight: 600;
+}
+.mascot-msg em {
+  color: rgba(154, 143, 126, 0.8);
+  font-style: italic;
+}
+
 .mascot-cursor {
   display: inline-block;
   width: 2px;
   height: 13px;
-  background: var(--acc, #ec4899);
+  background: var(--acc, #C9A8D9);
   margin-left: 2px;
   vertical-align: text-bottom;
   animation: mascot-blink 0.8s step-end infinite;
@@ -414,7 +446,7 @@ body.mascot-mode {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: rgba(168, 152, 128, 0.5);
+  background: rgba(154, 143, 126, 0.5);
   animation: mascot-bounce 1.2s ease-in-out infinite;
 }
 .mascot-thinking-dots span:nth-child(2) { animation-delay: 0.15s; }
@@ -426,18 +458,18 @@ body.mascot-mode {
   align-items: center;
   gap: 6px;
   padding: 8px 10px;
-  border-top: 1px solid rgba(216, 180, 254, 0.06);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .mascot-chat-input {
   flex: 1;
   background: rgba(255, 255, 255, 0.04) !important;
-  border: 1px solid rgba(216, 180, 254, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
   border-radius: 10px !important;
   padding: 8px 12px !important;
   font-size: 12px;
-  color: #ede8df;
-  font-family: 'DM Sans', system-ui, sans-serif;
+  color: #f0ebe3;
+  font-family: 'Inter', system-ui, sans-serif;
   outline: none !important;
   transition: border-color 0.2s ease;
   -webkit-user-select: text;
@@ -445,10 +477,10 @@ body.mascot-mode {
   cursor: text;
 }
 .mascot-chat-input:focus {
-  border-color: rgba(236, 72, 153, 0.3) !important;
+  border-color: rgba(201, 168, 217, 0.3) !important;
 }
 .mascot-chat-input::placeholder {
-  color: rgba(168, 152, 128, 0.35);
+  color: rgba(154, 143, 126, 0.35);
 }
 
 .mascot-send-btn {
@@ -459,8 +491,8 @@ body.mascot-mode {
   height: 32px;
   border: none;
   border-radius: 10px;
-  background: var(--acc, #ec4899);
-  color: #0c0b0a;
+  background: var(--acc, #C9A8D9);
+  color: var(--bg-base);
   cursor: pointer;
   transition: all 0.15s ease;
   flex-shrink: 0;

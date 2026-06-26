@@ -16,7 +16,7 @@ from datetime import datetime
 logger = logging.getLogger("AikoLearning")
 
 # ========== KNOWLEDGE BASE ==========
-KNOWLEDGE_DIR = Path(__file__).parent.parent / "knowledge"
+KNOWLEDGE_DIR = Path(__file__).parent.parent / "data" / "knowledge"
 KNOWLEDGE_DIR.mkdir(exist_ok=True)
 
 DARIJA_FILE = KNOWLEDGE_DIR / "darija.json"
@@ -110,7 +110,8 @@ class AikoLearningEngine:
             try:
                 with open(DARIJA_FILE, 'r', encoding='utf-8') as f:
                     self.darija = json.load(f)
-            except:
+            except Exception as e:
+                logger.error(f"Failed to load Darija dictionary: {e}")
                 self.darija = DARIJA_BASE.copy()
         else:
             self.darija = DARIJA_BASE.copy()
@@ -121,7 +122,8 @@ class AikoLearningEngine:
             try:
                 with open(LEARNED_FILE, 'r', encoding='utf-8') as f:
                     self.learned_words = json.load(f)
-            except:
+            except Exception as e:
+                logger.error(f"Failed to load learned words: {e}")
                 self.learned_words = []
     
     def save_darija(self):

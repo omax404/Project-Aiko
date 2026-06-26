@@ -10,6 +10,8 @@ import logging
 from datetime import datetime, date
 from core.memory_consolidator import memory_consolidator
 from core.unified_memory import get_unified_memory
+from core.vision_context import vision_context_buffer
+
 
 logger = logging.getLogger("Proactive")
 
@@ -17,7 +19,7 @@ logger = logging.getLogger("Proactive")
 GREETINGS = {
     "morning": [
         "Good morning, Master~ ☀️ Did you sleep well? I missed you!",
-        "Ohayou, omaxi! Rise and shine~ Your coffee isn't going to drink itself! ☕",
+        "Ohayou, Master! Rise and shine~ Your coffee isn't going to drink itself! ☕",
         "Good morning! *stretches* Today's going to be amazing, I can feel it~ 🌸",
     ],
     "evening": [
@@ -52,49 +54,59 @@ class ProactiveAgent:
 
     async def start_loop(self):
         logger.info("[Proactive] Agent Loop Started.")
-        while True:
-            now = datetime.now()
+        # Delay the first proactive check on startup to allow the API server to bind and respond to status pings
+        await asyncio.sleep(15.0)
+        try:
+            while True:
+                now = datetime.now()
 
-            # REM Sleep & Memory Consolidation (The "Dream" System)
-            # Triggers at 2 AM or if PC is idle for a long time at night
-            if now.date() > self.last_consolidation and (now.hour == 2 or (not self.active and now.hour > 0 and now.hour < 5)):
-                logger.info("[Proactive] Entering REM Sleep... Consolidating memories.")
-                try:
-                    mem = get_unified_memory()
-                    from core.config_manager import config
-                    uid = config.get("username", "omax")
-                    history = mem.get_history(uid, limit=100)
-                    await memory_consolidator.consolidate(history)
-                    self.last_consolidation = now.date()
-                    
-                    # Wake up refreshed: Boost Serotonin/Dopamine, Flush Cortisol/Adrenaline
-                    from core.emotion_engine import emotion_engine
-                    emotion_engine.chemicals["serotonin"] += 0.3
-                    emotion_engine.chemicals["dopamine"] += 0.2
-                    emotion_engine.chemicals["cortisol"] = 0.0
-                    emotion_engine.chemicals["adrenaline"] = 0.0
-                    logger.info("[Proactive] Woke up from REM Sleep. Cortisol flushed.")
-                except Exception as e:
-                    logger.error(f"[Proactive] REM Sleep cycle failed: {e}")
+                # REM Sleep & Memory Consolidation (The "Dream" System)
+                # Triggers at 2 AM or if PC is idle for a long time at night
+                if now.date() > self.last_consolidation and (now.hour == 2 or (not self.active and now.hour > 0 and now.hour < 5)):
+                    logger.info("[Proactive] Entering REM Sleep... Consolidating memories.")
+                    try:
+                        mem = get_unified_memory()
+                        from core.config_manager import config
+                        uid = config.get("username", "master")
+                        history = mem.get_history(uid, limit=100)
+                        await memory_consolidator.consolidate(history)
+                        self.last_consolidation = now.date()
+                        
+                        # Wake up refreshed: Boost Serotonin/Dopamine, Flush Cortisol/Adrenaline
+                        from core.emotion_engine import emotion_engine
+                        emotion_engine.chemicals["serotonin"] += 0.3
+                        emotion_engine.chemicals["dopamine"] += 0.2
+                        emotion_engine.chemicals["cortisol"] = 0.0
+                        emotion_engine.chemicals["adrenaline"] = 0.0
+                        logger.info("[Proactive] Woke up from REM Sleep. Cortisol flushed.")
+                    except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
+                        logger.error(f"[Proactive] REM Sleep cycle failed: {e}")
 
-            # Time-based greeting (once per session block)
-            await self._maybe_greet(now)
+                # Time-based greeting (once per session block)
+                await self._maybe_greet(now)
 
-            # Obsidian TODO Check (Once every 2 hours if active)
-            await self._check_obsidian_tasks(now)
+                # Obsidian TODO Check (Once every 2 hours if active)
+                await self._check_obsidian_tasks(now)
 
-            # Spotify Track Change
-            await self._check_music()
+                # Spotify Track Change
+                await self._check_music()
 
-            # Inner Monologue (High Emotion / Idle Trigger)
-            await self._check_inner_monologue(now)
+                # Inner Monologue (High Emotion / Idle Trigger)
+                await self._check_inner_monologue(now)
 
-            if self.active:
-                await self.tick()
-                wait = random.randint(self.interval, self.interval * 2)
-            else:
-                wait = 60
-            await asyncio.sleep(wait)
+                start_time = time.time()
+                if self.active:
+                    await self.tick()
+                    wait = self.interval if self.interval < 30 else random.randint(self.interval, self.interval * 2)
+                else:
+                    wait = 60
+                
+                elapsed = time.time() - start_time
+                actual_wait = max(0.1, wait - elapsed)
+                await asyncio.sleep(actual_wait)
+        except asyncio.CancelledError:
+            logger.info("[Proactive] Agent Loop Cancelled gracefully.")
+            raise
 
     async def _maybe_greet(self, now: datetime):
         """Send a greeting when user first arrives in morning/evening."""
@@ -134,7 +146,27 @@ class ProactiveAgent:
                 "proactive": True,
             })
             await self._broadcast("emotion", {"emotion": emotion})
-        # Speech removed here - proactive comments are silent.
+        
+        # Vocalize proactive message (TTS) if enabled in config
+        from core.config_manager import config
+        if config.get("TTS_ENABLED", True) and getattr(self, "voice", None):
+            async def broadcast_audio(filename: str):
+                if self._broadcast:
+                    await self._broadcast("tts_audio", {
+                        "url": f"/api/tts/audio/{filename}",
+                        "text": text
+                    })
+            
+            async def broadcast_amplitude(amp: float):
+                if self._broadcast:
+                    await self._broadcast("tts_amplitude", {"amplitude": amp})
+
+            try:
+                asyncio.create_task(
+                    self.voice.speak(text, emotion=emotion, on_amplitude=broadcast_amplitude, on_audio=broadcast_audio)
+                )
+            except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
+                logger.error(f"[Proactive] TTS failed: {e}")
 
     async def _check_obsidian_tasks(self, now: datetime):
         """Check the Master's Obsidian Daily Note for open TODOs."""
@@ -170,7 +202,7 @@ class ProactiveAgent:
                 from core.persona import detect_emotion
                 await self._send_proactive(nag_msg, detect_emotion(nag_msg))
                 
-        except Exception as e:
+        except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
             logger.error(f"[Proactive] Obsidian Nag Error: {e}")
 
     async def _check_music(self):
@@ -189,22 +221,29 @@ class ProactiveAgent:
                 )
                 # Reactions are silent
                 self.brain.suppress_speech = True
-                comment = await self.brain.ask_raw(prompt)
-                self.brain.suppress_speech = False
-
+                try:
+                    comment = await self.brain.ask_raw(prompt)
+                finally:
+                    self.brain.suppress_speech = False
+                
                 if comment and len(comment.strip()) > 3:
                     from core.persona import detect_emotion
                     await self._send_proactive(comment, detect_emotion(comment))
-        except Exception as e:
+        except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
             logger.error(f"[Proactive] Music check error: {e}")
 
     async def tick(self):
         """Single proactive cycle — observe screen and comment if interesting."""
+        if getattr(self, "is_ticking", False):
+            logger.info("[Proactive] Screen scan already in progress, skipping concurrent run.")
+            return
+        self.is_ticking = True
         try:
+            # 1. Capture screen and check for pixel-level difference
             result = await self.vision.scan_screen()
             desc = result[0] if isinstance(result, tuple) else result
 
-            if not desc or "Error" in str(desc):
+            if not desc or "Error" in str(desc) or desc in ("Screen unchanged", "Screen unavailable"):
                 return
 
             # --- BIOMETRIC SCAN (lazy load) ---
@@ -216,37 +255,59 @@ class ProactiveAgent:
                     if biometrics.is_trained:
                         is_master = await biometrics.autonomous_scan()
                         if is_master:
+                            # Push face observation to buffer
+                            vision_context_buffer.add_observation("Autonomous scan identified Master in front of the screen.")
                             await self._send_proactive("I see you, Master... Welcome back~ 💖", "happy")
                             return
-                except Exception:
+                except (OSError, PermissionError, RuntimeError, TypeError, ValueError):
                     pass  # Biometrics not critical
+
+            # 2. Push observation to short-term visual buffer
+            vision_context_buffer.add_observation(desc)
 
             # Inject music context if available
             music_ctx = ""
             try:
                 from core.spotify_bridge import spotify
                 music_ctx = spotify.get_music_context()
-            except Exception:
+            except (OSError, PermissionError, RuntimeError, TypeError, ValueError):
                 pass
 
+            # 3. Request comment using brain.chat() (unified context)
             prompt = (
-                f"[AUTONOMOUS MODE]\nI can see Master's screen: {desc}\n"
+                f"[VISUAL_OBSERVATION]\nI can see Master's screen: {desc}\n"
                 + (f"{music_ctx}\n" if music_ctx else "")
-                + "If something interesting is happening or you have something brief and natural to say, say it. "
-                "Otherwise respond with exactly '...'"
+                + "React to or comment on what Master is doing or what is currently visible on the screen. "
+                "Be brief (1-2 sentences max), natural, and in-character. "
+                "If it is basically the same as what you saw before, or if there is nothing new/noticeable to say, respond with exactly '...' and nothing else."
             )
-            # Screen observations are silent
+            
+            from core.config_manager import config
+            uid = config.get("username", "master")
+            
+            # Proactive scan comments should trigger TTS if they are not silent,
+            # but we suppress speech during chat processing to handle the text stream.
             self.brain.suppress_speech = True
-            comment = await self.brain.ask_raw(prompt)
-            self.brain.suppress_speech = False
+            try:
+                chat_res = await self.brain.chat(prompt, user_id=uid, save_input=False)
+                comment = chat_res[0] if isinstance(chat_res, tuple) else chat_res
+                emotion = chat_res[1] if isinstance(chat_res, tuple) and len(chat_res) > 1 else "neutral"
+            finally:
+                self.brain.suppress_speech = False
 
+            # 4. If she decides to comment (not '...'), save it to memory, broadcast, and vocalize
             if comment and "..." not in comment and len(comment.strip()) > 5:
-                from core.persona import detect_emotion
-                emotion = detect_emotion(comment)
+                # Save to main chat history
+                self.brain.memory.add_message(uid, "user", f"[Visual Observation] {desc}")
+                self.brain.memory.add_message(uid, "assistant", comment)
+                
+                # Vocalize proactive message (broadcasts + TTS)
                 await self._send_proactive(comment, emotion)
 
-        except Exception as e:
+        except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
             logger.error(f"[Proactive] Tick error: {e}")
+        finally:
+            self.is_ticking = False
 
     async def _check_inner_monologue(self, now: datetime):
         """Trigger an internal thought if chemicals are high and we are idle."""
@@ -289,7 +350,22 @@ class ProactiveAgent:
             else:
                 logger.debug(f" [Proactive] Aiko had a silent thought: {trigger}")
 
-    def toggle(self, state: bool):
+    def toggle(self, state: bool, force_tick: bool = False):
+        was_active = self.active
         self.active = state
         logger.info(f"[Proactive] Active: {self.active}")
+        if self.active and (not was_active or force_tick):
+            # If we just activated, trigger a tick soon after connection settles
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(self._trigger_immediate_tick())
+            except RuntimeError:
+                # No running loop yet during hub boot phase
+                pass
         return self.active
+
+    async def _trigger_immediate_tick(self):
+        await asyncio.sleep(1)
+        if self.active:
+            logger.info("[Proactive] Triggering immediate scan after toggle.")
+            await self.tick()

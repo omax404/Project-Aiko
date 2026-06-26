@@ -26,6 +26,82 @@ try:
 except ImportError:
     HAS_SR = False
 
+if HAS_SR:
+    try:
+        import pyaudio
+    except ImportError:
+        logger.info("PyAudio not found. Injecting SoundDeviceMicrophone adapter for SpeechRecognition fallback.")
+        import queue
+        import sounddevice as sd
+        import numpy as np
+
+        class SoundDeviceMicrophone(sr.AudioSource):
+            def __init__(self, device_index=None, sample_rate=None, chunk_size=1024):
+                self.device_index = device_index
+                if sample_rate is None:
+                    try:
+                        device_info = sd.query_devices(device_index, 'input')
+                        sample_rate = int(device_info['default_samplerate'])
+                    except Exception:
+                        sample_rate = 16000
+                self.SAMPLE_RATE = sample_rate
+                self.CHUNK = chunk_size
+                self.SAMPLE_WIDTH = 2
+                self.stream = None
+
+            def __enter__(self):
+                assert self.stream is None, "This audio source is already inside a context manager"
+                self.stream = self.MicrophoneStream(self.device_index, self.SAMPLE_RATE, self.CHUNK)
+                return self
+
+            def __exit__(self, exc_type, exc_value, traceback):
+                if self.stream is not None:
+                    self.stream.close()
+                    self.stream = None
+
+            class MicrophoneStream:
+                def __init__(self, device, sample_rate, chunk_size):
+                    self.device = device
+                    self.sample_rate = sample_rate
+                    self.chunk_size = chunk_size
+                    self._queue = queue.Queue()
+                    self._buffer = bytearray()
+                    
+                    def callback(indata, frames, time, status):
+                        self._queue.put(indata.copy())
+                        
+                    self.sd_stream = sd.InputStream(
+                        device=self.device,
+                        channels=1,
+                        samplerate=self.sample_rate,
+                        blocksize=self.chunk_size,
+                        dtype='int16',
+                        callback=callback
+                    )
+                    self.sd_stream.start()
+
+                def read(self, size):
+                    needed_bytes = size * 2
+                    while len(self._buffer) < needed_bytes:
+                        try:
+                            chunk = self._queue.get(timeout=2.0)
+                            self._buffer.extend(chunk.tobytes())
+                        except queue.Empty:
+                            break
+                    result = self._buffer[:needed_bytes]
+                    del self._buffer[:needed_bytes]
+                    return bytes(result)
+
+                def close(self):
+                    try:
+                        self.sd_stream.stop()
+                        self.sd_stream.close()
+                    except Exception:
+                        pass
+
+        sr.Microphone = SoundDeviceMicrophone
+
+
 
 class HearingEngine:
     def __init__(self):

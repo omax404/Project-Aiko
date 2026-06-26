@@ -79,7 +79,7 @@ def _warmup_tts():
                     logger.info(f"💾 Voice fingerprint cached to {cache_path}")
                     
                 logger.info(f"✅ Pocket-TTS ready (clone: {os.path.basename(clone_path)})")
-            except Exception as clone_err:
+            except (ImportError, RuntimeError, OSError, ValueError) as clone_err:
                 logger.warning(f"[Voice] Voice cloning unavailable ({clone_err}), falling back to built-in voice.")
                 _voice_state = _tts_model.get_state_for_audio_prompt("alba")
                 logger.info("✅ Pocket-TTS ready (fallback voice: alba)")
@@ -87,7 +87,7 @@ def _warmup_tts():
             _voice_state = _tts_model.get_state_for_audio_prompt("alba")
             logger.info("✅ Pocket-TTS ready (voice: alba)")
 
-    except Exception as e:
+    except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
         logger.warning(f"[Voice] Pocket-TTS init failed: {e}")
         _tts_failed = True
     finally:
@@ -210,7 +210,7 @@ class VoiceEngine:
                     path = os.path.join(self.output_dir, filename)
                     if os.path.isfile(path) and (now - os.path.getmtime(path)) > 3600:
                         os.remove(path)
-        except Exception:
+        except (OSError, PermissionError, RuntimeError, TypeError, ValueError):
             pass
 
     async def speak(self, text: str, emotion: str = "neutral", on_audio=None, **kwargs):
@@ -258,7 +258,7 @@ class VoiceEngine:
                             pause = np.zeros(int(_tts_model.sample_rate * 0.15), dtype=audio_np.dtype)
                             audio_segments.append(pause)
 
-                    except Exception as chunk_err:
+                    except (RuntimeError, ValueError, OSError) as chunk_err:
                         logger.warning(f"[Voice] Chunk {i+1} failed: {chunk_err}")
                         continue
 
@@ -281,7 +281,7 @@ class VoiceEngine:
                 logger.info(f"✅ Audio saved: {filename} ({duration_s:.1f}s, 0.9x speed (pitch drop), {len(chunks)} chunks)")
                 return filename
 
-            except Exception as e:
+            except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
                 logger.error(f"❌ Pocket-TTS error: {e}")
                 return None
             finally:
@@ -315,7 +315,7 @@ class VoiceEngine:
                         audio.export(wav_path, format='wav')
                     except ImportError:
                         logger.warning("[Voice] pydub not installed, trying direct WAV read")
-                    except Exception as conv_err:
+                    except (RuntimeError, OSError, ValueError) as conv_err:
                         logger.warning(f"[Voice] Audio conversion failed: {conv_err}")
                         return None
 
@@ -325,13 +325,13 @@ class VoiceEngine:
                 # Try Whisper first (local), then Google (online)
                 try:
                     text = recognizer.recognize_whisper(audio_data, model="base")
-                except Exception:
+                except (OSError, PermissionError, RuntimeError, TypeError, ValueError):
                     text = recognizer.recognize_google(audio_data)
 
                 logger.info(f"[Voice] Transcribed: '{text[:60]}...'")
                 return text
 
-            except Exception as e:
+            except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
                 logger.error(f"[Voice] Transcription error: {e}")
                 return None
 

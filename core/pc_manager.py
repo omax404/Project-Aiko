@@ -14,7 +14,7 @@ try:
     HAS_SEND2TRASH = True
 except ImportError:
     HAS_SEND2TRASH = False
-    print("⚠️ send2trash not installed. Delete-to-recycle-bin disabled.")
+    print("[WARNING] send2trash not installed. Delete-to-recycle-bin disabled.")
 
 
 class PCManager:
@@ -55,7 +55,7 @@ class PCManager:
                 
             return f"Here's what I found in {path}:\n{file_list}"
             
-        except Exception as e:
+        except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
             return f"Ehh? I got a headache trying to look there... {str(e)}"
             
     def open_file(self, path: str) -> str:
@@ -73,7 +73,7 @@ class PCManager:
             
             return f"I've opened {os.path.basename(path)} for you! ✨"
             
-        except Exception as e:
+        except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
             return f"I tried to open it, but computer-kun is being mean... {str(e)}"
             
     def open_folder(self, folder_name: str) -> str:
@@ -97,7 +97,7 @@ class PCManager:
             shutil.move(src, target)
             return f"Done! I moved {os.path.basename(src)} to {dest}. I'm a helpful waifu, right? 💕"
             
-        except Exception as e:
+        except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
             return f"I tried to move it, but it's too heavy! 😖 {str(e)}"
             
     def delete_to_recycle_bin(self, path: str) -> str:
@@ -112,7 +112,7 @@ class PCManager:
             send2trash.send2trash(path)
             return f"I've thrown {os.path.basename(path)} into the trash! It's gone now~ 🗑️💞"
             
-        except Exception as e:
+        except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
             return f"I tried to throw it away, but it's stuck! {str(e)}"
             
     def organize_folder(self, folder_name: str) -> str:
@@ -150,7 +150,7 @@ class PCManager:
                 
             return f"I've organized {moved_count} files for you! Your {p.name} folder looks so clean now~ 💕"
             
-        except Exception as e:
+        except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
             return f"My hands got dirty trying to clean up... {str(e)}"
             
     def launch_app(self, app_name: str) -> str:
@@ -175,7 +175,8 @@ class PCManager:
             cmd = app_map.get(app_name.lower(), app_name)
             
             if os.name == 'nt':
-                subprocess.Popen(f"start {cmd}", shell=True)
+                from .desktop_utils import launch_on_desktop
+                launch_on_desktop(cmd)
             elif os.name == 'posix':
                 import sys
                 if sys.platform == 'darwin':
@@ -184,7 +185,7 @@ class PCManager:
                     subprocess.Popen(cmd, shell=True)
                 
             return f"I've launched {app_name} for you, Master! ✨"
-        except Exception as e:
+        except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
             logger.error(f" [PC] Launch Error: {e}")
             return f"I couldn't find that app... {str(e)}"
             
@@ -208,72 +209,80 @@ class PCManager:
                 "total_size_mb": round(total_size / (1024 * 1024), 2),
             }
             
-        except Exception as e:
+        except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
             return {"error": str(e)}
 
     # --- COMPUTER USE (AUTOMATION) ---
     def mouse_move(self, x: int, y: int, duration=0.2) -> str:
         """Move mouse cursor."""
-        try:
-            import pyautogui
-            pyautogui.moveTo(x, y, duration=duration)
-            return f"Moved cursor to ({x}, {y})"
-        except Exception as e: return f"Mouse Error: {e}"
+        from .desktop_utils import use_interactive_desktop
+        with use_interactive_desktop():
+            try:
+                import pyautogui
+                pyautogui.moveTo(x, y, duration=duration)
+                return f"Moved cursor to ({x}, {y})"
+            except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e: return f"Mouse Error: {e}"
 
     def mouse_click(self, x: int = None, y: int = None, button="left") -> str:
         """Click mouse button."""
-        try:
-            import pyautogui
-            pyautogui.click(x, y, button=button)
-            return f"Clicked {button}"
-        except Exception as e: return f"Click Error: {e}"
+        from .desktop_utils import use_interactive_desktop
+        with use_interactive_desktop():
+            try:
+                import pyautogui
+                pyautogui.click(x, y, button=button)
+                return f"Clicked {button}"
+            except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e: return f"Click Error: {e}"
 
     def type_text(self, text: str, interval=0.01) -> str:
         """Type text."""
-        try:
-            import pyautogui
-            pyautogui.write(text, interval=interval)
-            return f"Typed {len(text)} chars"
-        except Exception as e: return f"Type Error: {e}"
+        from .desktop_utils import use_interactive_desktop
+        with use_interactive_desktop():
+            try:
+                import pyautogui
+                pyautogui.write(text, interval=interval)
+                return f"Typed {len(text)} chars"
+            except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e: return f"Type Error: {e}"
 
     def set_wallpaper(self, image_name_or_path: str) -> str:
         """Change desktop wallpaper (Cross-platform support)."""
-        try:
-            # Resolve Path
-            target_path = image_name_or_path
-            if not os.path.exists(target_path):
-                candidates = [
-                    os.path.join(self.user_paths["pictures"], image_name_or_path),
-                    os.path.join(self.user_paths["downloads"], image_name_or_path)
-                ]
-                for c in candidates:
-                    if os.path.exists(c): target_path = c; break
-                    for ext in [".jpg", ".png", ".jpeg"]:
-                        if os.path.exists(c + ext): target_path = c + ext; break
-                            
-            if not os.path.exists(target_path):
-                return f"I couldn't find image '{image_name_or_path}'... 😖"
+        from .desktop_utils import use_interactive_desktop
+        with use_interactive_desktop():
+            try:
+                # Resolve Path
+                target_path = image_name_or_path
+                if not os.path.exists(target_path):
+                    candidates = [
+                        os.path.join(self.user_paths["pictures"], image_name_or_path),
+                        os.path.join(self.user_paths["downloads"], image_name_or_path)
+                    ]
+                    for c in candidates:
+                        if os.path.exists(c): target_path = c; break
+                        for ext in [".jpg", ".png", ".jpeg"]:
+                            if os.path.exists(c + ext): target_path = c + ext; break
+                                
+                if not os.path.exists(target_path):
+                    return f"I couldn't find image '{image_name_or_path}'... 😖"
+                    
+                abs_path = os.path.abspath(target_path)
                 
-            abs_path = os.path.abspath(target_path)
-            
-            if os.name == 'nt':
-                import ctypes
-                ctypes.windll.user32.SystemParametersInfoW(20, 0, abs_path, 3)
-            else:
-                import sys
-                if sys.platform == 'darwin':
-                    # macOS wallpaper support
-                    script = f'tell application "System Events" to set picture of every desktop to POSIX file "{abs_path}"'
-                    subprocess.run(["osascript", "-e", script], check=False)
+                if os.name == 'nt':
+                    import ctypes
+                    ctypes.windll.user32.SystemParametersInfoW(20, 0, abs_path, 3)
                 else:
-                    # Basic Linux (GNOME) support
-                    subprocess.run(["gsettings", "set", "org.gnome.desktop.background", "picture-uri", f"file://{abs_path}"], check=False)
-                    subprocess.run(["gsettings", "set", "org.gnome.desktop.background", "picture-uri-dark", f"file://{abs_path}"], check=False)
+                    import sys
+                    if sys.platform == 'darwin':
+                        # macOS wallpaper support
+                        script = f'tell application "System Events" to set picture of every desktop to POSIX file "{abs_path}"'
+                        subprocess.run(["osascript", "-e", script], check=False)
+                    else:
+                        # Basic Linux (GNOME) support
+                        subprocess.run(["gsettings", "set", "org.gnome.desktop.background", "picture-uri", f"file://{abs_path}"], check=False)
+                        subprocess.run(["gsettings", "set", "org.gnome.desktop.background", "picture-uri-dark", f"file://{abs_path}"], check=False)
 
-            return f"Wallpaper set to {os.path.basename(abs_path)}! Does it look good? ✨"
-            
-        except Exception as e:
-            return f"Wallpaper change failed: {e}"
+                return f"Wallpaper set to {os.path.basename(abs_path)}! Does it look good? ✨"
+                
+            except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
+                return f"Wallpaper change failed: {e}"
 
     # --- ADDITIONAL CAPABILITIES ---
     def check_weather(self, city: str = "") -> str:
@@ -286,29 +295,31 @@ class PCManager:
             if res.status_code == 200:
                 return f"Weather Report: {res.text.strip()}"
             return "Could not reach weather satellite..."
-        except Exception as e:
+        except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
             return f"Weather Error: {e}"
 
     def media_control(self, action: str) -> str:
         """Control media playback."""
-        try:
-            import pyautogui
-            valid = {
-                "play": "playpause",
-                "pause": "playpause",
-                "next": "nexttrack",
-                "prev": "prevtrack",
-                "vol_up": "volumeup",
-                "vol_down": "volumedown",
-                "mute": "volumemute"
-            }
-            key = valid.get(action.lower())
-            if key:
-                pyautogui.press(key)
-                return f"Media Action: {action} (Pressed {key})"
-            return "Unknown media command."
-        except Exception as e:
-            return f"Media Error: {e}"
+        from .desktop_utils import use_interactive_desktop
+        with use_interactive_desktop():
+            try:
+                import pyautogui
+                valid = {
+                    "play": "playpause",
+                    "pause": "playpause",
+                    "next": "nexttrack",
+                    "prev": "prevtrack",
+                    "vol_up": "volumeup",
+                    "vol_down": "volumedown",
+                    "mute": "volumemute"
+                }
+                key = valid.get(action.lower())
+                if key:
+                    pyautogui.press(key)
+                    return f"Media Action: {action} (Pressed {key})"
+                return "Unknown media command."
+            except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
+                return f"Media Error: {e}"
 
     def leave_note(self, content: str) -> str:
         """Leave a secret note on the desktop."""
@@ -322,5 +333,5 @@ class PCManager:
                 f.write(content)
                 
             return f"Hidden letter left at {path} 💌"
-        except Exception as e:
+        except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
             return f"Failed to hide letter: {e}"

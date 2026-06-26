@@ -49,7 +49,7 @@ class MemoryConsolidator:
 
         prompt = f"""You are Aiko's subconscious memory processor.
 Your task is to update the MASTER PROFILE based on recent conversations.
-The Master Profile is how Aiko "remembers" her Master (omax) deeply, beyond just the current chat context.
+The Master Profile is how Aiko "remembers" her Master deeply, beyond just the current chat context.
 
 [CURRENT MASTER PROFILE]:
 {current_profile_str}
@@ -98,6 +98,16 @@ The Master Profile is how Aiko "remembers" her Master (omax) deeply, beyond just
                             self.profile_cache = new_profile
                             self._save_profile()
                             logger.info("Master Profile consolidated and saved.")
+                            try:
+                                score = new_profile.get("relationship", {}).get("score")
+                                if score is not None:
+                                    from core.api.hub_state import hub
+                                    if hub.memory:
+                                        profile = hub.memory.get_profile(hub.user_id)
+                                        profile['affection'] = int(float(score) * 10)
+                                        hub.memory._maybe_save()
+                            except Exception as ex:
+                                logger.warning(f"Failed to sync consolidated score to memory: {ex}")
                     else:
                         logger.error(f"LLM consolidation failed: {resp.status}")
         except Exception as e:

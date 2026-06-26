@@ -121,6 +121,7 @@ let reconnectAttempts = 0;
 const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI__;
 let hubUrl = isTauri ? 'http://127.0.0.1:8000' : (typeof window !== 'undefined' ? window.location.origin : 'http://127.0.0.1:8000');
 let isConnecting = false;
+let globalAudioCtx: AudioContext | null = null;
 
 function scheduleReconnect() {
   if (reconnectTimer) return;
@@ -134,6 +135,10 @@ function scheduleReconnect() {
 }
 
 function connectSocket() {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
   const wsUrl = hubUrl.replace('http', 'ws') + '/ws';
 
   if (socket) {
@@ -162,6 +167,18 @@ function connectSocket() {
       reconnectAttempts = 0;
       useNeuralStore.setState({ bridgeStatus: { status: 'connected', latency: 0, lastSeen: new Date().toISOString() } });
       
+      // Sync initial visionStreamActive state to backend
+      const active = useNeuralStore.getState().visionStreamActive;
+      console.log(`[Aiko] Syncing initial visionStreamActive state to backend: ${active}`);
+      if (socket) {
+        socket.send(JSON.stringify({
+          type: 'system',
+          action: 'proactive_toggle',
+          state: active,
+          interval: active ? 10 : 180
+        }));
+      }
+
       // Heartbeat to keep connection alive
       heartbeatInterval = setInterval(() => {
         if (socket?.readyState === WebSocket.OPEN) {
@@ -213,8 +230,14 @@ function connectSocket() {
             audio.crossOrigin = "anonymous";
             
             try {
-              const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-              const audioCtx = new AudioContext();
+              if (!globalAudioCtx) {
+                const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+                globalAudioCtx = new AudioContextClass();
+              }
+              const audioCtx = globalAudioCtx;
+              if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+              }
               const source = audioCtx.createMediaElementSource(audio);
               const analyser = audioCtx.createAnalyser();
               analyser.fftSize = 256;
@@ -245,7 +268,10 @@ function connectSocket() {
               audio.onended = () => {
                 if (animationId) cancelAnimationFrame(animationId);
                 useNeuralStore.setState({ isTalking: false, amplitude: 0 });
-                audioCtx.close(); // Clean up context
+                try {
+                  source.disconnect();
+                  analyser.disconnect();
+                } catch (_) {}
               };
             } catch (e) {
               console.error("[TTS] WebAudio failed, using basic playback:", e);
@@ -257,9 +283,18 @@ function connectSocket() {
           }
           case 'chat_end': {
             const store2 = useNeuralStore.getState();
-            const finalContent = store2.streamingContent.trim() || data.text || data.content || '';
+            const isProactive = data.proactive === true;
+            // For proactive messages (no chat_start was sent), use the event's own text.
+            // For streamed messages, prefer accumulated streamingContent.
+            const finalContent = isProactive
+              ? (data.text || data.content || '').trim()
+              : (store2.streamingContent.trim() || data.text || data.content || '');
             const emotion = data.emotion || 'neutral';
-            if (!finalContent) break;
+            if (!finalContent) {
+              // Clear streaming state even if content is empty
+              useNeuralStore.setState({ streamingContent: '', streamingId: null, isThinking: false });
+              break;
+            }
             const newMessage: Message = {
               role: 'assistant',
               content: finalContent,
@@ -391,7 +426,7 @@ export const useNeuralStore = create<NeuralState>()(
         points: 1250
       },
       isSidebarOpen: true,
-      themeColor: '#ec4899',
+      themeColor: '#C9A8D9',
       dynamicsIntensity: 80,
       showAnimatedAssets: true,
       avatarScale: 1.0,
@@ -449,7 +484,7 @@ export const useNeuralStore = create<NeuralState>()(
           fetch(`${hubUrl}/api/chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: content, user_id: 'omax' })
+            body: JSON.stringify({ message: content, user_id: 'master', attachments: attachments })
           })
           .then(r => r.json())
           .then(data => {
@@ -673,7 +708,11 @@ export const useNeuralStore = create<NeuralState>()(
               provider: data.PROVIDER || state.apiConfig.provider,
               apiKey: data.API_KEY || data.DEEPSEEK_API_KEY || data.GEMINI_API_KEY || state.apiConfig.apiKey,
               model: data.MODEL_NAME || state.apiConfig.model,
-            }
+            },
+            themeColor: data.appearance?.theme_color || data.theme_color || state.themeColor,
+            avatarScale: data.appearance?.avatar_scale || data.avatar_scale || state.avatarScale,
+            dynamicsIntensity: data.appearance?.dynamics_intensity || data.dynamics_intensity || state.dynamicsIntensity,
+            showAnimatedAssets: data.appearance?.show_animated_assets !== undefined ? data.appearance.show_animated_assets : (data.show_animated_assets !== undefined ? data.show_animated_assets : state.showAnimatedAssets),
           }));
         } catch (e) {
           console.error("Failed to fetch settings", e);
@@ -707,7 +746,7 @@ export const useNeuralStore = create<NeuralState>()(
             type: 'system',
             action: 'proactive_toggle',
             state: active,
-            interval: active ? 12 : 180
+            interval: active ? 10 : 180
           }));
         }
       }

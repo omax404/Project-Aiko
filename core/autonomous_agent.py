@@ -142,7 +142,7 @@ class AutonomousAgent:
                 await self._one_cycle()
             except asyncio.CancelledError:
                 break
-            except Exception as e:
+            except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
                 logger.error(f"[Autonomous] Cycle error: {e}", exc_info=True)
 
             # Dynamic interval: slow down when user is active
@@ -234,7 +234,7 @@ class AutonomousAgent:
             else:
                 logger.error(f"[Autonomous] Script {script_name} failed: {result.stderr}")
                 return None
-        except Exception as e:
+        except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
             logger.error(f"[Autonomous] Script error: {e}")
             return None
 
@@ -263,7 +263,7 @@ class AutonomousAgent:
                 await self._goal_report(goal)
             elif goal.gtype == "language_practice":
                 await self._goal_language_practice(goal)
-        except Exception as e:
+        except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
             logger.error(f"[Autonomous] Goal {goal.gtype} failed: {e}", exc_info=True)
             orchestrator.emit_error(f"Goal {goal.gtype} failed: {e}")
 
@@ -281,10 +281,10 @@ class AutonomousAgent:
                     input_role="system", save_input=False
                 )
                 return result or ""
-            except Exception as e2:
+            except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e2:
                 logger.error(f"[Autonomous] Brain fallback failed: {e2}")
                 return ""
-        except Exception as e:
+        except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
             logger.error(f"[Autonomous] Brain.ask_raw failed: {e}")
             return ""
 
@@ -298,7 +298,7 @@ class AutonomousAgent:
                     await self.callback("assistant", text, emotion)
                 else:
                     self.callback("assistant", text, emotion)
-            except Exception as e:
+            except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
                 logger.error(f"[Autonomous] _say dispatch error: {e}")
         try:
             asyncio.create_task(_dispatch())
@@ -314,7 +314,7 @@ class AutonomousAgent:
         sop = await self._run_directive("screen_analysis")
         img_path = await self._execute_script("capture_screen")
         
-        if not img_path:
+        if not img_path or img_path.startswith("ERROR") or not os.path.exists(img_path):
             return
 
         orchestrator.emit_reasoning_step("EXPLORE", "Analyzing screen capture...", 0.85)
@@ -378,7 +378,8 @@ class AutonomousAgent:
                             f"I've saved it at `.tmp/autonomous_scripts/{fname}`. Value: {res['stdout'][:50]}... 🌸",
                             "excited"
                         )
-                except: pass
+                except json.JSONDecodeError as jde:
+                    logger.warning(f"Failed to parse autonomous script output: {jde}")
 
     async def _goal_observe(self, goal: Goal):
         """Watch the system using SOP: system_optimization."""
@@ -526,10 +527,12 @@ class AutonomousAgent:
                         auto_feed=feed,
                         goals_pending=len(self._goals),
                     )
-                except Exception:
-                    pass
-            except Exception:
-                pass
+                except ImportError as ie:
+                    logger.debug(f"Callback server module not loaded: {ie}")
+                except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
+                    logger.warning(f"Failed to update live state in system scan loop: {e}")
+            except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
+                logger.error(f"Error in system scan loop tick: {e}")
             await asyncio.sleep(2)
 
 

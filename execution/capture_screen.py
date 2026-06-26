@@ -1,6 +1,4 @@
-import cv2
 import pyautogui
-import numpy as np
 import os
 import time
 
@@ -9,12 +7,16 @@ def capture():
     temp_dir = os.path.join(os.getcwd(), ".tmp", "vision_captures")
     os.makedirs(temp_dir, exist_ok=True)
     
-    screenshot = pyautogui.screenshot()
-    frame = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2BGR)
-    
+    try:
+        screenshot = pyautogui.screenshot()
+    except OSError as e:
+        if "screen grab failed" in str(e).lower():
+            return "ERROR: Screen capture offline (session locked or display sleep)"
+        raise
+        
     timestamp = int(time.time())
     file_path = os.path.join(temp_dir, f"screen_{timestamp}.jpg")
-    cv2.imwrite(file_path, frame)
+    screenshot.save(file_path, "JPEG")
     return file_path
 
 if __name__ == "__main__":

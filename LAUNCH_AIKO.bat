@@ -1,134 +1,79 @@
 @echo off
-title Aiko Desktop - Neural Link Initializer
-color 0F
+setlocal enabledelayedexpansion
+title Aiko Core Launcher
+mode con: cols=90 lines=28
+color 0D
 
-where fastfetch >nul 2>&1
-if not errorlevel 1 (
-    fastfetch --config fastfetch_config.jsonc
-    echo.
-    goto :post_logo
+:: Premium Visual Header
+echo ==========================================================================================
+echo               ___   ___  _  __ ___     ___   ___   ___   ___ 
+echo              / _ \ / _ \(_)/ /_/ _ \   / _ \ / _ \ / _ \ / _ \
+echo             / _  // // // //  __/ // /  / // // // // / _  // // /
+echo            /_/ \_\/_//_//_//_/  /\___/  /\___/ \___//_/ \_\/\___/ 
+echo.
+echo                       - N E U R A L   C O M P A N I O N -
+echo ==========================================================================================
+echo.
+
+:: Search for python interpreter to avoid Windows Store app execution alias redirect trap.
+set "PYTHON_CMD="
+
+:: 1. Check local virtual environment first
+if exist "%~dp0.venv\Scripts\python.exe" (
+    set "PYTHON_CMD=%~dp0.venv\Scripts\python.exe"
+    goto :found_python
 )
 
-echo.
-echo       _  _         _         
-echo      / \(_) _ __  ^| ^| __ ___ 
-echo     / _ \^| ^|^| '_ \ ^| ^|/ // _ \
-echo    / ___ \^|^| ^| ^| ^|^|   ^<^| (_) ^|
-echo   /_/   \_\_^|_^| ^|_^|^|_^|\_\_\\___/ 
-echo.
-echo   ============================================
-echo    AIKO DESKTOP - NEURAL LINK INITIALIZER
-echo   ============================================
-echo    [TIP] For an ultra-premium startup screen,
-echo          install Fastfetch: 'winget install fastfetch'
-echo   ============================================
-echo.
+:: 2. Check if 'py' launcher is available
+where py >nul 2>nul
+if %errorlevel% equ 0 (
+    set "PYTHON_CMD=py"
+    goto :found_python
+)
 
-:post_logo
+:: 3. Check if standard python in PATH doesn't point to Microsoft WindowsApps redirect stub
+for /f "tokens=*" %%i in ('where python 2^>nul') do (
+    set "p=%%i"
+    if "!p:WindowsApps=!"=="!p!" (
+        set "PYTHON_CMD=%%i"
+        goto :found_python
+    )
+)
 
-REM -- 1. Check for Python ----------------------------------
-where python >nul 2>&1
-if errorlevel 1 (
-    echo  [ERROR] Python is not installed!
+:: 4. Check typical installation directory under Local AppData
+for /d %%d in ("%USERPROFILE%\AppData\Local\Programs\Python\Python*") do (
+    if exist "%%d\python.exe" (
+        set "PYTHON_CMD=%%d\python.exe"
+        goto :found_python
+    )
+)
+
+:: 5. Check typical installation directory under Program Files
+for /d %%d in ("%SystemDrive%\Program Files\Python*") do (
+    if exist "%%d\python.exe" (
+        set "PYTHON_CMD=%%d\python.exe"
+        goto :found_python
+    )
+)
+for /d %%d in ("%SystemDrive%\Program Files (x86)\Python*") do (
+    if exist "%%d\python.exe" (
+        set "PYTHON_CMD=%%d\python.exe"
+        goto :found_python
+    )
+)
+
+:: 6. Fallback to just python and hope it works
+set "PYTHON_CMD=python"
+
+:found_python
+echo [System] Selected Python interpreter: "%PYTHON_CMD%"
+
+:: Run launcher script
+"%PYTHON_CMD%" "%~dp0launch.py"
+
+if %errorlevel% neq 0 (
     echo.
-    echo  Please download Python from https://www.python.org/downloads/
-    echo  IMPORTANT: Check "Add Python to PATH" during installation!
+    echo [Error] Neural Link launcher exited with error code %errorlevel%.
     echo.
     pause
-    exit /b 1
 )
-
-for /f "tokens=*" %%i in ('python --version 2^>^&1') do set "PYVER=%%i"
-echo  [OK] %PYVER%
-
-REM -- 2. Check for Node.js ---------------------------------
-set "HAS_NODE=0"
-where node >nul 2>&1
-if errorlevel 1 (
-    echo  [!!] Node.js not found.
-    echo  [!!] Aiko will run in browser-fallback mode.
-    echo.
-) else (
-    set "HAS_NODE=1"
-    for /f "tokens=*" %%i in ('node --version 2^>^&1') do set "NODEVER=%%i"
-)
-if "%HAS_NODE%"=="1" echo  [OK] Node.js %NODEVER%
-
-REM -- 3. Create Virtual Environment if needed --------------
-if not exist ".venv\Scripts\activate.bat" (
-    echo.
-    echo  [INFO] Creating neural environment [first time only]...
-    python -m venv .venv
-    if errorlevel 1 (
-        echo  [ERROR] Failed to create virtual environment.
-        echo  Try running: python -m ensurepip --upgrade
-        pause
-        exit /b 1
-    )
-    echo  [OK] Virtual environment created.
-)
-
-REM -- 4. Activate and Install Requirements -----------------
-echo  [INFO] Warming up neural modules...
-call .venv\Scripts\activate.bat
-
-REM -- 4a. First Run Setup (copy example files) ------------
-if not exist ".env" (
-    echo  [INFO] First run detected! Creating .env from template...
-    copy .env.example .env >nul 2>&1
-    echo  [OK] Created .env - Edit this file to add your API keys.
-)
-
-if not exist "user_settings.json" (
-    echo  [INFO] Creating user_settings.json from template...
-    copy user_settings.example.json user_settings.json >nul 2>&1
-    echo  [OK] Created user_settings.json
-)
-
-if not exist "data" mkdir data >nul 2>&1
-
-if not exist ".venv\.ready" (
-    echo  [INFO] Installing required libraries [first time only]...
-    echo  [INFO] This may take 2-5 minutes depending on your internet speed.
-    echo.
-    pip install -r requirements.txt -q --no-warn-script-location 2>&1
-    if errorlevel 1 (
-        echo.
-        echo  [ERROR] Some dependencies failed to install.
-        echo  [INFO]  This is often caused by missing build tools.
-        echo.
-        echo  Try these fixes:
-        echo    1. pip install --upgrade pip setuptools wheel
-        echo    2. Install Visual C++ Build Tools from:
-        echo       https://visualstudio.microsoft.com/visual-cpp-build-tools/
-        echo    3. Try Python 3.11 instead of 3.13 for best compatibility.
-        echo.
-        pause
-        exit /b 1
-    )
-    echo Done > .venv\.ready
-    echo  [OK] Dependencies installed.
-) else (
-    echo  [OK] Dependencies ready.
-)
-
-REM -- 5. Launch Aiko ---------------------------------------
-echo.
-echo  ============================================
-echo   Neural Link Stable. Launching Aiko...
-echo  ============================================
-echo.
-python start_aiko_tauri.py
-
-if errorlevel 1 (
-    echo.
-    echo  ============================================
-    echo   Aiko exited with an error.
-    echo   Check .logs\neural_hub.log for details.
-    echo  ============================================
-    echo.
-)
-
-echo.
-echo  Press any key to exit...
-pause >nul

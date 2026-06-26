@@ -23,151 +23,98 @@ GIPHY_PUBLIC_KEY = "dc6zaTOxFJmzC"
 AIKO_GIFS = {
     # --- Positive / Love ---
     'love': [
-        "https://media.tenor.com/UEFGoNHQg2wAAAAC/fullmetal-alchemist-roy-mustang.gif",
-        "https://media.tenor.com/Nos-wttNWeIAAAAC/chihaya-anon-anon-chihaya.gif",
-        "https://media.tenor.com/b7KyU2wDv04AAAAC/kiss-anime.gif",
-        "https://media.tenor.com/5E98UTF-L_YAAAAC/happy-love.gif",
-        "https://media.tenor.com/2l3q2Wc2Z4kAAAAC/anime-love-heart.gif",
-        "https://media.tenor.com/J3iE2x-4a7UAAAAC/love-anime.gif",
-        "https://media.tenor.com/z2QlOqXwJ9AAAAAC/anime-love.gif",
+        "/stickers/09_Heart_Eyes_Rose.png"
     ],
     'happy': [
-        "https://media.tenor.com/VRW3rpzMnYIAAAAC/kaoruko-waguri-the-fragrant-flower-blooms-with-dignity.gif",
-        "https://media.tenor.com/_X5Kn5MWhRMAAAAC/yay-yeah.gif",
+        "/stickers/01_Happy_Cheer.png",
+        "/stickers/11_Laughing.png"
     ],
     'excited': [  
-        "https://tenor.com/fr/view/anime-woo-bounce-fast-jump-gif-16252995",
-        "https://tenor.com/fr/view/oshi-no-ko-onk-oshi-no-ko-season-2-episode-11-anime-gif-9124778409799054596"
-         ],
+        "/stickers/13_Excited_Jump.png"
+    ],
     
     # --- Bored / Done ---
     'bored': [
-        "https://tenor.com/fr/view/anime-frieren-tasty-eating-eat-gif-8951409568795430521",
-     
+        "/stickers/17_Teacup_Sip.png"
     ],
     
     # --- Shocked / Surprised ---
     'shocked': [
-        "https://media.tenor.com/reP8M82-c_gAAAAC/anime-shocked.gif",
-        "https://media.tenor.com/8v8S_fN-p_4AAAAC/surprised-anime-face.gif",
-        "https://media.tenor.com/p_C0G7MIsU0AAAAC/shocked-expression.gif",
-        "https://media.tenor.com/BBCQZcLFD_0AAAAC/anime-shocked-oresuki.gif",
+        "/stickers/03_Surprised_Gasp.png"
     ],
     
     # --- Tired / Sleepy ---
     'tired': [
-        "https://media.tenor.com/W2q2s2x4k2x4AAAAC/anime-sleep.gif",
-        "https://media.tenor.com/IMRLmefJ6MsAAAAAC/tired-anime.gif",
-        "https://media.tenor.com/6X7pS8X8L8YAAAAC/sleepy-anime-girl.gif",
-        "https://media.tenor.com/XExNWqF5VTEAAAAC/anime-sleepy.gif",
+        "/stickers/04_Sleepy_Yawn.png"
     ],
     
     # --- Negative / Sad ---
     'sad': [
-        "https://media.tenor.com/DiFQ_Rl3dCQAAAAAC/anime-cry-crying.gif",
-        "https://media.tenor.com/35S_M89zT3sAAAAAC/horimiya-anime.gif",
-        "https://media.tenor.com/DifoWwjRvOcAAAAAC/tohru-honda-tohru.gif",
-        "https://media.tenor.com/jczQB19mnk0AAAAAC/chibi-anime-boy.gif",
-        "https://media.tenor.com/5l3q2Wc2Z4kAAAAC/anime-sad.gif",
+        "/stickers/12_Sad_Wilted_Rose.png"
     ],
     'cry': [
-        "https://media.tenor.com/DiFQ_Rl3dCQAAAAAC/anime-cry-crying.gif",
-        "https://media.tenor.com/35S_M89zT3sAAAAAC/horimiya-anime.gif",
-        "https://media.tenor.com/DifoWwjRvOcAAAAAC/tohru-honda-tohru.gif",
-        "https://media.tenor.com/P4w8w-1q1wAAAAAC/anime-tears.gif",
+        "/stickers/05_Crying_Comical.png"
     ],
     'angry': [
-        "https://media.tenor.com/FHTOu1fN6DcAAAAC/angry-anime.gif",
-        "https://media.tenor.com/xDWLUFUVii8AAAAC/anime-pout.gif",
-        "https://media.tenor.com/1q2w3e4r5t6yAAAAAC/anime-mad.gif",
-        "https://media.tenor.com/W_1s_6CPJOAAAAAC/anime-angry.gif",
+        "/stickers/10_Annoyed_Pout.png"
     ],
     'pout': [
-        "https://media.tenor.com/FHTOu1fN6DcAAAAC/angry-anime.gif",
-        "https://media.tenor.com/xDWLUFUVii8AAAAC/anime-pout.gif",
-        "https://media.tenor.com/YseiXI4o5bsAAAAC/sad-pout.gif",
-        "https://media.tenor.com/i--qyYG3cJMAAAAC/anime-pout.gif",
-        "https://media.tenor.com/9v8S_fN-p_4AAAAC/miku-pout.gif",
+        "/stickers/10_Annoyed_Pout.png"
     ],
 
     # --- NEW: Disgust ---
     'disgust': [
-        "https://media.tenor.com/T096XAn8_8EAAAAC/anime-gross.gif",
-        "https://media.tenor.com/FHTOu1fN6DcAAAAC/disgust-anime.gif",
-        "https://media.tenor.com/xDWLUFUVii8AAAAC/ewe-anime.gif",
+        "/stickers/15_Sick_Dizzy.png"
     ],
     
     # --- NEW: Panic ---
     'panic': [
-        "https://media.tenor.com/reP8M82-c_gAAAAC/anime-panic.gif",
-        "https://media.tenor.com/Qy7K8v-2T2AAAAAC/anya-panic.gif",
-        "https://media.tenor.com/WvDHCwXvSgMAAAAC/scared-anime.gif",
+        "/stickers/03_Surprised_Gasp.png"
     ],
     
     # --- NEW: Victory ---
     'victory': [
-        "https://media.tenor.com/6a6Atg2FjQ4AAAAC/anime-victory.gif",
-        "https://media.tenor.com/_X5Kn5MWhRMAAAAC/anime-cheer.gif",
-        "https://media.tenor.com/IMRLmefJ6MsAAAAAC/peace-sign-anime.gif",
+        "/stickers/14_Winking_Peace.png"
     ],
 
     # --- Actions ---
     'hug': [
-        "https://media.tenor.com/TYvVBj3Fi5AAAAAC/hug.gif",
-        "https://media.tenor.com/7f9CqFtd4SsAAAAC/hug.gif",
-        "https://media.tenor.com/IpGw3LOZi2wAAAAC/hugtrip.gif",
-        "https://media.tenor.com/BFmsQg9J1ZMAAAAC/chikako-hugging-otohime-for-the-first-and-she-confused.gif",
+        "/stickers/07_Waving_Hello.png"
     ],
     'kiss': [
-        "https://media.tenor.com/b7KyU2wDv04AAAAC/kiss-anime.gif",
-        "https://media.tenor.com/5E98UTF-L_YAAAAC/happy-love.gif",
+        "/stickers/09_Heart_Eyes_Rose.png"
     ],
     'blush': [
-        "https://media.tenor.com/YcjMpOSyz2AAAAAC/marin-kitagawa-blush.gif",
-        "https://media.tenor.com/GiOGySHeERMAAAAC/anime-blush.gif",
-        "https://media.tenor.com/DLir-ShS_BsAAAAC/marin-marin-kitagawa.gif",
-        "https://media.tenor.com/ia9ZGb4SMWcAAAAC/anime-blush-blush.gif",
+        "/stickers/02_Shy_Blush.png"
     ],
     'pat': [
-        "https://media.tenor.com/Y7BZc7W1i8AAAAAC/anime-head-pat.gif",
-        "https://media.tenor.com/wLqFGYigNcAAAAAC/kaede-azusagawa-kaede.gif",
-        "https://media.tenor.com/E6fMgW18e6AAAAAC/pat-head.gif",
-        "https://media.tenor.com/kS-f_A7XG98AAAAC/headpat-anime.gif",
+        "/stickers/08_Thinking_Pose.png"
     ],
     'smug': [
-        "https://media.tenor.com/Qy7K8v-2T2AAAAAC/anya-smug.gif",
-        "https://media.tenor.com/79S_A3-2X-EAAAAC/smug-anime.gif",
+        "/stickers/06_Confident_Smirk_Right.png",
+        "/stickers/18_Confident_Smirk_Left.png"
     ],
     'bonk': [
-        "https://media.tenor.com/9P_G_vS5WzUAAAAC/anime-bonk.gif",
-        "https://media.tenor.com/v8S_fN-p_4YAAAAC/anime-hammer.gif",
-        "https://media.tenor.com/DHYvIdj_RIEAAAAC/bonk-anime.gif",
+        "/stickers/16_Determined_Fist.png"
     ],
     'lick': [
-        "https://media.tenor.com/5w2e3r4t5y6uAAAAAC/anime-lick.gif",
+        "/stickers/14_Winking_Peace.png"
     ],
     
     # --- Yandere / Protective ---
     'yandere': [
-        "https://media.tenor.com/w2wqNH8jFywAAAAAC/yandere-mine.gif",
-        "https://media.tenor.com/KLUHpOURlWAAAAAC/yandere-anime.gif",
-        "https://media.tenor.com/QaBuatKOCZwAAAAAC/princess-connect-re-dive-anime.gif",
-        "https://media.tenor.com/QCMSAySva2wAAAAAC/eriko-princess-connect-re-dive.gif",
+        "/stickers/16_Determined_Fist.png"
     ],
     
     # --- Casual ---
     'confused': [
-        "https://media.tenor.com/BFmsQg9J1ZMAAAAC/chikako-hugging-otohime-for-the-first-and-she-confused.gif",
-        "https://media.tenor.com/y6NN6z0lKPAAAAAC/what-confused.gif",
+        "/stickers/15_Sick_Dizzy.png"
     ],
     'wave': [
-        "https://media.tenor.com/aXl7XVXB55IAAAAC/anime-wave.gif",
-        "https://media.tenor.com/aKMsM9ybIY4AAAAC/wave-waving.gif",
+        "/stickers/07_Waving_Hello.png"
     ],
     'thinking': [
-        "https://media.tenor.com/Lb-sTaI3MLUAAAAC/anime-think.gif",
-        "https://media.tenor.com/3KCh8xL6TLMAAAAC/curious-question-mark.gif", 
-        "https://tenor.com/fr/view/the-fragrant-flower-blooms-with-dignity-kaoruko-waguri-kaoru-hana-wa-rin-to-saku-waguri-kaoruko-gif-13996586934910010189",
+        "/stickers/08_Thinking_Pose.png"
     ],
 }
 
@@ -233,51 +180,6 @@ RELATIONSHIP_GATED = {
 #                    SMART DETECTION LOGIC v2.0
 # ═══════════════════════════════════════════════════════════════
 
-def detect_aiko_emotion(message_text: str, affection_level: int = 100) -> str | None:
-    """
-    Scans the text for keywords and returns a matching GIF URL.
-    Uses regex for whole-word matching and priority system.
-    
-    Args:
-        message_text: The user's message to scan
-        affection_level: User's affection level (0-100) for relationship gating
-    
-    Returns:
-        GIF URL or None if no match found
-    
-    Usage:
-        gif_url = detect_aiko_emotion("I love you so much!", affection_level=80)
-        if gif_url:
-            await channel.send(gif_url)
-    """
-    content = message_text.lower()
-    
-    for category in EMOTION_PRIORITY:
-        if category not in EMOTION_TRIGGERS:
-            continue
-            
-        # Check relationship gate
-        if category in RELATIONSHIP_GATED:
-            required_affection = RELATIONSHIP_GATED[category]
-            if affection_level < required_affection:
-                continue  # Skip this emotion - not enough affection
-        
-        keywords = EMOTION_TRIGGERS[category]
-        for word in keywords:
-            # Use regex for whole-word matching (avoids 'hi' in 'thinking')
-            # But allow emoji/symbol triggers to match anywhere
-            if word.isalpha():
-                pattern = r'\b' + re.escape(word) + r'\b'
-                if re.search(pattern, content):
-                    if category in AIKO_GIFS and AIKO_GIFS[category]:
-                        return random.choice(AIKO_GIFS[category])
-            else:
-                # Non-alpha (emoji, symbols) - direct match
-                if word in content:
-                    if category in AIKO_GIFS and AIKO_GIFS[category]:
-                        return random.choice(AIKO_GIFS[category])
-    
-    return None
 
 
 def get_emotion_category(message_text: str, affection_level: int = 100) -> str | None:
@@ -328,18 +230,6 @@ def get_all_categories() -> list:
     return list(AIKO_GIFS.keys())
 
 
-def should_send_gif(chance: float = 0.5) -> bool:
-    """
-    Returns True with the given probability.
-    Use this to add cooldown/chance to GIF sending.
-    
-    Usage:
-         if should_send_gif(0.5):  # 50% chance
-             gif = detect_aiko_emotion(message)
-             if gif:
-                 await channel.send(gif)
-    """
-    return random.random() < chance
 
 
 async def search_gif(query: str, provider: str = None) -> str | None:

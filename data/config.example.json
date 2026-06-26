@@ -1,0 +1,20 @@
+{
+    "LLM_URL": "http://127.0.0.1:11434/api/chat",
+    "LLM_BASE_URL": "http://127.0.0.1:11434",
+    "MODEL_NAME": "llama3:latest",
+    "PROVIDER": "Ollama",
+    "API_KEY": "",
+    "DEEPSEEK_API_KEY": "",
+    "GEMINI_API_KEY": "",
+    "TTS_KEY": "",
+    "STT_KEY": "",
+    "STT_MODEL": "moonshine",
+    "TTS_PROVIDER": "Pocket",
+    "TTS_ENABLED": true,
+    "theme_mode": "dark",
+    "vts_port": "8001",
+    "username": "User",
+    "discord_enabled": false,
+    "telegram_enabled": false,
+    "proactive_mode": false
+}

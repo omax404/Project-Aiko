@@ -152,7 +152,7 @@ export default function MobileApp() {
           background: 'linear-gradient(to top, #0c0b0a 50%, transparent)',
         }} />
         <Live2DAvatar
-          modelUrl="/live2d/vivian/薇薇安.model3.json"
+          modelUrl="/live2d/vivian/vivian.model3.json"
           isThinking={thinking}
           emotion={emotion}
           width={screenW}
@@ -179,16 +179,16 @@ export default function MobileApp() {
             </button>
             <span style={{
                 fontFamily: "'Pixelify Sans', cursive", fontSize: 16,
-                color: 'rgba(212,149,106,0.9)', letterSpacing: 3
+                color: 'rgba(201,168,217,0.9)', letterSpacing: 3
             }}>AIKO</span>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <div style={{
               display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px',
-              borderRadius: 8, background: 'rgba(212,149,106,0.1)', border: '1px solid rgba(212,149,106,0.2)'
+              borderRadius: 8, background: 'rgba(201,168,217,0.1)', border: '1px solid rgba(201,168,217,0.2)'
           }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#ec4899' }} />
-              <span style={{ fontSize: 9, color: '#ec4899', fontWeight: 'bold', textTransform: 'uppercase' }}>Neural Online</span>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#C9A8D9' }} />
+              <span style={{ fontSize: 9, color: '#C9A8D9', fontWeight: 'bold', textTransform: 'uppercase' }}>Neural Online</span>
           </div>
           <button onClick={() => setShowSettings(true)} title="Settings" aria-label="Settings" style={{
             width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.05)',
@@ -229,17 +229,17 @@ export default function MobileApp() {
             style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
             <div style={{
               width: 32, height: 32, borderRadius: 10, flexShrink: 0, marginTop: 4,
-              background: 'rgba(212,149,106,0.1)', border: '1px solid rgba(212,149,106,0.3)',
+              background: 'var(--acc-soft)', border: '1px solid var(--acc-glow)',
               display: 'flex', alignItems: 'center', justifyContent: 'center'
             }}>
-              <Zap size={14} style={{ color: '#ec4899' }} />
+              <Zap size={14} style={{ color: 'var(--acc)' }} />
             </div>
             <div style={{ fontSize: 14, lineHeight: 1.7, color: 'rgba(237,232,223,0.9)' }}
               className="markdown-content selectable">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{streaming}</ReactMarkdown>
               <span style={{
                 display: 'inline-block', width: 2, height: 14,
-                background: '#ec4899', marginLeft: 2, verticalAlign: 'middle',
+                background: 'var(--acc)', marginLeft: 2, verticalAlign: 'middle',
                 animation: 'pulse 1s infinite'
               }} />
             </div>
@@ -362,7 +362,7 @@ export default function MobileApp() {
                             </button>
                         </div>
                         <div style={{ marginBottom: 16 }}>
-                            <label style={{ fontSize: 11, color: 'rgba(212,149,106,0.7)', letterSpacing: 1, textTransform: 'uppercase', display: 'block', marginBottom: 12 }}>
+                            <label style={{ fontSize: 11, color: 'rgba(201,168,217,0.7)', letterSpacing: 1, textTransform: 'uppercase', display: 'block', marginBottom: 12 }}>
                                 Active Brain Model
                             </label>
                             {[
@@ -374,9 +374,9 @@ export default function MobileApp() {
                                 <button key={m} onClick={() => { useNeuralStore.getState().updateApiConfig({ model: m }); setShowSettings(false); }}
                                 style={{
                                     width: '100%', padding: '16px', borderRadius: 16, marginBottom: 10,
-                                    background: apiConfig.model === m ? 'rgba(212,149,106,0.1)' : 'rgba(255,255,255,0.03)',
-                                    border: `1px solid ${apiConfig.model === m ? 'rgba(212,149,106,0.4)' : 'rgba(255,255,255,0.07)'}`,
-                                    cursor: 'pointer', textAlign: 'left', color: apiConfig.model === m ? '#ec4899' : 'rgba(255,255,255,0.5)',
+                                    background: apiConfig.model === m ? 'rgba(201,168,217,0.1)' : 'rgba(255,255,255,0.03)',
+                                    border: `1px solid ${apiConfig.model === m ? 'rgba(201,168,217,0.4)' : 'rgba(255,255,255,0.07)'}`,
+                                    cursor: 'pointer', textAlign: 'left', color: apiConfig.model === m ? '#C9A8D9' : 'rgba(255,255,255,0.5)',
                                     fontSize: 13, fontFamily: "'JetBrains Mono', monospace"
                                 }}>
                                 {m}

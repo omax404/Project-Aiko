@@ -31,7 +31,6 @@ from .plugins.spotify_plugin import SpotifyPlugin
 
 load_dotenv()
 logger = logging.getLogger("Brain")
-from .config_manager import config
 
 from .agent_executor import (
     AgentExecutor,
@@ -39,6 +38,52 @@ from .agent_executor import (
     TASK_PATTERN, NOTE_PATTERN, READ_PATTERN, WRITE_PATTERN, DRAW_PATTERN, VIDEO_PATTERN,
     MCP_PATTERN, IMAGE_PATTERN, GIF_PATTERN, RECALL_PATTERN, BIO_REGISTER_PATTERN
 )
+
+STICKER_MAPPING = {
+    "hello": "07_Waving_Hello.png",
+    "waving": "07_Waving_Hello.png",
+    "happy_umbrella": "01_Happy_Cheer.png",
+    "cheering": "01_Happy_Cheer.png",
+    "ssr_star_eyes": "01_Happy_Cheer.png",
+    "wink": "14_Winking_Peace.png",
+    "lol": "11_Laughing.png",
+    "victory": "14_Winking_Peace.png",
+    "heart_eyes": "09_Heart_Eyes_Rose.png",
+    "present": "09_Heart_Eyes_Rose.png",
+    "cup": "17_Teacup_Sip.png",
+    "singing": "09_Heart_Eyes_Rose.png",
+    "thumbs_up": "06_Confident_Smirk_Right.png",
+    "proud": "06_Confident_Smirk_Right.png",
+    "thinking": "08_Thinking_Pose.png",
+    "reading": "08_Thinking_Pose.png",
+    "studying": "08_Thinking_Pose.png",
+    "idea": "08_Thinking_Pose.png",
+    "surprised": "03_Surprised_Gasp.png",
+    "shocked": "03_Surprised_Gasp.png",
+    "shy_blush": "02_Shy_Blush.png",
+    "shy_smile": "02_Shy_Blush.png",
+    "pouty_umbrella": "10_Annoyed_Pout.png",
+    "angry_dagger": "10_Annoyed_Pout.png",
+    "confused": "15_Sick_Dizzy.png",
+    "sweatdrop": "15_Sick_Dizzy.png",
+    "dizzy": "15_Sick_Dizzy.png",
+    "sleeping": "04_Sleepy_Yawn.png",
+    "sleeping_zzz": "04_Sleepy_Yawn.png",
+    "crying_tears": "05_Crying_Comical.png"
+}
+
+def translate_stickers(text: str) -> str:
+    """Helper to translate virtual /stickers/lavender_<mood>.png to actual local paths."""
+    if not text:
+        return text
+    def repl(match):
+        alt = match.group(1)
+        mood = match.group(2)
+        mapped = STICKER_MAPPING.get(mood.lower())
+        if mapped:
+            return f"![{alt}](/stickers/{mapped})"
+        return match.group(0)
+    return re.sub(r'!\[([^\]]*)\]\(/stickers/lavender_([a-zA-Z0-9_-]+)\.png\)', repl, text)
 
 # Connection pool - shared across all instances
 _session_pool = None
@@ -93,11 +138,20 @@ class AikoBrain:
         # Reflective Memory
         self._message_count = 0
         self._reflective_state = ""
-        self.model = config.get("MODEL_NAME")
         self.using_fallback = False
         self.on_thinking = None
         self.app_callback = None
         self.on_sentence = None
+
+        # OPTIMIZATION: Cache system prompts per user type
+        self._cached_prompts = {}
+        self._cache_timestamp = 0
+        self._cache_ttl = 300  # 5 minutes
+
+        # Streaming buffer for batching tokens
+        self._stream_buffer = ""
+        self._stream_timer = None
+        self._stream_batch_size = 50  # ms
 
         # --- PLUGIN ARCHITECTURE ---
         self.plugins = PluginManager()
@@ -113,16 +167,6 @@ class AikoBrain:
         await self.plugins.register_plugin(SpotifyPlugin())
         self._plugins_ready = True
         logger.info("✅ Plugins loaded successfully.")
-
-        # OPTIMIZATION: Cache system prompts per user type
-        self._cached_prompts = {}
-        self._cache_timestamp = 0
-        self._cache_ttl = 300  # 5 minutes
-
-        # Streaming buffer for batching tokens
-        self._stream_buffer = ""
-        self._stream_timer = None
-        self._stream_batch_size = 50  # ms
 
     def _get_cached_prompt(self, is_master: bool) -> str:
         """Get cached system prompt with time-based invalidation."""
@@ -141,6 +185,9 @@ class AikoBrain:
 
     def _emit_sentence(self, text: str):
         """Emit a complete sentence to the UI streaming callback with emotion detection."""
+        # Translate virtual sticker paths
+        text = translate_stickers(text)
+
         # Only suppress if it's a raw system tag or code block
         if not text or text.startswith(("```", "{\"")):
             return
@@ -155,10 +202,12 @@ class AikoBrain:
                     asyncio.create_task(self.on_sentence(text, emotion, suppress_audio=self.suppress_speech))
                 else:
                     self.on_sentence(text, emotion, suppress_audio=self.suppress_speech)
-            except Exception as e:
+            except (AttributeError, TypeError, RuntimeError) as e:
                 logger.error(f"Sentence Callback Error: {e}")
+            except Exception as e:
+                logger.error(f"Unexpected sentence callback error: {e}")
 
-    async def chat(self, message: str, user_id: str = "omax", input_role: str = "user",
+    async def chat(self, message: str, user_id: str = "user", input_role: str = "user",
                    save_input: bool = True, initial_images: list = None) -> tuple:
         """
         Send message to LLM and get response with ReAct loop.
@@ -250,8 +299,10 @@ class AikoBrain:
                         source = meta.get('source', 'unknown')
                         room = meta.get('room', 'general')
                         rag_context += f"({i}) [{room} / {source}]: {res['text']}\n"
-            except Exception as e:
+            except (asyncio.TimeoutError, OSError) as e:
                 logger.warning(f"RAG Async Search Error: {e}")
+            except (TypeError, KeyError) as e:
+                logger.warning(f"RAG data format error: {e}")
 
         history = self.memory.get_history(user_id)
 
@@ -267,40 +318,31 @@ class AikoBrain:
 
         for turn in range(5):
             # --- 1. CORE BRAIN (REASONING LAYER) ---
-            is_master = str(user_id) in ("omax", os.getenv("MASTER_ID", "766774147832873012"))
-            system_prompt = get_core_brain_prompt()
-
-            if self.pc:
-                system_prompt += self._get_tools_prompt()
-
-            if rag_context:
-                system_prompt += f"\n\n<relevant_memory_context>\n{rag_context[:1000]}\n</relevant_memory_context>"
-
-            messages = [{"role": "system", "content": system_prompt}]
-
-            # Map history - slice to last 20 only
-            for h in history[-20:]:
-                role = "user" if h["role"] == "system" else h["role"]
-                messages.append({"role": role, "content": h["content"]})
-
-            if observations:
-                obs_text = "\n".join(observations)
-                messages.append({"role": "system", "content": f"[OBSERVATIONS]:\n{obs_text}"})
-
-            # Call LLM
-            orchestrator.emit_reasoning_step("AI_THINKING", "Core Engine Reasoning...", 0.90)
-            
-            # Combine Persona and Tools for single-pass generation
+            master_id = os.getenv("MASTER_ID", "")
+            # Combine core prompt, persona, reflective state, RAG, and tools for single-pass generation
+            is_master = master_id and str(user_id) == master_id
             persona_prompt = self._get_cached_prompt(is_master)
             
             # Add Reflective State if it exists
             if self._reflective_state:
                 persona_prompt += f"\n\n[REFLECTIVE_STATE] (Internal emotional context):\n{self._reflective_state}"
                 
-            # Add tool instructions to the persona prompt
-            single_pass_prompt = persona_prompt + "\n\n" + self._get_tools_prompt()
+            # Add RAG context if it exists
+            if rag_context:
+                persona_prompt += f"\n\n<relevant_memory_context>\n{rag_context[:1000]}\n</relevant_memory_context>"
+
+            # Add Unified Vision Context (short-term visual awareness)
+            from core.vision_context import vision_context_buffer
+            vision_ctx = vision_context_buffer.get_context_string()
+            if vision_ctx:
+                persona_prompt += f"\n\n<current_visual_awareness>\n{vision_ctx}\n</current_visual_awareness>"
+
+            # Add tool instructions
+            system_prompt = persona_prompt + "\n\n" + self._get_tools_prompt()
             
-            messages = [{"role": "system", "content": single_pass_prompt}]
+            messages = [{"role": "system", "content": system_prompt}]
+            
+            # Map history - slice to last 20 only
             for h in history[-20:]:
                 role = "user" if h["role"] == "system" else h["role"]
                 messages.append({"role": role, "content": h["content"]})
@@ -353,14 +395,25 @@ class AikoBrain:
         cleaned_response = re.sub(r'\[(SCAN|MCP|TASK|BIO_REGISTER|GAME|OPEN|TYPE|CLICK|PRESS|WAIT|WALLPAPER|WEATHER|MUSIC|LETTER|VTS_BG|IMAGE|RECALL|LATEX|REFLECTIVE_STATE|GIF)[^\]]*?\]', '', cleaned_response, flags=re.IGNORECASE)
         cleaned_response = re.sub(r'\n{3,}', '\n\n', cleaned_response).strip()
 
+        # Translate virtual sticker paths
+        cleaned_response = translate_stickers(cleaned_response)
+
         # Save & Return
-        self.memory.add_message(user_id, "assistant", cleaned_response)
-        
-        # --- LONG-TERM MEMORY (MemPalace) ---
-        if self.rag and self.rag.is_available():
-            mem_text = f"User ({user_id}): {message}\nAiko: {cleaned_response}"
-            # Commit to semantic archive
-            self.rag.add_memory(mem_text, metadata={"type": "conversation", "user_id": str(user_id), "room": "conversations"})
+        if save_input:
+            self.memory.add_message(user_id, "assistant", cleaned_response)
+            try:
+                if active_emotion in ("affectionate", "caring", "happy", "excited", "playful"):
+                    self.memory.update_affection(user_id, 1)
+                elif active_emotion in ("angry", "annoyed", "jealous") or (active_emotion == "sad" and "mean" in message.lower()):
+                    self.memory.update_affection(user_id, -1)
+            except Exception as e:
+                logger.warning(f"Failed to update dynamic affection in chat loop: {e}")
+            
+            # --- LONG-TERM MEMORY (MemPalace) ---
+            if self.rag and self.rag.is_available():
+                mem_text = f"User ({user_id}): {message}\nAiko: {cleaned_response}"
+                # Commit to semantic archive
+                self.rag.add_memory(mem_text, metadata={"type": "conversation", "user_id": str(user_id), "room": "conversations"})
 
         if self.on_thinking:
             self.on_thinking(False)
@@ -393,8 +446,12 @@ Use these tags to interact with Master's PC directly:
 - [MCP: clipboard]                        → Read clipboard content
 - [MCP: set_clipboard | text to copy]    → Write to clipboard
 - [MCP: kill_proc | 1234]                → Kill a process by PID
+- [MCP: uia_list]                         → List all open windows and window titles
+- [MCP: uia_list | Window Title]          → List all child controls inside a window (buttons, text inputs, etc.)
+- [MCP: uia_click | Window Title | Control Name] → Click a button or UI element inside a specific window
+- [MCP: uia_type | Window Title | Control Name | text] → Click and type text into a text field inside a specific window
 
-Use MCP tools whenever Master asks about his PC state, files, or wants you to read/write something."""
+Use MCP tools whenever Master asks about his PC state, files, wants you to read/write something, or wants to interact with desktop applications."""
         return tools
 
     async def _execute_tools(self, text: str, observations: list, images_data: list, user_id: str):
@@ -418,11 +475,17 @@ Use MCP tools whenever Master asks about his PC state, files, or wants you to re
                     with open(source, 'rb') as f:
                         content = f.read()
                 else:
-                    import aiohttp
-                    async with aiohttp.ClientSession() as session:
-                        async with session.get(source) as resp:
-                            if resp.status == 200:
-                                content = await resp.read()
+                    # Local fallback to avoid self-HTTP request
+                    local_upload_path = os.path.join(os.getcwd(), "uploads", filename)
+                    if os.path.exists(local_upload_path):
+                        with open(local_upload_path, 'rb') as f:
+                            content = f.read()
+                    else:
+                        import aiohttp
+                        async with aiohttp.ClientSession() as session:
+                            async with session.get(source) as resp:
+                                if resp.status == 200:
+                                    content = await resp.read()
 
                 if not content: continue
 
@@ -437,14 +500,14 @@ Use MCP tools whenever Master asks about his PC state, files, or wants you to re
                     context_parts.append(f"[User attached image: {filename}]")
                     logger.info(f"[Attachment] Processed image: {filename} ({len(content)} bytes)")
                 else:
-                    # Text/Code Handling
                     try:
                         text = content.decode('utf-8', errors='ignore')
                         context_parts.append(f"Content of {filename}:\n```\n{text[:2000]}\n```")
-                    except:
+                    except (UnicodeDecodeError, OSError) as e:
+                        logger.warning(f"Failed to decode attachment text for {filename}: {e}")
                         context_parts.append(f"[File attached: {filename}]")
 
-            except Exception as e:
+            except (OSError, ValueError, TypeError) as e:
                 logger.error(f"Attachment Error {source}: {e}")
 
         return images, "\n".join(context_parts)
@@ -528,7 +591,8 @@ Use MCP tools whenever Master asks about his PC state, files, or wants you to re
                             # Handle direct response field
                             else:
                                 tok = data.get("response", data.get("content", ""))
-                        except:
+                        except Exception as e:
+                            logger.debug(f"JSON parsing failed for stream chunk: {e}")
                             continue
                         
                         if not tok:
@@ -551,8 +615,11 @@ Use MCP tools whenever Master asks about his PC state, files, or wants you to re
             except asyncio.TimeoutError:
                 logger.error(f"[Brain] Timeout → {url}")
                 return None, 408
-            except Exception as e:
-                logger.error(f"[Brain] Error → {url}: {e}")
+            except (aiohttp.ClientError, aiohttp.ServerDisconnectedError, ConnectionError, OSError) as e:
+                logger.error(f"[Brain] Network Error → {url}: {e}")
+                return None, 500
+            except (TypeError, ValueError, KeyError) as e:
+                logger.error(f"[Brain] Data Error → {url}: {e}")
                 return None, 500
 
         async def stream_ollama(mdl: str, msgs: list, imgs: list) -> tuple:
@@ -635,7 +702,8 @@ Use MCP tools whenever Master asks about his PC state, files, or wants you to re
                                 if data.get("done") is True:
                                     stream_completed = True
                                 tok = data.get("message", {}).get("content", "")
-                            except:
+                            except Exception as e:
+                                logger.debug(f"JSON parsing failed for Ollama chunk: {e}")
                                 continue
                                 
                             if not tok:
@@ -661,8 +729,11 @@ Use MCP tools whenever Master asks about his PC state, files, or wants you to re
             except asyncio.TimeoutError:
                 logger.error("[Brain] Timeout → Ollama")
                 return None, 408
-            except Exception as e:
-                logger.error(f"[Brain] Error → Ollama: {e}")
+            except (aiohttp.ClientError, aiohttp.ServerDisconnectedError, ConnectionError, OSError) as e:
+                logger.error(f"[Brain] Network Error → Ollama: {e}")
+                return None, 500
+            except (TypeError, ValueError, KeyError) as e:
+                logger.error(f"[Brain] Data Error → Ollama: {e}")
                 return None, 500
 
         def inject_vision_openai(msgs: list, imgs: list) -> list:
@@ -728,13 +799,13 @@ Use MCP tools whenever Master asks about his PC state, files, or wants you to re
             if content:
                 self._reflective_state = content.strip()
                 logger.info(f"🧠 Reflection Updated: {self._reflective_state}")
-        except Exception as e:
+        except (OSError, json.JSONDecodeError, TypeError) as e:
             logger.error(f"Failed to update reflective state: {e}")
 
     async def ask_raw(self, prompt: str) -> str:
         """Lightweight direct call — bypasses tools, uses current model."""
         messages = [
-            {"role": "system", "content": "You are a helpful JSON assistant. Respond only with valid JSON."},
+            {"role": "system", "content": get_persona_prompt(is_master=True)},
             {"role": "user", "content": prompt}
         ]
         return await self._call_llm(messages, self.model)

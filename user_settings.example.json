@@ -17,5 +17,10 @@
     "discord_bot": false,
     "telegram_bot": false,
     "hermes_agent": true
+  },
+  "vision": {
+    "provider": "transformers",
+    "model": "openbmb/MiniCPM-V-4.6",
+    "grid_overlay": true
   }
 }

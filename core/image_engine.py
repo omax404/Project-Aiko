@@ -25,37 +25,30 @@ class ImageEngine:
             logger.warning(f"Failed to load model name from config: {e}")
 
     async def generate_image(self, prompt: str) -> str:
-        """Generate an image using Ollama's image generation endpoint.
+        """Generate an image using Pollinations.ai API.
 
         The image is saved to the ``stickers`` directory and the filename is returned.
         """
+        import urllib.parse
         filename = f"gen_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
         filepath = self.stickers_dir / filename
         try:
-            logger.info(f"Generating image via Ollama for prompt: '{prompt[:50]}...'")
-            url = "http://localhost:11434/api/generate"
-            payload = {"model": self.model_name, "prompt": prompt, "stream": False}
+            logger.info(f"Generating image via Pollinations.ai for prompt: '{prompt[:50]}...'")
+            encoded_prompt = urllib.parse.quote(prompt)
+            url = f"https://image.pollinations.ai/prompt/{encoded_prompt}"
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+            
             async with aiohttp.ClientSession() as session:
-                async with session.post(url, json=payload, timeout=60) as response:
+                async with session.get(url, headers=headers, timeout=60) as response:
                     if response.status == 200:
-                        resp_json = await response.json()
-                        img_b64 = resp_json.get("response")
-                        if img_b64:
-                            try:
-                                img_data = base64.b64decode(img_b64)
-                                with open(filepath, "wb") as f:
-                                    f.write(img_data)
-                                logger.info(f"Image saved to {filepath}")
-                                return filename
-                            except Exception as decode_err:
-                                logger.error(f"Failed to decode base64 image: {decode_err}")
-                                return None
-                        else:
-                            logger.error("Ollama response missing 'response' field for image data.")
-                            return None
+                        img_data = await response.read()
+                        with open(filepath, "wb") as f:
+                            f.write(img_data)
+                        logger.info(f"Image saved to {filepath}")
+                        return filename
                     else:
-                        logger.error(f"Ollama image generation failed with status {response.status}")
+                        logger.error(f"Pollinations image generation failed with status {response.status}")
                         return None
         except Exception as e:
-            logger.error(f"Error generating image via Ollama: {e}")
+            logger.error(f"Error generating image: {e}")
             return None

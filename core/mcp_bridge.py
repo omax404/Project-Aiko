@@ -35,7 +35,7 @@ def _is_allowed(path: Path) -> bool:
     try:
         path = path.resolve()
         return any(str(path).startswith(str(r.resolve())) for r in ALLOWED_ROOTS)
-    except Exception:
+    except (OSError, PermissionError, RuntimeError):
         return False
 
 
@@ -54,7 +54,7 @@ class MCPBridge:
             preview = "\n".join(lines[:max_lines])
             suffix = f"\n... ({total - max_lines} more lines)" if total > max_lines else ""
             return f"[FILE: {p}]\n{preview}{suffix}"
-        except Exception as e:
+        except (OSError, PermissionError, ValueError, TypeError) as e:
             return f"[MCP ERROR] Cannot read {path}: {e}"
 
     async def write_file(self, path: str, content: str) -> str:
@@ -65,7 +65,7 @@ class MCPBridge:
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text(content, encoding="utf-8")
             return f"[MCP OK] Written {len(content)} bytes to {p}"
-        except Exception as e:
+        except (OSError, PermissionError, ValueError, TypeError) as e:
             return f"[MCP ERROR] Cannot write {path}: {e}"
 
     async def list_dir(self, path: str = "~", max_items: int = 80) -> str:
@@ -81,7 +81,7 @@ class MCPBridge:
                 lines.append(f"[{kind}] {item.name}" + (f"  ({size} bytes)" if size else ""))
             more = f"\n... and {len(items) - max_items} more" if len(items) > max_items else ""
             return f"[DIR: {p}]\n" + "\n".join(lines) + more
-        except Exception as e:
+        except (OSError, PermissionError, ValueError, TypeError) as e:
             return f"[MCP ERROR] Cannot list {path}: {e}"
 
     async def find_files(self, pattern: str, root: str = "~") -> str:
@@ -93,7 +93,7 @@ class MCPBridge:
             if not results:
                 return f"[MCP] No files matching '{pattern}' in {p}"
             return "[MCP FOUND]\n" + "\n".join(str(r) for r in results)
-        except Exception as e:
+        except (OSError, PermissionError, ValueError, TypeError) as e:
             return f"[MCP ERROR] Search failed: {e}"
 
     async def glob_files(self, pattern: str) -> str:
@@ -117,12 +117,12 @@ class MCPBridge:
                         content = f.read_text(encoding="utf-8", errors="ignore")
                         if re.search(pattern, content, re.IGNORECASE):
                             results.append(f"MATCH: {f}")
-                    except: pass
+                    except Exception: pass
                 if len(results) > 20: break
             
             if not results: return "[MCP] No matches found."
             return "[GREP MATCHES]\n" + "\n".join(results)
-        except Exception as e:
+        except (OSError, PermissionError, ValueError, TypeError) as e:
             return f"[MCP ERROR] Grep failed: {e}"
 
     async def delete_file(self, path: str) -> str:
@@ -137,7 +137,7 @@ class MCPBridge:
             else:
                 p.unlink()
                 return f"[MCP OK] Deleted {p}"
-        except Exception as e:
+        except (OSError, PermissionError, ValueError, TypeError) as e:
             return f"[MCP ERROR] Cannot delete {path}: {e}"
 
     # ── PC State ──────────────────────────────────────────────────────────────
@@ -160,7 +160,7 @@ class MCPBridge:
                 f"Battery: {bat_str}\n"
                 f"Uptime: {uptime}"
             )
-        except Exception as e:
+        except (OSError, PermissionError, ValueError, TypeError) as e:
             return f"[MCP ERROR] System info failed: {e}"
 
     async def list_processes(self, filter_name: str = "") -> str:
@@ -172,11 +172,11 @@ class MCPBridge:
                     if filter_name.lower() in info["name"].lower():
                         mem_mb = info["memory_info"].rss // 1024**2
                         procs.append(f"PID {info['pid']:6} | {info['name']:<30} | CPU {info['cpu_percent']:5.1f}% | RAM {mem_mb}MB")
-                except Exception:
+                except (OSError, PermissionError, ValueError, TypeError, RuntimeError):
                     pass
             procs = procs[:40]
             return "[PROCESSES]\n" + "\n".join(procs) if procs else "[MCP] No matching processes"
-        except Exception as e:
+        except (OSError, PermissionError, ValueError, TypeError) as e:
             return f"[MCP ERROR] Process list failed: {e}"
 
     async def kill_process(self, pid: int) -> str:
@@ -185,7 +185,7 @@ class MCPBridge:
             name = p.name()
             p.terminate()
             return f"[MCP OK] Terminated process {name} (PID {pid})"
-        except Exception as e:
+        except (OSError, PermissionError, ValueError, TypeError) as e:
             return f"[MCP ERROR] Cannot kill PID {pid}: {e}"
 
     async def run_command(self, cmd: str, timeout: int = 10) -> str:
@@ -202,7 +202,7 @@ class MCPBridge:
             return f"[CMD OUTPUT]\n{out[:2000]}"
         except subprocess.TimeoutExpired:
             return f"[MCP ERROR] Command timed out after {timeout}s"
-        except Exception as e:
+        except (OSError, PermissionError, ValueError, TypeError) as e:
             return f"[MCP ERROR] Command failed: {e}"
 
     async def get_clipboard(self) -> str:
@@ -210,7 +210,7 @@ class MCPBridge:
             import pyperclip
             content = pyperclip.paste()
             return f"[CLIPBOARD]\n{content[:1000]}" if content else "[CLIPBOARD] Empty"
-        except Exception as e:
+        except (OSError, PermissionError, ValueError, TypeError) as e:
             return f"[MCP ERROR] Clipboard read failed: {e}"
 
     async def set_clipboard(self, text: str) -> str:
@@ -218,7 +218,7 @@ class MCPBridge:
             import pyperclip
             pyperclip.copy(text)
             return f"[MCP OK] Copied {len(text)} chars to clipboard"
-        except Exception as e:
+        except (OSError, PermissionError, ValueError, TypeError) as e:
             return f"[MCP ERROR] Clipboard write failed: {e}"
 
     async def get_downloads(self, max_items: int = 20) -> str:
@@ -226,6 +226,142 @@ class MCPBridge:
 
     async def get_desktop(self, max_items: int = 30) -> str:
         return await self.list_dir(str(Path.home() / "Desktop"), max_items)
+
+    # ── UI Automation (UIA) ───────────────────────────────────────────────────
+
+    async def uia_list(self, window_title: str = "") -> str:
+        """List open window titles or controls within a specific window."""
+        if platform.system() != "Windows":
+            return "[UIA ERROR] UI Automation is only supported on Windows."
+        from .desktop_utils import use_interactive_desktop
+        with use_interactive_desktop():
+            try:
+                from pywinauto import Desktop
+                desktop = Desktop(backend="uia")
+                
+                if not window_title:
+                    wins = desktop.windows()
+                    lines = [f"- Window: '{w.window_text()}' [Class: {w.class_name()}]" for w in wins if w.window_text()]
+                    if not lines:
+                        return "[UIA] No active visible windows found."
+                    return "[UIA WINDOWS]\n" + "\n".join(lines)
+                    
+                # Find specific window by substring
+                win = None
+                for w in desktop.windows():
+                    if window_title.lower() in w.window_text().lower():
+                        win = w
+                        break
+                if not win:
+                    return f"[UIA ERROR] Window containing '{window_title}' not found."
+                    
+                descendants = win.descendants()
+                lines = []
+                for ctrl in descendants[:100]:
+                    name = ctrl.window_text() or ""
+                    ctrl_type = ctrl.friendly_class_name() or "Unknown"
+                    auto_id = ctrl.automation_id() or ""
+                    if name or auto_id:
+                        lines.append(f"  * {ctrl_type}: '{name}' [AutomationID: {auto_id}]")
+                
+                suffix = f"\n  ... ({len(descendants) - 100} more controls)" if len(descendants) > 100 else ""
+                return f"[UIA CONTROLS for '{win.window_text()}']\n" + "\n".join(lines) + suffix
+            except (OSError, PermissionError, ValueError, TypeError) as e:
+                return f"[UIA ERROR] Failed to list: {str(e) or repr(e)}"
+
+    async def uia_click(self, window_title: str, control_name: str) -> str:
+        """Click a control by name or AutomationID in a specific window."""
+        if platform.system() != "Windows":
+            return "[UIA ERROR] UI Automation is only supported on Windows."
+        from .desktop_utils import use_interactive_desktop
+        with use_interactive_desktop():
+            try:
+                from pywinauto import Desktop
+                desktop = Desktop(backend="uia")
+                
+                win = None
+                for w in desktop.windows():
+                    if window_title.lower() in w.window_text().lower():
+                        win = w
+                        break
+                if not win:
+                    return f"[UIA ERROR] Window containing '{window_title}' not found."
+                    
+                descendants = win.descendants()
+                target_ctrl = None
+                for ctrl in descendants:
+                    name = ctrl.window_text() or ""
+                    if control_name.lower() in name.lower():
+                        target_ctrl = ctrl
+                        break
+                if not target_ctrl:
+                    for ctrl in descendants:
+                        auto_id = ctrl.automation_id() or ""
+                        if control_name.lower() in auto_id.lower():
+                            target_ctrl = ctrl
+                            break
+                if not target_ctrl:
+                    return f"[UIA ERROR] Control '{control_name}' not found in window '{win.window_text()}'."
+                    
+                # Focus window first
+                try:
+                    win.set_focus()
+                except (OSError, PermissionError, ValueError, TypeError, RuntimeError):
+                    pass
+                target_ctrl.click_input()
+                name_label = target_ctrl.window_text() or target_ctrl.automation_id() or control_name
+                return f"[UIA OK] Clicked '{name_label}' in window '{win.window_text()}'."
+            except (OSError, PermissionError, ValueError, TypeError) as e:
+                return f"[UIA ERROR] Click failed: {str(e) or repr(e)}"
+
+    async def uia_type(self, window_title: str, control_name: str, text: str) -> str:
+        """Type text into a control by name or AutomationID in a specific window."""
+        if platform.system() != "Windows":
+            return "[UIA ERROR] UI Automation is only supported on Windows."
+        from .desktop_utils import use_interactive_desktop
+        with use_interactive_desktop():
+            try:
+                from pywinauto import Desktop
+                desktop = Desktop(backend="uia")
+                
+                win = None
+                for w in desktop.windows():
+                    if window_title.lower() in w.window_text().lower():
+                        win = w
+                        break
+                if not win:
+                    return f"[UIA ERROR] Window containing '{window_title}' not found."
+                    
+                descendants = win.descendants()
+                target_ctrl = None
+                for ctrl in descendants:
+                    name = ctrl.window_text() or ""
+                    if control_name.lower() in name.lower():
+                        target_ctrl = ctrl
+                        break
+                if not target_ctrl:
+                    for ctrl in descendants:
+                        auto_id = ctrl.automation_id() or ""
+                        if control_name.lower() in auto_id.lower():
+                            target_ctrl = ctrl
+                            break
+                if not target_ctrl:
+                    return f"[UIA ERROR] Control '{control_name}' not found in window '{win.window_text()}'."
+                    
+                # Focus window first
+                try:
+                    win.set_focus()
+                except (OSError, PermissionError, ValueError, TypeError, RuntimeError):
+                    pass
+                try:
+                    target_ctrl.click_input()
+                except (OSError, PermissionError, ValueError, TypeError, RuntimeError):
+                    pass
+                target_ctrl.type_keys(text, with_spaces=True)
+                name_label = target_ctrl.window_text() or target_ctrl.automation_id() or control_name
+                return f"[UIA OK] Typed '{text}' into '{name_label}' in window '{win.window_text()}'."
+            except (OSError, PermissionError, ValueError, TypeError) as e:
+                return f"[UIA ERROR] Type failed: {str(e) or repr(e)}"
 
 
 # ── Tool registry — maps [MCP:tool:arg] tags to methods ──────────────────────
@@ -246,6 +382,10 @@ MCP_TOOLS = {
     "set_clipboard":  ("set_clipboard",  "text"),
     "downloads":      ("get_downloads",  None),
     "desktop":        ("get_desktop",    None),
+    "uia_list":       ("uia_list",      "window_title?"),
+    "uia_click":      ("uia_click",     "window_title|control_name"),
+    "uia_type":       ("uia_type",      "window_title|control_name|text"),
 }
 
 mcp_bridge = MCPBridge()
+

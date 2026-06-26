@@ -51,6 +51,11 @@ def clear_cache(target_dirs=None, max_log_size_mb=10):
     for d in ['data/uploads', 'data/voices', 'data/temp']:
         directory_janitor(d, max_age_hours=24)
 
+    # 4. Force RAM Garbage Collection to light memory
+    import gc
+    freed = gc.collect()
+    print(f" [System] RAM Garbage Collector: Released {freed} objects.")
+
     print(" [System] Cache Logistic: Cleanup Complete.")
 
 def directory_janitor(target_dir: str, max_age_hours: int = 24):

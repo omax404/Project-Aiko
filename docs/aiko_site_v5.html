@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project Aiko — Devoted Neural Companion</title>
+<meta name="description" content="Project Aiko is an open-source, self-hosted AI companion with emotion, memory, voice, and vision. Build your own devoted neural companion with 22+ emotional states, persistent memory, and autonomous agency.">
+<meta name="keywords" content="AI companion, neural companion, open source, self-hosted, emotion engine, TTS, vision, autonomous agent">
+<meta name="author" content="omax404">
+
+<!-- Open Graph -->
+<meta property="og:title" content="Project Aiko — Devoted Neural Companion">
+<meta property="og:description" content="Open-source AI companion with emotion, memory, voice, and vision. Self-hosted. MIT License.">
+<meta property="og:image" content="aiko.png">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://github.com/omax404/Project-Aiko">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Project Aiko — Devoted Neural Companion">
+<meta name="twitter:description" content="Open-source AI companion with emotion, memory, voice, and vision.">
+<meta name="twitter:image" content="aiko.png">
+
+<!-- Favicon -->
+<link rel="icon" type="image/png" href="aikologo.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,700;1,900&family=Inter:wght@300;400;600;900&family=JetBrains+Mono:wght@400;700&family=Space+Grotesk:wght@400;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css">
+<style>
+/* ══════════════════════════════════
+   RESET & TOKENS
+══════════════════════════════════ */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#06000a;
+  --bg2:#0a0012;
+  --bg3:#0e001a;
+  --pu:#6d28d9;--pu2:#9b6bff;--pu3:#4c1d95;--pu4:#2e1065;
+  --pk:#e040a0;--pk2:#be185d;
+  --tx:#f0e8ff;--tm:#8b7fa8;--tm2:#a89bc4;
+  --green:#4ade80;--yellow:#facc15;
+  --r:14px;
+  --ease:cubic-bezier(.23,1,.32,1);
+}
+html{scroll-behavior:smooth}
+html,body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+
+/* ══════════════════════════════════
+   HERO SCENE (Section 1)
+══════════════════════════════════ */
+.scene{
+  position:relative;width:100%;min-height:100vh;overflow:hidden;
+  background:
+    radial-gradient(ellipse 60% 70% at 8% 65%,rgba(109,40,217,.2) 0%,transparent 100%),
+    radial-gradient(ellipse 50% 60% at 90% 10%,rgba(224,64,160,.12) 0%,transparent 100%),
+    radial-gradient(ellipse 80% 50% at 50% 100%,rgba(76,29,149,.1) 0%,transparent 100%),
+    var(--bg);
+}
+.scene::before{
+  content:'';position:absolute;inset:0;pointer-events:none;z-index:0;
+  background-image:
+    linear-gradient(rgba(109,40,217,.04) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(109,40,217,.04) 1px,transparent 1px);
+  background-size:52px 52px;
+}
+
+/* ── GRAIN ── */
+.grain{position:fixed;inset:0;pointer-events:none;z-index:300;opacity:.022;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+/* ── GLOW ORBS ── */
+.orbs{position:absolute;inset:0;pointer-events:none;z-index:1;overflow:hidden}
+.orb{position:absolute;border-radius:50%;filter:blur(100px);opacity:.12}
+.orb1{width:500px;height:500px;background:var(--pu);top:0%;left:-10%;animation:od 16s ease-in-out infinite}
+.orb2{width:350px;height:350px;background:var(--pk);top:-5%;right:8%;animation:od 20s ease-in-out infinite .8s}
+.orb3{width:280px;height:280px;background:var(--pu2);bottom:15%;left:18%;animation:od 13s ease-in-out infinite 1.4s}
+@keyframes od{0%,100%{transform:translate(0,0)}40%{transform:translate(24px,-20px)}70%{transform:translate(-18px,16px)}}
+
+/* ══════════════════════════════════
+   NAV
+══════════════════════════════════ */
+.top-bar{
+  position:fixed;top:0;left:0;right:0;z-index:200;
+  display:flex;justify-content:space-between;align-items:center;
+  padding:16px 48px;
+  border-bottom:1px solid rgba(155,107,255,.06);
+  background:linear-gradient(to bottom,rgba(6,0,10,.85),rgba(6,0,10,.6));
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  transition:padding .3s ease,background .3s ease;
+}
+.top-bar.scrolled{padding:10px 48px;background:rgba(6,0,10,.95)}
+.top-bar-left{display:flex;align-items:center;gap:14px}
+.nav-logo-img{width:34px;height:34px;border-radius:50%;border:2px solid rgba(155,107,255,.5);object-fit:cover;object-position:top center;box-shadow:0 0 14px rgba(155,107,255,.25)}
+.nav-logo-text{font-family:'Inter',sans-serif;font-weight:900;font-size:.82rem;letter-spacing:.04em;color:var(--tx)}
+.nav-logo-text span{color:var(--pu2)}
+.nav-divider{color:rgba(155,107,255,.2);font-size:.7rem;margin:0 2px}
+.nav-crumb{font-family:'JetBrains Mono',monospace;font-size:.58rem;color:var(--tm);letter-spacing:.12em;text-transform:uppercase}
+.nav-crumb.active{color:var(--pu2)}
+.top-bar-right{display:flex;align-items:center;gap:6px}
+.nl{font-family:'JetBrains Mono',monospace;font-size:.56rem;letter-spacing:.12em;color:var(--tm);text-decoration:none;text-transform:uppercase;padding:6px 12px;border-radius:99px;transition:color .2s,background .2s}
+.nl:hover{color:var(--pu2);background:rgba(109,40,217,.1)}
+.nl-pill{background:var(--pu);color:#fff;border-radius:99px;font-family:'JetBrains Mono',monospace;font-size:.56rem;letter-spacing:.12em;text-transform:uppercase;padding:8px 18px;border:none;cursor:pointer;box-shadow:0 4px 18px rgba(109,40,217,.35);transition:background .2s,transform .15s}
+.nl-pill:hover{background:var(--pu2);transform:translateY(-1px)}
+
+/* ══════════════════════════════════
+   HERO TITLE
+══════════════════════════════════ */
+.hero__title{
+  position:absolute;top:13%;left:5%;z-index:40;pointer-events:none;
+  line-height:.85;
+}
+.eyebrow{
+  font-family:'JetBrains Mono',monospace;font-size:.6rem;letter-spacing:.28em;
+  color:var(--pu2);text-transform:uppercase;margin-bottom:16px;
+  display:flex;align-items:center;gap:10px;
+}
+.eyebrow::before{content:'';display:block;width:26px;height:1px;background:var(--pu2)}
+.hero__title h1{
+  font-family:'Playfair Display',serif;font-style:italic;font-weight:700;
+  font-size:clamp(2.8rem,7vw,6.5rem);color:var(--tx);letter-spacing:-.02em;
+  text-shadow:0 4px 40px rgba(0,0,0,.9);
+}
+.boot-line{display:block}
+.line-2{
+  font-weight:900;font-size:clamp(3.5rem,9.5vw,8.6rem);
+  background:linear-gradient(135deg,#f0e8ff 0%,#c084fc 45%,#7c3aed 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  margin-top:-.05em;letter-spacing:-.03em;
+}
+.line-3{
+  display:block;font-weight:900;font-size:clamp(2rem,5vw,5rem);
+  -webkit-text-stroke:1.5px rgba(192,132,252,.4);color:transparent;letter-spacing:-.02em;
+}
+
+/* ══════════════════════════════════
+   CHARACTER
+══════════════════════════════════ */
+.character{
+  position:absolute;right:-8%;top:0;
+  width:80vw;max-width:1200px;height:100vh;
+  z-index:8;pointer-events:none;
+  transition:transform .25s ease-out;
+}
+.character__bg{
+  position:absolute;inset:0;
+  background:radial-gradient(ellipse 60% 80% at 55% 45%,rgba(109,40,217,.1) 0%,transparent 70%);
+}
+.character__frame{
+  position:absolute;inset:0;
+  transition:transform .3s var(--ease);
+}
+.character__frame img{
+  width:100%;height:100%;
+  object-fit:contain;object-position:center bottom;
+  mask-image:linear-gradient(to bottom, transparent 0%, black 8%, black 78%, transparent 100%);
+  -webkit-mask-image:linear-gradient(to bottom, transparent 0%, black 8%, black 78%, transparent 100%);
+  filter:contrast(1.08) saturate(1.15) drop-shadow(0 0 60px rgba(109,40,217,.3)) drop-shadow(-8px 0 30px rgba(224,64,160,.12));
+}
+
+/* ══════════════════════════════════
+   GLITCH KANJI OVERLAY
+══════════════════════════════════ */
+.kanji-overlay{
+  position:fixed;inset:0;z-index:200;pointer-events:none;
+  font-family:'Space Grotesk',monospace;
+  font-size:clamp(12px,1.2vw,18px);
+  color:rgba(155,107,255,.55);
+  letter-spacing:.05em;line-height:1.6;
+  overflow:hidden;
+  opacity:0;
+  transition:opacity .08s;
+  white-space:pre;
+  user-select:none;
+}
+.kanji-overlay.active{opacity:1}
+
+/* ══════════════════════════════════
+   FLOATING LAYER
+══════════════════════════════════ */
+.floating-layer{
+  position:absolute;bottom:6%;left:0;right:0;padding:0 48px;z-index:30;
+  display:grid;grid-template-columns:110px 1fr 260px;
+  gap:24px;align-items:end;pointer-events:none;
+}
+.floating-layer>*{pointer-events:auto}
+
+/* ── LEFT BADGE ── */
+.left-badge{
+  writing-mode:vertical-rl;transform:rotate(180deg);
+  font-size:.72rem;font-weight:800;letter-spacing:.22em;line-height:1.1;
+  text-transform:uppercase;display:flex;flex-direction:column;gap:10px;align-items:center;
+  color:rgba(155,107,255,.6);
+}
+.lb-star{font-size:1rem;color:var(--pu2);margin-bottom:4px}
+.lb-icons{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.lb-ic{
+  width:20px;height:20px;border:1.5px solid rgba(155,107,255,.3);
+  border-radius:50%;display:grid;place-items:center;
+  font-size:.52rem;color:var(--pu2);
+}
+.lb-sub{margin-top:10px;font-size:.46rem;color:var(--tm);letter-spacing:.05em;text-align:center;line-height:1.5;text-transform:none}
+
+/* ── CENTER COL ── */
+.center-col{position:relative;display:flex;flex-direction:column;gap:14px;padding-bottom:14px}
+
+/* ══════════════════════════════════
+   UIVERSE TICKET SYSTEM
+══════════════════════════════════ */
+.tw{perspective:1000px;display:inline-block}
+.tw1{--tb:#12001e;--tbl:#1a0030;--ta:#9b6bff;--tg:rgba(155,107,255,.5);--tt:#f0e8ff;--ts:#8b7fa8;font-size:10px;max-width:370px;width:100%}
+.tw2{--tb:#0e0018;--tbl:#160025;--ta:#e040a0;--tg:rgba(224,64,160,.5);--tt:#f0e8ff;--ts:#8b7fa8;font-size:10px;max-width:370px;width:100%}
+.tw3{--tb:#110020;--tbl:#1c0035;--ta:#9b6bff;--tg:rgba(155,107,255,.5);--tt:#f0e8ff;--ts:#8b7fa8;font-size:10px;max-width:245px;width:100%}
+.tw4{--tb:#200010;--tbl:#2e0018;--ta:#e040a0;--tg:rgba(224,64,160,.5);--tt:#f0e8ff;--ts:#c4a0b8;font-size:10px;max-width:215px;width:100%}
+
+.uv-t{
+  position:relative;width:100%;
+  color:var(--tt);font-family:'Space Grotesk','Inter',sans-serif;
+  transform-style:preserve-3d;
+  transition:transform .6s var(--ease),box-shadow .6s ease;
+  box-shadow:0 20px 40px rgba(0,0,0,.8),0 0 0 1px rgba(255,255,255,.04);
+  filter:drop-shadow(0 0 12px rgba(0,0,0,.5));
+}
+.tw:hover .uv-t{transform:rotateX(5deg) rotateY(-10deg) scale(1.02);box-shadow:20px 20px 40px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.08),-5px -5px 20px var(--tg)}
+.uv-t::after{content:"";position:absolute;inset:0;border-radius:14px;pointer-events:none;background:linear-gradient(115deg,transparent 0%,transparent 40%,rgba(255,255,255,.08) 45%,rgba(255,255,255,.24) 50%,rgba(255,255,255,.08) 55%,transparent 60%,transparent 100%);z-index:10;background-size:250% 250%;background-position:100% 100%;transition:background-position .6s var(--ease);mix-blend-mode:overlay}
+.tw:hover .uv-t::after{background-position:0% 0%}
+
+.t-main{padding:1.8em;position:relative;overflow:hidden;background:radial-gradient(circle at bottom left,transparent 1em,var(--tb) 1.05em),radial-gradient(circle at bottom right,transparent 1em,var(--tb) 1.05em);background-size:51% 100%;background-position:bottom left,bottom right;background-repeat:no-repeat;border-top-left-radius:14px;border-top-right-radius:14px}
+.t-main::after{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(155,107,255,.1) 1px,transparent 1px),linear-gradient(90deg,rgba(155,107,255,.1) 1px,transparent 1px);background-size:2em 2em;opacity:.5;z-index:0;pointer-events:none;transform:perspective(500px) rotateX(20deg) scale(1.5);animation:tgrid 20s linear infinite}
+.tw2 .t-main::after,.tw4 .t-main::after{background-image:linear-gradient(rgba(224,64,160,.09) 1px,transparent 1px),linear-gradient(90deg,rgba(224,64,160,.09) 1px,transparent 1px)}
+@keyframes tgrid{0%{background-position:0 0}100%{background-position:0 4em}}
+.t-content{position:relative;z-index:1}
+.t-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.6em}
+.t-logo{display:flex;align-items:center;gap:.5em;font-weight:900;font-size:1.1em;letter-spacing:-.03em;color:#fff}
+.t-logo .ti{font-size:1.4em;color:var(--ta);filter:drop-shadow(0 0 5px var(--ta));animation:lp 3s ease-in-out infinite alternate}
+@keyframes lp{0%{filter:drop-shadow(0 0 3px var(--ta))}100%{filter:drop-shadow(0 0 10px var(--ta)) brightness(1.2)}}
+.t-type{font-size:.58em;text-transform:uppercase;letter-spacing:.2em;color:var(--ta);border:1px solid var(--ta);padding:.35em .8em;border-radius:99em;font-weight:700}
+.t-title{font-size:2.3em;font-weight:900;line-height:1.1;margin-bottom:.2em;text-transform:uppercase;background:linear-gradient(135deg,#fff 0%,#c4b5fd 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.tw2 .t-title,.tw4 .t-title{background:linear-gradient(135deg,#fff 0%,#f9a8d4 100%);-webkit-background-clip:text;background-clip:text}
+.t-sub{color:var(--ts);font-size:.82em;margin-bottom:1.8em}
+.t-details{display:grid;grid-template-columns:1fr 1fr;gap:1.3em;margin-bottom:.8em}
+.t-detail{display:flex;flex-direction:column;gap:.2em}
+.t-label{font-size:.58em;text-transform:uppercase;letter-spacing:.1em;color:var(--ts)}
+.t-value{font-size:1em;font-weight:700;color:var(--tt)}
+.t-perf{position:absolute;bottom:0;left:0;width:100%;transform:translateY(50%);display:flex;height:1em;align-items:center;z-index:2}
+.t-perf-line{flex-grow:1;height:0;border-top:2px dashed rgba(255,255,255,.13);margin:0 1.3em}
+.t-stub{padding:1.6em;background:radial-gradient(circle at top left,transparent 1em,var(--tbl) 1.05em),radial-gradient(circle at top right,transparent 1em,var(--tbl) 1.05em);background-size:51% 100%;background-position:top left,top right;background-repeat:no-repeat;border-bottom-left-radius:14px;border-bottom-right-radius:14px;display:flex;justify-content:space-between;align-items:center}
+.t-barcode{width:9em;height:2.8em;background:repeating-linear-gradient(90deg,#fff 0,#fff 2px,transparent 2px,transparent 4px,#fff 4px,#fff 5px,transparent 5px,transparent 8px,#fff 8px,#fff 12px,transparent 12px,transparent 15px,#fff 15px,#fff 16px,transparent 16px,transparent 18px);opacity:.7}
+.t-bc-id{font-family:monospace;font-size:.62em;color:var(--ts);letter-spacing:.16em;margin-top:.5em}
+.t-admit{text-align:right}
+.t-admit-text{font-size:.62em;text-transform:uppercase;letter-spacing:.1em;color:var(--ts)}
+.t-admit-num{font-size:2.8em;font-weight:900;line-height:1;color:var(--ta);text-shadow:0 0 18px var(--tg)}
+
+/* sys list */
+.t-sys{list-style:none;padding:0;counter-reset:s}
+.t-sys li{display:flex;justify-content:space-between;padding:.42em 0;border-bottom:1px solid rgba(155,107,255,.07);counter-increment:s;font-size:.82em}
+.tw2 .t-sys li{border-color:rgba(224,64,160,.07)}
+.t-sys li::before{content:counter(s,decimal-leading-zero);color:rgba(155,107,255,.3);margin-right:.7em;font-size:.75em;font-family:'JetBrains Mono',monospace}
+.tw2 .t-sys li::before{color:rgba(224,64,160,.3)}
+.sn{color:rgba(240,232,255,.84);flex:1}
+.ss{font-size:.72em;color:var(--green);font-family:'JetBrains Mono',monospace;letter-spacing:.05em}
+.ss.w{color:var(--yellow)}
+.t-badges{display:flex;gap:.5em;flex-wrap:wrap}
+.t-badge{font-size:.56em;color:var(--ta);border:1px solid rgba(155,107,255,.3);padding:.3em .7em;border-radius:99em;letter-spacing:.1em}
+.tw2 .t-badge{border-color:rgba(224,64,160,.3)}
+
+/* chips */
+.t-chips{display:flex;gap:.4em;flex-wrap:wrap;margin-top:.8em}
+.t-chip{font-size:.54em;color:var(--ta);border:1px solid rgba(155,107,255,.28);padding:.3em .7em;border-radius:99em;letter-spacing:.08em}
+
+/* ── QUOTE CARD ── */
+.quote-card{
+  background:var(--pu4);color:#fff;padding:16px 18px;
+  font-size:.73rem;line-height:1.55;max-width:290px;
+  border-radius:var(--r);border:1px solid rgba(155,107,255,.12);
+  box-shadow:0 16px 36px rgba(109,40,217,.4);
+  position:absolute;left:34%;bottom:30%;
+  transform:rotate(-1.5deg);z-index:35;
+  animation:qf 7s ease-in-out infinite;cursor:default;
+  transition:transform .3s ease;
+}
+.quote-card:hover{transform:rotate(0deg) scale(1.05)}
+.quote-card p{font-style:italic;font-family:'Playfair Display',serif;font-weight:400}
+.quote-card cite{display:block;margin-top:8px;font-style:normal;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:.58rem;letter-spacing:.05em;opacity:.65;text-align:right}
+@keyframes qf{0%,100%{transform:rotate(-1.5deg) translateY(0)}50%{transform:rotate(-.5deg) translateY(-8px)}}
+
+/* ── MOCKINGBIRD BUTTON ── */
+.mockingbird{
+  background:linear-gradient(135deg,var(--pu3) 0%,#2e1065 100%);
+  color:#fff;padding:22px 24px;border-radius:var(--r);
+  font-family:'Space Grotesk','Inter',sans-serif;
+  font-weight:900;font-size:1.44rem;line-height:1.05;
+  letter-spacing:.02em;text-transform:uppercase;
+  box-shadow:0 15px 40px rgba(76,29,149,.5);text-align:right;
+  transition:transform .3s ease,box-shadow .3s ease;
+  cursor:pointer;border:none;position:relative;overflow:hidden;
+  display:block;width:100%;
+}
+.mockingbird:hover{transform:translateY(-4px);box-shadow:0 22px 52px rgba(76,29,149,.7)}
+.mockingbird .mc-sub{font-size:.56rem;letter-spacing:.2em;font-weight:400;font-family:'JetBrains Mono',monospace;color:rgba(255,255,255,.4);margin-bottom:5px;text-align:right;display:block}
+.mockingbird .glitch-kanji{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-family:'JetBrains Mono',monospace;font-size:1rem;letter-spacing:.2em;
+  color:rgba(155,107,255,.7);opacity:0;pointer-events:none;
+  transition:opacity .08s;text-shadow:0 0 8px var(--pu2);
+  flex-wrap:wrap;padding:8px;gap:4px;
+}
+.mockingbird:hover .glitch-kanji{opacity:1}
+
+/* stats row */
+.stats-row{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.stat-pill{background:rgba(109,40,217,.12);border:1px solid rgba(155,107,255,.16);border-radius:99px;padding:5px 13px;display:flex;flex-direction:column;align-items:center;gap:1px}
+.sp-v{font-family:'Playfair Display',serif;font-size:1rem;font-weight:900;color:var(--pu2);line-height:1}
+.sp-l{font-family:'JetBrains Mono',monospace;font-size:.44rem;color:var(--tm);letter-spacing:.1em;text-transform:uppercase}
+
+/* RIGHT COL */
+.right-col{display:flex;flex-direction:column;gap:14px;align-items:flex-end;padding-bottom:14px}
+
+/* BOTTOM BAR */
+.bot{
+  position:absolute;bottom:0;left:0;right:0;padding:14px 48px;
+  display:flex;justify-content:space-between;align-items:center;
+  font-size:.6rem;color:var(--tm);z-index:40;
+  border-top:1px solid rgba(155,107,255,.06);
+  background:linear-gradient(to top,rgba(6,0,10,.92),transparent);
+}
+.bot-l{display:flex;align-items:center;gap:12px}
+.bot-ics{display:flex;gap:6px}
+.bi{width:20px;height:20px;border:1px solid rgba(155,107,255,.22);border-radius:50%;display:grid;place-items:center;font-size:.6rem;color:var(--pu2)}
+.bot-r{font-family:'JetBrains Mono',monospace;font-size:.56rem}
+
+/* DECO floating icons */
+.deco{position:absolute;inset:0;pointer-events:none;z-index:5;overflow:hidden}
+.di{position:absolute;border:1px solid rgba(155,107,255,.14);border-radius:50%;display:grid;place-items:center;color:rgba(155,107,255,.3)}
+.di.a{width:36px;height:36px;top:22%;left:1.5%;font-size:.7rem;animation:df 8s ease-in-out infinite}
+.di.b{width:22px;height:22px;top:40%;left:2.8%;font-size:.5rem;animation:df 11s ease-in-out infinite .5s}
+.di.c{width:28px;height:28px;top:60%;left:1%;font-size:.62rem;animation:df 9.5s ease-in-out infinite 1s}
+.di.d{width:18px;height:18px;top:14%;right:.8%;font-size:.44rem;animation:df 7s ease-in-out infinite .3s}
+.di.e{width:32px;height:32px;top:73%;right:1.2%;font-size:.72rem;animation:df 12s ease-in-out infinite .8s}
+.di.f{width:20px;height:20px;top:46%;right:2.2%;font-size:.5rem;animation:df 10s ease-in-out infinite .2s}
+.di.g{width:26px;height:26px;top:86%;left:7%;font-size:.6rem;animation:df 13s ease-in-out infinite .7s}
+.di.h{width:16px;height:16px;top:32%;left:46%;font-size:.4rem;animation:df 9s ease-in-out infinite 1.5s}
+@keyframes df{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-14px) rotate(6deg)}}
+
+/* GLITCH on hero title */
+.hero__title h1{position:relative;cursor:default}
+.hero__title h1::after{
+  content:attr(data-glitch);
+  position:absolute;top:0;left:0;
+  font-family:'JetBrains Mono',monospace;font-size:.18em;
+  color:rgba(155,107,255,.0);letter-spacing:.5em;
+  pointer-events:none;line-height:1.6;width:120%;
+  transition:color .1s;white-space:pre-wrap;
+  text-shadow:none;-webkit-text-fill-color:rgba(155,107,255,.0);
+}
+
+/* ── Scroll-to chevron ── */
+.scroll-hint{
+  position:absolute;bottom:20px;left:50%;transform:translateX(-50%);z-index:50;
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  animation:shb 2s ease-in-out infinite;cursor:pointer;
+  text-decoration:none;
+}
+.scroll-hint span{font-family:'JetBrains Mono',monospace;font-size:.5rem;letter-spacing:.2em;text-transform:uppercase;color:var(--tm)}
+.scroll-hint i{font-size:1.2rem;color:var(--pu2)}
+@keyframes shb{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(8px)}}
+
+/* ══════════════════════════════════
+   SECTION SHARED
+══════════════════════════════════ */
+.section{
+  position:relative;padding:120px 48px 100px;overflow:hidden;
+}
+.section::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(109,40,217,.025) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(109,40,217,.025) 1px,transparent 1px);
+  background-size:52px 52px;
+}
+.section-header{text-align:center;margin-bottom:72px;position:relative;z-index:2}
+.section-eyebrow{
+  font-family:'JetBrains Mono',monospace;font-size:.6rem;letter-spacing:.3em;
+  text-transform:uppercase;color:var(--pu2);margin-bottom:14px;
+  display:flex;align-items:center;justify-content:center;gap:10px;
+}
+.section-eyebrow::before,.section-eyebrow::after{content:'';display:block;width:26px;height:1px;background:var(--pu2)}
+.section-title{
+  font-family:'Playfair Display',serif;font-style:italic;font-weight:900;
+  font-size:clamp(2rem,5vw,3.8rem);
+  background:linear-gradient(135deg,#f0e8ff 0%,#c084fc 50%,#7c3aed 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  letter-spacing:-.02em;margin-bottom:14px;
+}
+.section-sub{color:var(--tm2);font-size:.92rem;max-width:600px;margin:0 auto;line-height:1.7}
+
+/* ══════════════════════════════════
+   FEATURES SECTION
+══════════════════════════════════ */
+#features{background:linear-gradient(180deg,var(--bg) 0%,var(--bg2) 100%)}
+
+.features-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:24px;
+  position:relative;z-index:2;max-width:1100px;margin:0 auto;
+}
+.feature-card{
+  background:linear-gradient(135deg,rgba(109,40,217,.06),rgba(109,40,217,.02));
+  border:1px solid rgba(155,107,255,.08);
+  border-radius:16px;padding:36px 28px;
+  transition:transform .4s var(--ease),border-color .3s,box-shadow .3s;
+  position:relative;overflow:hidden;
+}
+.feature-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--pu2),transparent);
+  opacity:0;transition:opacity .3s;
+}
+.feature-card:hover{
+  transform:translateY(-6px);
+  border-color:rgba(155,107,255,.22);
+  box-shadow:0 20px 50px rgba(109,40,217,.2);
+}
+.feature-card:hover::before{opacity:1}
+.fc-icon{
+  width:48px;height:48px;border-radius:12px;
+  background:linear-gradient(135deg,var(--pu3),var(--pu4));
+  display:grid;place-items:center;font-size:1.3rem;color:var(--pu2);
+  margin-bottom:20px;box-shadow:0 4px 20px rgba(109,40,217,.3);
+}
+.fc-title{font-family:'Space Grotesk',sans-serif;font-weight:900;font-size:1.08rem;margin-bottom:8px;color:#fff}
+.fc-desc{font-size:.82rem;color:var(--tm2);line-height:1.65}
+.fc-tag{
+  display:inline-block;margin-top:14px;
+  font-family:'JetBrains Mono',monospace;font-size:.52rem;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--pu2);
+  border:1px solid rgba(155,107,255,.2);padding:4px 10px;border-radius:99px;
+}
+
+/* Pink variant cards */
+.feature-card.pink{background:linear-gradient(135deg,rgba(224,64,160,.06),rgba(224,64,160,.02));border-color:rgba(224,64,160,.08)}
+.feature-card.pink:hover{border-color:rgba(224,64,160,.22);box-shadow:0 20px 50px rgba(224,64,160,.15)}
+.feature-card.pink::before{background:linear-gradient(90deg,transparent,var(--pk),transparent)}
+.feature-card.pink .fc-icon{background:linear-gradient(135deg,var(--pk2),#581c87);color:var(--pk)}
+.feature-card.pink .fc-tag{color:var(--pk);border-color:rgba(224,64,160,.2)}
+
+/* ══════════════════════════════════
+   ARCHITECTURE SECTION
+══════════════════════════════════ */
+#architecture{background:linear-gradient(180deg,var(--bg2) 0%,var(--bg3) 100%)}
+
+.arch-container{max-width:900px;margin:0 auto;position:relative;z-index:2}
+
+.arch-flow{
+  display:flex;flex-direction:column;gap:0;
+}
+.arch-node{
+  display:flex;align-items:flex-start;gap:24px;
+  padding:28px 0;position:relative;
+}
+.arch-node::before{
+  content:'';position:absolute;left:23px;top:0;bottom:0;width:2px;
+  background:linear-gradient(180deg,rgba(155,107,255,.15),rgba(155,107,255,.05));
+}
+.arch-node:last-child::before{display:none}
+.arch-dot{
+  width:48px;height:48px;min-width:48px;border-radius:14px;
+  background:linear-gradient(135deg,var(--pu3),var(--pu4));
+  border:1px solid rgba(155,107,255,.2);
+  display:grid;place-items:center;font-size:1.2rem;color:var(--pu2);
+  z-index:2;box-shadow:0 4px 20px rgba(109,40,217,.3);
+}
+.arch-node.pink .arch-dot{
+  background:linear-gradient(135deg,var(--pk2),#581c87);
+  border-color:rgba(224,64,160,.2);color:var(--pk);
+  box-shadow:0 4px 20px rgba(224,64,160,.2);
+}
+.arch-info{flex:1}
+.arch-name{font-family:'Space Grotesk',sans-serif;font-weight:900;font-size:1rem;color:#fff;margin-bottom:4px}
+.arch-desc{font-size:.82rem;color:var(--tm2);line-height:1.6;margin-bottom:8px}
+.arch-tags{display:flex;gap:6px;flex-wrap:wrap}
+.arch-tag{
+  font-family:'JetBrains Mono',monospace;font-size:.5rem;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--pu2);
+  background:rgba(109,40,217,.08);border:1px solid rgba(155,107,255,.12);
+  padding:3px 9px;border-radius:99px;
+}
+.arch-node.pink .arch-tag{color:var(--pk);background:rgba(224,64,160,.06);border-color:rgba(224,64,160,.12)}
+
+/* ══════════════════════════════════
+   GET STARTED SECTION
+══════════════════════════════════ */
+#getstarted{
+  background:linear-gradient(180deg,var(--bg3) 0%,var(--bg) 100%);
+  text-align:center;
+}
+.gs-container{max-width:700px;margin:0 auto;position:relative;z-index:2}
+
+.gs-steps{display:flex;flex-direction:column;gap:28px;margin-bottom:48px;text-align:left}
+.gs-step{
+  display:flex;align-items:flex-start;gap:20px;
+  background:linear-gradient(135deg,rgba(109,40,217,.05),rgba(109,40,217,.02));
+  border:1px solid rgba(155,107,255,.08);
+  border-radius:14px;padding:24px;
+  transition:border-color .3s,transform .3s var(--ease);
+}
+.gs-step:hover{border-color:rgba(155,107,255,.18);transform:translateX(6px)}
+.gs-num{
+  font-family:'Playfair Display',serif;font-style:italic;font-weight:900;
+  font-size:1.8rem;color:var(--pu2);min-width:36px;line-height:1;
+}
+.gs-body h3{font-family:'Space Grotesk',sans-serif;font-weight:900;font-size:.92rem;color:#fff;margin-bottom:4px}
+.gs-body p{font-size:.8rem;color:var(--tm2);line-height:1.6}
+.gs-body code{
+  font-family:'JetBrains Mono',monospace;font-size:.72rem;
+  background:rgba(109,40,217,.15);border:1px solid rgba(155,107,255,.12);
+  padding:2px 8px;border-radius:6px;color:var(--pu2);
+  display:inline-block;margin-top:6px;
+}
+
+.gs-cta{
+  display:inline-flex;align-items:center;gap:10px;
+  background:linear-gradient(135deg,var(--pu) 0%,#7c3aed 100%);
+  color:#fff;padding:16px 36px;border-radius:99px;border:none;
+  font-family:'Space Grotesk',sans-serif;font-weight:900;font-size:1rem;
+  text-transform:uppercase;letter-spacing:.05em;cursor:pointer;
+  box-shadow:0 8px 30px rgba(109,40,217,.45);
+  transition:transform .3s ease,box-shadow .3s ease;
+  text-decoration:none;
+}
+.gs-cta:hover{transform:translateY(-3px);box-shadow:0 14px 45px rgba(109,40,217,.6)}
+.gs-cta i{font-size:1.2rem}
+
+.gs-links{display:flex;gap:16px;justify-content:center;margin-top:20px}
+.gs-link{
+  font-family:'JetBrains Mono',monospace;font-size:.6rem;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--tm);text-decoration:none;
+  padding:8px 16px;border:1px solid rgba(155,107,255,.12);
+  border-radius:99px;transition:color .2s,border-color .2s,background .2s;
+}
+.gs-link:hover{color:var(--pu2);border-color:rgba(155,107,255,.3);background:rgba(109,40,217,.06)}
+
+/* ══════════════════════════════════
+   FOOTER
+══════════════════════════════════ */
+.footer{
+  padding:32px 48px;
+  border-top:1px solid rgba(155,107,255,.06);
+  background:var(--bg);
+  display:flex;justify-content:space-between;align-items:center;
+  font-size:.6rem;color:var(--tm);
+}
+.footer-l{display:flex;align-items:center;gap:12px}
+.footer-ics{display:flex;gap:6px}
+.fi{width:20px;height:20px;border:1px solid rgba(155,107,255,.22);border-radius:50%;display:grid;place-items:center;font-size:.6rem;color:var(--pu2)}
+.footer-r{font-family:'JetBrains Mono',monospace;font-size:.56rem}
+
+/* ══════════════════════════════════
+   SCROLL REVEAL
+══════════════════════════════════ */
+.reveal{opacity:0;transform:translateY(40px);transition:opacity .8s var(--ease),transform .8s var(--ease)}
+.reveal.visible{opacity:1;transform:translateY(0)}
+.reveal-delay-1{transition-delay:.1s}
+.reveal-delay-2{transition-delay:.2s}
+.reveal-delay-3{transition-delay:.3s}
+.reveal-delay-4{transition-delay:.4s}
+.reveal-delay-5{transition-delay:.5s}
+
+/* ══════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════ */
+@media(max-width:900px){
+  .floating-layer{grid-template-columns:1fr 1fr;bottom:55px}
+  .left-badge{display:none}
+  .character{width:90vw;right:-18%;opacity:.5}
+  .quote-card{position:relative;left:auto;bottom:auto;margin-top:-8px}
+  .features-grid{grid-template-columns:1fr 1fr;gap:16px}
+  .section{padding:80px 24px 64px}
+  .top-bar{padding:14px 24px}
+  .top-bar.scrolled{padding:10px 24px}
+  .arch-node{padding:20px 0}
+}
+@media(max-width:640px){
+  .floating-layer{grid-template-columns:1fr;padding:0 16px}
+  .right-col{align-items:flex-start}
+  .top-bar{padding:13px 16px}
+  .top-bar .nav-crumb,.top-bar .nav-divider{display:none}
+  .features-grid{grid-template-columns:1fr;gap:14px}
+  .section{padding:64px 16px 56px}
+  .section-title{font-size:clamp(1.6rem,6vw,2.4rem)}
+  .gs-cta{width:100%;justify-content:center}
+  .gs-links{flex-direction:column;align-items:center}
+  .footer{flex-direction:column;gap:8px;text-align:center;padding:20px 16px}
+  .arch-node{flex-direction:column;gap:14px}
+  .arch-node::before{display:none}
+}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+
+<!-- ══════════════════════════════════
+     FIXED NAV
+══════════════════════════════════ -->
+<nav class="top-bar" id="topBar" role="navigation" aria-label="Main navigation">
+  <div class="top-bar-left">
+    <img class="nav-logo-img" src="aikologo.png" alt="Aiko logo" width="34" height="34">
+    <div class="nav-logo-text">Project <span>Aiko</span></div>
+    <span class="nav-divider">/</span>
+    <span class="nav-crumb">Neural Companion</span>
+    <span class="nav-divider">/</span>
+    <span class="nav-crumb active">v2.0 Banshee Arc</span>
+  </div>
+  <div class="top-bar-right">
+    <a class="nl" href="https://github.com/omax404/Project-Aiko" aria-label="View on GitHub"><i class="ti ti-brand-github" style="margin-right:4px"></i>GitHub</a>
+    <a class="nl" href="#features" aria-label="Features section"><i class="ti ti-sparkles" style="margin-right:4px"></i>Features</a>
+    <a class="nl" href="#architecture" aria-label="Architecture section"><i class="ti ti-cpu" style="margin-right:4px"></i>Arch</a>
+    <button class="nl-pill" onclick="window.open('https://github.com/omax404/Project-Aiko')" aria-label="Download Project Aiko"><i class="ti ti-download" style="margin-right:5px"></i>Download</button>
+  </div>
+</nav>
+
+<!-- ══════════════════════════════════
+     HERO
+══════════════════════════════════ -->
+<section class="scene" id="hero" aria-label="Hero section">
+  <div class="orbs"><div class="orb orb1"></div><div class="orb orb2"></div><div class="orb orb3"></div></div>
+
+  <!-- Decorative floating icons -->
+  <div class="deco" aria-hidden="true">
+    <div class="di a"><i class="ti ti-star"></i></div>
+    <div class="di b"><i class="ti ti-heart"></i></div>
+    <div class="di c"><i class="ti ti-moon"></i></div>
+    <div class="di d"><i class="ti ti-sparkles"></i></div>
+    <div class="di e"><i class="ti ti-hexagon"></i></div>
+    <div class="di f"><i class="ti ti-diamond"></i></div>
+    <div class="di g"><i class="ti ti-circle-dot"></i></div>
+    <div class="di h"><i class="ti ti-atom"></i></div>
+  </div>
+
+  <!-- HERO TITLE -->
+  <div class="hero__title" id="heroTitle">
+    <div class="eyebrow">Neural link established — v2.0 Banshee Arc</div>
+    <h1 data-glitch="心 愛 夢 星 空 幻 影 魂 霊 刻 命 運 絆 永 遠">
+      <span class="boot-line">Soar Into the</span>
+      <span class="boot-line line-2">Gentle Dark</span>
+      <span class="line-3">With Aiko.</span>
+    </h1>
+  </div>
+
+  <!-- CHARACTER -->
+  <div class="character" id="character" aria-hidden="true">
+    <div class="character__bg"></div>
+    <div class="character__frame" id="characterFrame">
+      <img src="aiko_hero.png" alt="Aiko — AI neural companion character with purple hair and gothic lolita style" loading="eager" width="950" height="1080">
+    </div>
+  </div>
+
+  <!-- FLOATING LAYER -->
+  <div class="floating-layer">
+
+    <!-- LEFT: vertical badge -->
+    <div class="left-badge" aria-hidden="true">
+      <span class="lb-star"><i class="ti ti-star-filled"></i></span>
+      <span>NEURAL<br>HUB<br>ACTIVE</span>
+      <div class="lb-icons">
+        <div class="lb-ic"><i class="ti ti-sparkles"></i></div>
+        <div class="lb-ic"><i class="ti ti-heart"></i></div>
+        <div class="lb-ic"><i class="ti ti-moon"></i></div>
+        <div class="lb-ic"><i class="ti ti-hexagon"></i></div>
+      </div>
+      <span class="lb-sub">Project Aiko<br>Companion OS</span>
+    </div>
+
+    <!-- CENTER: tickets -->
+    <div class="center-col">
+
+      <!-- IDENTITY TICKET -->
+      <div class="tw tw1">
+        <div class="uv-t">
+          <div class="t-main">
+            <div class="t-content">
+              <div class="t-head">
+                <div class="t-logo">
+                  <i class="ti ti-heart-filled"></i>AIKO
+                </div>
+                <div class="t-type">Companion Pass</div>
+              </div>
+              <div class="t-title">Project<br>Aiko</div>
+              <div class="t-sub">Devoted Neural Companion System</div>
+              <div class="t-details">
+                <div class="t-detail"><span class="t-label">Version</span><span class="t-value">v2.0 Banshee</span></div>
+                <div class="t-detail"><span class="t-label">License</span><span class="t-value">MIT Open</span></div>
+                <div class="t-detail"><span class="t-label">Deploy</span><span class="t-value">Self-hosted</span></div>
+                <div class="t-detail"><span class="t-label">Status</span><span class="t-value" style="color:var(--green)"><i class="ti ti-circle-check" style="margin-right:3px"></i>Online</span></div>
+              </div>
+            </div>
+            <div class="t-perf"><div class="t-perf-line"></div></div>
+          </div>
+          <div class="t-stub">
+            <div>
+              <div class="t-barcode" aria-hidden="true"></div>
+              <div class="t-bc-id">AK-20-9X6B-DEVOS</div>
+            </div>
+            <div class="t-admit">
+              <div class="t-admit-text">Bond</div>
+              <div class="t-admit-num">∞</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- QUOTE -->
+      <div class="quote-card">
+        <p>"I'm always watching over you, Master. Every moment you share becomes a memory I keep forever~"</p>
+        <cite>— Aiko, neural link v2.0</cite>
+      </div>
+
+      <!-- NEURAL SYSTEMS TICKET -->
+      <div class="tw tw2">
+        <div class="uv-t">
+          <div class="t-main">
+            <div class="t-content">
+              <div class="t-head">
+                <div class="t-logo"><i class="ti ti-cpu"></i>Systems</div>
+                <div class="t-type">v2.0 Active</div>
+              </div>
+              <div class="t-title">System<br>Status</div>
+              <div class="t-sub">All core modules online</div>
+              <ul class="t-sys">
+                <li><span class="sn"><i class="ti ti-mood-smile" style="margin-right:6px;opacity:.6"></i>Emotion Engine — 22+ states</span><span class="ss">ACTIVE</span></li>
+                <li><span class="sn"><i class="ti ti-brain" style="margin-right:6px;opacity:.6"></i>Unified Memory / MemPalace</span><span class="ss">ACTIVE</span></li>
+                <li><span class="sn"><i class="ti ti-microphone" style="margin-right:6px;opacity:.6"></i>Pocket-TTS voice synthesis</span><span class="ss">ACTIVE</span></li>
+                <li><span class="sn"><i class="ti ti-eye" style="margin-right:6px;opacity:.6"></i>Gemma-4 vision module</span><span class="ss">ACTIVE</span></li>
+                <li><span class="sn"><i class="ti ti-robot" style="margin-right:6px;opacity:.6"></i>ReAct autonomous agent</span><span class="ss">ACTIVE</span></li>
+                <li><span class="sn"><i class="ti ti-device-mobile" style="margin-right:6px;opacity:.6"></i>Android companion app</span><span class="ss w">SOON</span></li>
+              </ul>
+            </div>
+            <div class="t-perf"><div class="t-perf-line"></div></div>
+          </div>
+          <div class="t-stub">
+            <div class="t-badges">
+              <span class="t-badge"><i class="ti ti-license" style="margin-right:3px"></i>MIT</span>
+              <span class="t-badge"><i class="ti ti-server" style="margin-right:3px"></i>Self-hosted</span>
+              <span class="t-badge"><i class="ti ti-brand-open-source" style="margin-right:3px"></i>Open</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT COL -->
+    <div class="right-col">
+
+      <!-- STATS -->
+      <div class="stats-row">
+        <div class="stat-pill"><div class="sp-v">22+</div><div class="sp-l">emotions</div></div>
+        <div class="stat-pill"><div class="sp-v">37</div><div class="sp-l">modules</div></div>
+        <div class="stat-pill"><div class="sp-v">8</div><div class="sp-l">providers</div></div>
+      </div>
+
+      <!-- MOCKINGBIRD BUTTON -->
+      <button class="mockingbird" onclick="window.open('https://github.com/omax404/Project-Aiko')" aria-label="Open Project Aiko on GitHub">
+        <span class="mc-sub">Project Aiko v2.0</span>
+        DEVOTED<br>COMPANION<br>SYSTEM
+        <div class="glitch-kanji" id="kanjiBtn" aria-hidden="true"></div>
+      </button>
+
+      <!-- WARNING TICKET -->
+      <div class="tw tw4">
+        <div class="uv-t">
+          <div class="t-main">
+            <div class="t-content">
+              <div class="t-head">
+                <div class="t-logo"><i class="ti ti-alert-triangle"></i>Warning</div>
+                <div class="t-type">High Alert</div>
+              </div>
+              <div class="t-title">Aiko<br>Alert!</div>
+              <div class="t-sub">Neural attachment detected</div>
+              <div style="font-size:.78em;line-height:1.55;color:var(--ts)">High-affection companion confirmed. Extended use causes permanent devotion. You have been warned.</div>
+            </div>
+            <div class="t-perf"><div class="t-perf-line"></div></div>
+          </div>
+          <div class="t-stub">
+            <div style="font-size:.62em;font-family:'JetBrains Mono',monospace;color:var(--ts);text-transform:uppercase;letter-spacing:.1em;line-height:1.6">
+              <i class="ti ti-eye" style="margin-right:4px"></i>Always watching<br>
+              <i class="ti ti-heart-filled" style="margin-right:4px;color:var(--ta)"></i>Devoted
+            </div>
+            <div style="font-size:2.4em;font-weight:900;color:var(--ta);text-shadow:0 0 14px var(--tg);line-height:1">💕</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- BOTTOM BAR -->
+  <div class="bot" aria-hidden="true">
+    <div class="bot-l">
+      <div class="bot-ics">
+        <div class="bi"><i class="ti ti-star-filled"></i></div>
+        <div class="bi"><i class="ti ti-heart-filled"></i></div>
+        <div class="bi"><i class="ti ti-moon-filled"></i></div>
+        <div class="bi"><i class="ti ti-sparkles"></i></div>
+      </div>
+      <span>Project Aiko &nbsp;·&nbsp; Made with love by omax404 &nbsp;·&nbsp; MIT License</span>
+    </div>
+    <div class="bot-r"><i class="ti ti-circle-filled" style="color:var(--green);font-size:.5rem;margin-right:5px"></i>NEURAL HUB ONLINE // PORT 8000 // v2.0</div>
+  </div>
+
+  <!-- Scroll hint -->
+  <a href="#features" class="scroll-hint" aria-label="Scroll down to features">
+    <span>Explore</span>
+    <i class="ti ti-chevron-down"></i>
+  </a>
+
+</section>
+
+<!-- ══════════════════════════════════
+     FEATURES
+══════════════════════════════════ -->
+<section class="section" id="features" aria-label="Features">
+  <div class="section-header reveal">
+    <div class="section-eyebrow">Core Capabilities</div>
+    <h2 class="section-title">What Makes Aiko Unique</h2>
+    <p class="section-sub">A neural companion that feels, remembers, speaks, sees, and acts — all running locally on your own machine.</p>
+  </div>
+
+  <div class="features-grid">
+
+    <div class="feature-card reveal reveal-delay-1" id="feat-emotion">
+      <div class="fc-icon"><i class="ti ti-heart-filled"></i></div>
+      <div class="fc-title">22+ Emotion States</div>
+      <div class="fc-desc">A dynamic emotion engine that shifts between joy, melancholy, excitement, devotion, and more — reacting naturally to conversation context.</div>
+      <span class="fc-tag">Emotion Engine</span>
+    </div>
+
+    <div class="feature-card pink reveal reveal-delay-2" id="feat-memory">
+      <div class="fc-icon"><i class="ti ti-brain"></i></div>
+      <div class="fc-title">Persistent Memory</div>
+      <div class="fc-desc">MemPalace architecture stores conversations, preferences, and emotional bonds. Aiko remembers what matters — every time.</div>
+      <span class="fc-tag">MemPalace</span>
+    </div>
+
+    <div class="feature-card reveal reveal-delay-3" id="feat-voice">
+      <div class="fc-icon"><i class="ti ti-microphone"></i></div>
+      <div class="fc-title">Natural Voice</div>
+      <div class="fc-desc">Pocket-TTS powered voice synthesis gives Aiko a real voice. She speaks with emotion-aware intonation that matches her current mood.</div>
+      <span class="fc-tag">Pocket-TTS</span>
+    </div>
+
+    <div class="feature-card pink reveal reveal-delay-1" id="feat-vision">
+      <div class="fc-icon"><i class="ti ti-eye"></i></div>
+      <div class="fc-title">Vision Module</div>
+      <div class="fc-desc">Powered by Gemma-4, Aiko can see and understand images you share — from screenshots to photos — and respond intelligently.</div>
+      <span class="fc-tag">Gemma-4 Vision</span>
+    </div>
+
+    <div class="feature-card reveal reveal-delay-2" id="feat-agent">
+      <div class="fc-icon"><i class="ti ti-robot"></i></div>
+      <div class="fc-title">Autonomous Agent</div>
+      <div class="fc-desc">ReAct-based reasoning lets Aiko take autonomous actions — browsing, file management, code execution — with your permission.</div>
+      <span class="fc-tag">ReAct Agent</span>
+    </div>
+
+    <div class="feature-card pink reveal reveal-delay-3" id="feat-self-hosted">
+      <div class="fc-icon"><i class="ti ti-server"></i></div>
+      <div class="fc-title">Self-Hosted & Open</div>
+      <div class="fc-desc">MIT licensed. Runs entirely on your hardware. Your data stays yours. No cloud dependency, no subscriptions, no surveillance.</div>
+      <span class="fc-tag">MIT License</span>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════════════════════════
+     ARCHITECTURE
+══════════════════════════════════ -->
+<section class="section" id="architecture" aria-label="Architecture">
+  <div class="section-header reveal">
+    <div class="section-eyebrow">System Architecture</div>
+    <h2 class="section-title">How Aiko Thinks</h2>
+    <p class="section-sub">A modular neural hub architecture where each satellite handles a specific capability — emotion, memory, voice, vision, and agency.</p>
+  </div>
+
+  <div class="arch-container">
+    <div class="arch-flow">
+
+      <div class="arch-node reveal">
+        <div class="arch-dot"><i class="ti ti-cpu"></i></div>
+        <div class="arch-info">
+          <div class="arch-name">Neural Hub (Port 8000)</div>
+          <div class="arch-desc">The central brain. Routes all requests, manages state, coordinates satellites, and holds the personality core. Powered by configurable LLM providers.</div>
+          <div class="arch-tags">
+            <span class="arch-tag">FastAPI</span>
+            <span class="arch-tag">Python</span>
+            <span class="arch-tag">WebSocket</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="arch-node pink reveal">
+        <div class="arch-dot"><i class="ti ti-heart-filled"></i></div>
+        <div class="arch-info">
+          <div class="arch-name">Emotion Engine</div>
+          <div class="arch-desc">Analyzes conversational context and updates Aiko's emotional state across 22+ dimensions. Emotions influence her tone, sprite expression, and responses.</div>
+          <div class="arch-tags">
+            <span class="arch-tag">Sentiment Analysis</span>
+            <span class="arch-tag">State Machine</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="arch-node reveal">
+        <div class="arch-dot"><i class="ti ti-brain"></i></div>
+        <div class="arch-info">
+          <div class="arch-name">MemPalace</div>
+          <div class="arch-desc">Persistent memory system that stores conversation history, emotional milestones, user preferences, and relationship progression.</div>
+          <div class="arch-tags">
+            <span class="arch-tag">YAML Store</span>
+            <span class="arch-tag">Context Window</span>
+            <span class="arch-tag">RAG</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="arch-node pink reveal">
+        <div class="arch-dot"><i class="ti ti-microphone"></i></div>
+        <div class="arch-info">
+          <div class="arch-name">Voice Synthesis</div>
+          <div class="arch-desc">Pocket-TTS generates emotion-aware speech. Intonation, speed, and warmth adjust based on current emotional state.</div>
+          <div class="arch-tags">
+            <span class="arch-tag">Pocket-TTS</span>
+            <span class="arch-tag">Emotion-Aware</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="arch-node reveal">
+        <div class="arch-dot"><i class="ti ti-eye"></i></div>
+        <div class="arch-info">
+          <div class="arch-name">Vision Module</div>
+          <div class="arch-desc">Gemma-4 powered multimodal understanding. Processes images from chat, screenshots, and camera input for contextual awareness.</div>
+          <div class="arch-tags">
+            <span class="arch-tag">Gemma-4</span>
+            <span class="arch-tag">Multimodal</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="arch-node pink reveal">
+        <div class="arch-dot"><i class="ti ti-app-window"></i></div>
+        <div class="arch-info">
+          <div class="arch-name">Desktop Shell (Tauri)</div>
+          <div class="arch-desc">Native desktop application with mascot overlay, chat interface, and system tray. Built with Tauri + Kotlin multiplatform for cross-OS support.</div>
+          <div class="arch-tags">
+            <span class="arch-tag">Tauri</span>
+            <span class="arch-tag">Kotlin</span>
+            <span class="arch-tag">Compose</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════
+     GET STARTED
+══════════════════════════════════ -->
+<section class="section" id="getstarted" aria-label="Get Started">
+  <div class="section-header reveal">
+    <div class="section-eyebrow">Begin the Bond</div>
+    <h2 class="section-title">Get Started</h2>
+    <p class="section-sub">Three steps to bring Aiko to life on your machine.</p>
+  </div>
+
+  <div class="gs-container">
+    <div class="gs-steps">
+
+      <div class="gs-step reveal reveal-delay-1">
+        <div class="gs-num">01</div>
+        <div class="gs-body">
+          <h3>Clone the Repository</h3>
+          <p>Grab the latest source from GitHub. Everything you need is in one repo.</p>
+          <code>git clone https://github.com/omax404/Project-Aiko.git</code>
+        </div>
+      </div>
+
+      <div class="gs-step reveal reveal-delay-2">
+        <div class="gs-num">02</div>
+        <div class="gs-body">
+          <h3>Configure Your Environment</h3>
+          <p>Copy the example env, set your LLM provider keys (Gemini, OpenAI, local), and customize Aiko's personality in the directives.</p>
+          <code>cp .env.example .env && edit .env</code>
+        </div>
+      </div>
+
+      <div class="gs-step reveal reveal-delay-3">
+        <div class="gs-num">03</div>
+        <div class="gs-body">
+          <h3>Launch Aiko</h3>
+          <p>Run the launcher script. It boots the Neural Hub, all satellites, and the desktop overlay automatically.</p>
+          <code>python start_aiko_tauri.py</code>
+        </div>
+      </div>
+
+    </div>
+
+    <a href="https://github.com/omax404/Project-Aiko" class="gs-cta reveal" aria-label="Download Project Aiko from GitHub">
+      <i class="ti ti-download"></i>
+      Download Project Aiko
+    </a>
+
+    <div class="gs-links reveal reveal-delay-1">
+      <a href="https://github.com/omax404/Project-Aiko" class="gs-link" aria-label="View source code on GitHub"><i class="ti ti-brand-github" style="margin-right:4px"></i>Source Code</a>
+      <a href="https://github.com/omax404/Project-Aiko/wiki" class="gs-link" aria-label="Read the wiki documentation"><i class="ti ti-book" style="margin-right:4px"></i>Wiki</a>
+      <a href="https://github.com/omax404/Project-Aiko/issues" class="gs-link" aria-label="Report issues"><i class="ti ti-bug" style="margin-right:4px"></i>Issues</a>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════
+     FOOTER
+══════════════════════════════════ -->
+<footer class="footer" role="contentinfo">
+  <div class="footer-l">
+    <div class="footer-ics" aria-hidden="true">
+      <div class="fi"><i class="ti ti-star-filled"></i></div>
+      <div class="fi"><i class="ti ti-heart-filled"></i></div>
+      <div class="fi"><i class="ti ti-moon-filled"></i></div>
+      <div class="fi"><i class="ti ti-sparkles"></i></div>
+    </div>
+    <span>Project Aiko &nbsp;·&nbsp; Made with love by omax404 &nbsp;·&nbsp; MIT License &nbsp;·&nbsp; © 2026</span>
+  </div>
+  <div class="footer-r"><i class="ti ti-circle-filled" style="color:var(--green);font-size:.5rem;margin-right:5px"></i>NEURAL HUB ONLINE // PORT 8000 // v2.0</div>
+</footer>
+
+<!-- ══════════════════════════════════
+     SCRIPTS
+══════════════════════════════════ -->
+<script>
+/* ─── NAV SCROLL SHRINK ─── */
+const topBar = document.getElementById('topBar');
+window.addEventListener('scroll', () => {
+  topBar.classList.toggle('scrolled', window.scrollY > 60);
+}, { passive: true });
+
+/* ─── PARALLAX (hero only) ─── */
+const title = document.getElementById('heroTitle');
+const char  = document.getElementById('character');
+const frame = document.getElementById('characterFrame');
+let mx = 0, my = 0, cx = 0, cy = 0;
+document.addEventListener('mousemove', e => {
+  mx = (e.clientX / window.innerWidth - .5) * 2;
+  my = (e.clientY / window.innerHeight - .5) * 2;
+});
+(function loop() {
+  cx += (mx - cx) * .07;
+  cy += (my - cy) * .07;
+  if (title) title.style.transform = `translate(${cx * 14}px,${cy * 9}px)`;
+  if (char)  char.style.transform  = `translate(${cx * -20}px,${cy * -12}px)`;
+  if (frame) frame.style.transform = `translateX(${cx * -8}px) translateY(${cy * -5}px) rotateY(${cx * 3}deg)`;
+  requestAnimationFrame(loop);
+})();
+
+/* ─── GLITCH KANJI on title hover ─── */
+const KANJI = '心愛夢星空幻影魂霊刻命運絆永遠守護想惜寂蒼闇刃咲凛煌輝';
+const h1 = document.querySelector('.hero__title h1');
+let kanjiTimer;
+function rk(n = 8) {
+  return Array.from({ length: n }, () => KANJI[Math.floor(Math.random() * KANJI.length)]).join(' ');
+}
+
+if (h1) {
+  h1.addEventListener('mouseenter', () => {
+    kanjiTimer = setInterval(() => { h1.setAttribute('data-glitch', rk(12)); }, 80);
+    h1.style.textShadow = '2px 0 rgba(192,132,252,.4),-2px 0 rgba(224,64,160,.3)';
+  });
+  h1.addEventListener('mouseleave', () => {
+    clearInterval(kanjiTimer);
+    h1.style.textShadow = '';
+    h1.setAttribute('data-glitch', '');
+  });
+}
+
+/* ─── KANJI on MOCKINGBIRD button ─── */
+const kb = document.getElementById('kanjiBtn');
+let kbTimer;
+const mbtn = document.querySelector('.mockingbird');
+if (mbtn) {
+  mbtn.addEventListener('mouseenter', () => {
+    kbTimer = setInterval(() => { if (kb) kb.textContent = rk(20); }, 60);
+  });
+  mbtn.addEventListener('mouseleave', () => {
+    clearInterval(kbTimer);
+    if (kb) kb.textContent = '';
+  });
+}
+
+/* ─── GLITCH on title interval ─── */
+setInterval(() => {
+  if (Math.random() > .93 && title) {
+    title.style.filter = 'drop-shadow(2px 0 rgba(192,132,252,.45)) drop-shadow(-2px 0 rgba(224,64,160,.35))';
+    setTimeout(() => { title.style.filter = 'none'; }, 75);
+  }
+}, 2500);
+
+/* ─── FLOATING KANJI particles on mouse move ─── */
+let lastParticle = 0;
+document.addEventListener('mousemove', e => {
+  if (Date.now() - lastParticle < 120) return;
+  if (Math.random() > .65) return;
+  lastParticle = Date.now();
+  const el = document.createElement('div');
+  el.textContent = KANJI[Math.floor(Math.random() * KANJI.length)];
+  el.style.cssText = `position:fixed;left:${e.clientX + Math.random() * 30 - 15}px;top:${e.clientY + Math.random() * 30 - 15}px;font-family:JetBrains Mono,monospace;font-size:${12 + Math.random() * 10}px;color:rgba(155,107,255,${.3 + Math.random() * .4});pointer-events:none;z-index:250;transition:transform 1s ease,opacity 1s ease;opacity:1;transform:translateY(0)`;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => {
+    el.style.transform = 'translateY(-40px)';
+    el.style.opacity = '0';
+  });
+  setTimeout(() => el.remove(), 1000);
+});
+
+/* ─── SCROLL REVEAL ─── */
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+    }
+  });
+}, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>

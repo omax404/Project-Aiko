@@ -24,8 +24,11 @@ class StartupManager:
     def launch_background(command):
         """Launches a command in the background without a CMD window on Windows."""
         try:
-            # CREATE_NO_WINDOW = 0x08000000
-            subprocess.Popen(command, creationflags=0x08000000, shell=True)
+            import sys
+            kwargs = {"shell": True}
+            if sys.platform == "win32":
+                kwargs["creationflags"] = 0x08000000
+            subprocess.Popen(command, **kwargs)
             return True
         except Exception as e:
             logger.error(f"Failed to launch {command}: {e}")
@@ -33,10 +36,20 @@ class StartupManager:
 
     @staticmethod
     def launch_app(app_name):
-        """Launches a standard Windows application via shell."""
+        """Launches a standard application via shell."""
         try:
-            # Using 'start' via shell to handle default app paths for Discord/Telegram
-            subprocess.Popen(f"start {app_name}", shell=True, creationflags=0x08000000)
+            import sys
+            kwargs = {"shell": True}
+            if sys.platform == "win32":
+                kwargs["creationflags"] = 0x08000000
+            # Using appropriate launcher command based on platform
+            if sys.platform == "win32":
+                cmd = f"start {app_name}"
+            elif sys.platform == "darwin":
+                cmd = f"open -a {app_name}"
+            else:
+                cmd = app_name
+            subprocess.Popen(cmd, **kwargs)
             return True
         except Exception as e:
             logger.error(f"Failed to start {app_name}: {e}")

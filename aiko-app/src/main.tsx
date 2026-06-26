@@ -41,15 +41,15 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasErr
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: 40, color: '#f87171', background: '#0c0b0a', height: '100vh', fontFamily: 'monospace' }}>
+        <div style={{ padding: 40, color: '#f87171', background: '#1C1320', height: '100vh', fontFamily: 'monospace' }}>
           <h1 style={{ fontSize: 24, marginBottom: 20 }}>[NEURAL_LINK_ERROR]</h1>
           <p style={{ fontSize: 14, color: '#94a3b8', marginBottom: 20 }}>The Aiko interface encountered a critical failure.</p>
-          <pre style={{ background: '#1a1816', padding: 20, borderRadius: 12, overflow: 'auto', fontSize: 12 }}>
+          <pre style={{ background: '#2A1B30', padding: 20, borderRadius: 12, overflow: 'auto', fontSize: 12 }}>
             {this.state.error?.toString()}
           </pre>
           <button 
             onClick={() => window.location.reload()}
-            style={{ marginTop: 20, padding: '10px 20px', background: '#ec4899', border: 'none', borderRadius: 8, color: '#000', fontWeight: 'bold', cursor: 'pointer' }}
+            style={{ marginTop: 20, padding: '10px 20px', background: '#C9A8D9', border: 'none', borderRadius: 8, color: '#1C1320', fontWeight: 'bold', cursor: 'pointer' }}
           >
             Reconnect Neural Interface
           </button>

@@ -65,8 +65,8 @@ export function ChatBubble({
         animate={{ opacity: 1, scale: 1 }}
         className="flex justify-center w-full mb-8"
       >
-        <div className="flex items-center gap-3 px-5 py-2 rounded-full bg-white/[0.02] border border-white/5 text-[9px] uppercase tracking-[0.3em] font-bold text-[var(--t3)]">
-          <div className="w-1 h-1 rounded-full bg-pink-500/50 shadow-[0_0_8px_#ec4899]" />
+        <div className="flex items-center gap-3 px-5 py-2 rounded-full bg-white/[0.02] border border-white/5 text-[11px] font-medium text-[#5a5248]">
+          <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]/50" />
           <span>{content}</span>
         </div>
       </motion.div>
@@ -75,8 +75,14 @@ export function ChatBubble({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
+      transition={{
+        type: "spring",
+        stiffness: 160,
+        damping: 18,
+        mass: 0.8
+      }}
       className={clsx(
         "flex w-full mb-12 group",
         isUser ? "justify-end" : "justify-start"
@@ -91,14 +97,14 @@ export function ChatBubble({
         <div className="flex flex-col items-center flex-shrink-0 mt-1">
           <div className={clsx(
             "w-9 h-9 rounded-xl flex items-center justify-center border transition-all duration-500",
-            isUser 
-              ? "bg-[var(--bg-card)] border-[var(--b2)]" 
-              : "bg-pink-600/10 border-pink-500/30 shadow-[0_0_15px_rgba(212,149,106,0.1)]"
+            isUser
+              ? "bg-[var(--bg-card)] border-[var(--b2)]"
+              : "bg-[var(--acc)]/10 border-[var(--acc)]/30 shadow-[0_0_15px_var(--acc-glow)]"
           )}>
             {isUser ? (
                <div className="w-3.5 h-3.5 bg-[var(--t3)] rounded-sm opacity-40" />
             ) : (
-               <Zap size={16} className="text-pink-400 group-hover:scale-110 transition-transform" />
+               <Zap size={16} className="text-[var(--acc)] group-hover:scale-110 transition-transform" />
             )}
           </div>
         </div>
@@ -110,13 +116,13 @@ export function ChatBubble({
           {/* Header */}
           <div className="flex items-center gap-3 px-1">
              <span className={clsx(
-               "text-[10px] font-bold uppercase tracking-widest",
-               isUser ? "text-[var(--t3)]" : "text-pink-500"
+               "text-[12px] font-semibold uppercase tracking-wider",
+               isUser ? "text-[#5a5248]" : "text-[var(--accent)]"
              )}>
-               {isUser ? "Identity_Author" : "Aiko_Intelligence"}
+               {isUser ? "You" : "Aiko"}
              </span>
              {timestamp && (
-               <span className="text-[9px] text-[var(--t4)] font-bold">
+               <span className="text-[11px] text-[#5a5248] font-medium">
                  {new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                </span>
              )}
@@ -138,21 +144,22 @@ export function ChatBubble({
                   <textarea
                     autoFocus
                     title="Edit message content"
+                    aria-label="Edit message content"
                     placeholder="Edit your message..."
-                    className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-[14px] text-[var(--t1)] focus:outline-none focus:border-pink-500/50 min-h-[100px]"
+                    className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-[14px] text-[var(--t1)] focus:outline-none focus:border-[var(--accent)]/50 min-h-[100px]"
                     value={editValue}
                     onChange={(e) => setEditValue(e.target.value)}
                   />
                   <div className="flex justify-end gap-2">
                     <button 
                       onClick={() => setIsEditing(false)}
-                      className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--t4)] hover:text-[var(--t2)]"
+                      className="px-3 py-1.5 text-[11px] font-medium text-[#5a5248] hover:text-[#9a8f7e] transition-colors"
                     >
                       Cancel
                     </button>
                     <button 
                       onClick={handleSaveEdit}
-                      className="px-3 py-1 bg-pink-500/20 border border-pink-500/30 rounded text-[10px] font-bold uppercase tracking-wider text-pink-500 hover:bg-pink-500/30"
+                      className="px-3 py-1.5 bg-[var(--accent)]/20 border border-[var(--accent)]/30 rounded text-[11px] font-medium text-[var(--accent)] hover:bg-[var(--accent)]/30 transition-colors"
                     >
                       Save Changes
                     </button>
@@ -193,8 +200,8 @@ export function ChatBubble({
                       isUser ? "justify-end" : "justify-start"
                     )}>
                       {attachments.map((url, idx) => {
-                        const isImg = url.match(/\.(jpg|jpeg|png|gif|webp)$/i);
-                        const filename = url.split('/').pop();
+                        const isImg = url.match(/\.(jpg|jpeg|png|gif|webp|bmp|tiff|avif)(\?.*)?$/i) || url.startsWith('data:image/');
+                        const filename = url.split('/').pop() || 'file';
                         return (
                           <div key={idx} className="relative group/att max-w-[200px]">
                             {isImg ? (
@@ -213,7 +220,7 @@ export function ChatBubble({
                                 className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors text-[12px] text-slate-300"
                               >
                                 <div className="p-2 rounded-lg bg-white/5">
-                                  <FileText size={14} className="text-pink-500" />
+                                  <FileText size={14} className="text-[var(--acc)]" />
                                 </div>
                                 <span className="truncate font-medium">{filename}</span>
                               </a>
@@ -229,7 +236,7 @@ export function ChatBubble({
             
             {/* User Glow Effect */}
             {isUser && (
-              <div className="absolute inset-0 bg-pink-500/5 blur-xl -z-10 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+              <div className="absolute inset-0 bg-[var(--acc)]/5 blur-xl -z-10 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
             )}
           </div>
 
@@ -240,24 +247,27 @@ export function ChatBubble({
           )}>
             <button 
               onClick={handleCopy}
+              aria-label="Copy message to clipboard"
               title="Copy" className="p-1.5 hover:text-white transition-colors text-[var(--t4)]"
             >
                <Copy size={13} />
             </button>
-            <button title="Reaction" className="p-1.5 hover:text-pink-500 transition-colors text-[var(--t4)]">
+            <button aria-label="Add reaction" title="Reaction" className="p-1.5 hover:text-[var(--acc)] transition-colors text-[var(--t4)]">
                <Smile size={13} />
             </button>
             {!isUser ? (
                <>
                  <button 
                    onClick={() => retryMessage()}
-                   title="Retry" className="p-1.5 hover:text-pink-400 transition-colors text-[var(--t4)]"
+                   aria-label="Retry generating response"
+                   title="Retry" className="p-1.5 hover:text-[var(--acc)] transition-colors text-[var(--t4)]"
                  >
                     <RotateCcw size={13} />
                  </button>
                  <button 
                    onClick={() => playTTS(content)}
-                   title="Speech" className="p-1.5 hover:text-pink-400 transition-colors text-[var(--t4)]"
+                   aria-label="Play text-to-speech"
+                   title="Speech" className="p-1.5 hover:text-[var(--acc)] transition-colors text-[var(--t4)]"
                  >
                     <Volume2 size={13} />
                  </button>
@@ -266,12 +276,14 @@ export function ChatBubble({
                <>
                  <button 
                    onClick={() => setIsEditing(true)}
-                   title="Edit" className="p-1.5 hover:text-pink-400 transition-colors text-[var(--t4)]"
+                   aria-label="Edit message"
+                   title="Edit" className="p-1.5 hover:text-[var(--acc)] transition-colors text-[var(--t4)]"
                  >
                     <Edit3 size={13} />
                  </button>
                  <button 
                    onClick={() => (id || timestamp) && deleteMessage(id || timestamp!)}
+                   aria-label="Delete message"
                    title="Delete" className="p-1.5 hover:text-red-400 transition-colors text-[var(--t4)]"
                  >
                     <Trash size={13} />

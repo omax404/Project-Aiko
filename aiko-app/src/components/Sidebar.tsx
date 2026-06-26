@@ -1,19 +1,19 @@
 import { 
   Plus, 
-  Settings, 
   Trash2,
   Search,
   MoreVertical,
   Pin,
   Edit2,
-  BrainCircuit,
-  Bot
+  BrainCircuit
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { clsx } from 'clsx';
 import { useNeuralStore } from '../store/useNeuralStore';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { NeuralPulse } from './AnimatedIcons';
+import { GothicButton } from './GothicButton';
+
 
 interface SidebarItemProps {
   id: string;
@@ -46,7 +46,7 @@ const SessionItem = ({ id, title, preview, timestamp, active, pinned, onSelect, 
       className={clsx(
         "group relative px-4 py-3 rounded-xl transition-all duration-200 cursor-pointer border-l-2",
         active 
-          ? "bg-[var(--bg-active)] border-pink-500/50" 
+          ? "bg-[var(--bg-active)] border-[var(--acc)]/50" 
           : "hover:bg-[var(--bg-hover)] border-transparent"
       )}
     >
@@ -64,7 +64,7 @@ const SessionItem = ({ id, title, preview, timestamp, active, pinned, onSelect, 
                 e.stopPropagation();
               }}
               onClick={(e) => e.stopPropagation()}
-              className="flex-1 bg-transparent border-b border-pink-500/50 text-[12px] text-[var(--t1)] outline-none mr-2"
+              className="flex-1 bg-transparent border-b border-[var(--acc)]/50 text-[12px] text-[var(--t1)] outline-none mr-2"
             />
           ) : (
             <h3 className={clsx(
@@ -74,9 +74,9 @@ const SessionItem = ({ id, title, preview, timestamp, active, pinned, onSelect, 
               {title}
             </h3>
           )}
-          <span className="text-[9px] text-[var(--t3)] font-mono shrink-0 ml-2">{timestamp}</span>
+          <span className="text-[11px] text-[var(--t3)] font-mono shrink-0 ml-2">{timestamp}</span>
         </div>
-        <p className="text-[10px] text-[var(--t3)] truncate leading-relaxed">{preview}</p>
+        <p className="text-[11px] text-[var(--t3)] truncate leading-relaxed">{preview}</p>
       </div>
 
       <div className="absolute top-3 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
@@ -103,7 +103,7 @@ const SessionItem = ({ id, title, preview, timestamp, active, pinned, onSelect, 
                 onClick={(e) => { e.stopPropagation(); onPin(id); setShowMenu(false); }}
                 className="w-full flex items-center gap-2 px-3 py-1.5 text-[10px] text-[var(--t2)] hover:bg-[var(--bg-hover)] hover:text-white"
               >
-                <Pin size={10} className={pinned ? "fill-pink-500 text-pink-500" : ""} />
+                <Pin size={10} className={pinned ? "fill-[var(--acc)] text-[var(--acc)]" : ""} />
                 {pinned ? "Unpin" : "Pin"}
               </button>
               <button 
@@ -155,21 +155,40 @@ export function Sidebar({ onOpenSettings, onOpenProject }: { onOpenSettings: () 
     loadSessions();
   }, []);
 
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+  const springConfig = { stiffness: 120, damping: 20 };
+  const glowX = useSpring(mouseX, springConfig);
+  const glowY = useSpring(mouseY, springConfig);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    mouseX.set(e.clientX - rect.left);
+    mouseY.set(e.clientY - rect.top);
+  };
+
   return (
-    <div className="w-[var(--sidebar-w)] h-full flex flex-col bg-[var(--bg-sidebar)] border-r border-[var(--b1)] p-4 gap-4">
+    <div 
+      onMouseMove={handleMouseMove}
+      className="w-[var(--sidebar-w)] h-full flex flex-col bg-[var(--bg-sidebar)] border-r border-[var(--b1)] p-4 gap-4 relative overflow-hidden group/sidebar"
+    >
+      <motion.div
+        className="absolute pointer-events-none rounded-full w-40 h-40 bg-[var(--acc-soft)] blur-3xl opacity-0 group-hover/sidebar:opacity-20 transition-opacity"
+        style={{
+          x: useTransform(glowX, (v: number) => v - 80),
+          y: useTransform(glowY, (v: number) => v - 80),
+        }}
+      />
       
       {/* Profile & Affection */}
       <div className="flex flex-col gap-4 px-1 py-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-pink-600/10 border border-pink-500/20 flex items-center justify-center shadow-lg shadow-pink-900/10 overflow-hidden">
-             {/* Small Live2D avatar would go here or a placeholder */}
-             <Bot size={22} className="text-pink-500" />
-          </div>
+          <GothicButton icon="rose" size="md" active className="pointer-events-none" />
           <div className="flex flex-col">
             <h1 className="text-sm font-bold text-[var(--t1)] brand-text uppercase tracking-wider">Aiko Core</h1>
             <div className="flex items-center gap-1.5">
-              {showAnimatedAssets ? <NeuralPulse /> : <div className="w-1.5 h-1.5 rounded-full bg-pink-500/50" />}
-              <p className="text-[9px] text-pink-500/80 font-mono font-bold">Synchronized</p>
+              {showAnimatedAssets ? <NeuralPulse /> : <div className="w-1.5 h-1.5 rounded-full bg-[var(--acc)]/50" />}
+              <p className="text-[9px] text-[var(--acc)]/80 font-mono font-bold">Synchronized</p>
             </div>
           </div>
         </div>
@@ -177,21 +196,29 @@ export function Sidebar({ onOpenSettings, onOpenProject }: { onOpenSettings: () 
         <div className="flex flex-col gap-1.5">
           <div className="flex justify-between items-center px-0.5">
              <span className="text-[9px] font-bold text-[var(--t3)] uppercase tracking-wider">Affection Level</span>
-             <span className="text-[9px] font-mono font-bold text-pink-500">{relationship.affection}%</span>
+             <span className="text-[9px] font-mono font-bold text-[var(--acc)]">{relationship.affection}%</span>
           </div>
           <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
             <motion.div 
               initial={{ width: 0 }}
               animate={{ width: `${relationship.affection}%` }}
-              className="h-full bg-pink-500" 
+              className="h-full bg-[var(--acc)]" 
             />
           </div>
         </div>
       </div>
 
+      <div className="w-full my-1">
+        <div className="flex items-center gap-3 w-full opacity-40 select-none pointer-events-none">
+          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[var(--acc)]/30 to-transparent" />
+          <div className="w-1.5 h-1.5 rotate-45 border border-[var(--acc)]/30" />
+          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[var(--acc)]/30 to-transparent" />
+        </div>
+      </div>
+
       <button 
         onClick={createNewSession}
-        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-pink-600/10 border border-pink-500/20 text-[11px] font-bold text-pink-500 uppercase tracking-widest hover:bg-pink-600/20 transition-all"
+        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--acc)]/10 border border-[var(--acc)]/20 text-[11px] font-bold text-[var(--acc)] uppercase tracking-widest hover:bg-[var(--acc)]/20 transition-all"
       >
         <Plus size={14} />
         New Neural Link
@@ -199,13 +226,13 @@ export function Sidebar({ onOpenSettings, onOpenProject }: { onOpenSettings: () 
 
       {/* Search */}
       <div className="relative group">
-        <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--t3)] group-focus-within:text-pink-500 transition-colors" />
+        <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--t3)] group-focus-within:text-[var(--acc)] transition-colors" />
         <input 
           type="text" 
           placeholder="Search sessions..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full bg-[var(--bg-input)] border border-[var(--b1)] rounded-xl py-2 pl-9 pr-4 text-[11px] text-[var(--t1)] placeholder-[var(--t3)] focus:outline-none focus:border-pink-500/30 transition-all"
+          className="w-full bg-[var(--bg-input)] border border-[var(--b1)] rounded-xl py-2 pl-9 pr-4 text-[11px] text-[var(--t1)] placeholder-[var(--t3)] focus:outline-none focus:border-[var(--acc)]/30 transition-all"
         />
       </div>
 
@@ -253,17 +280,24 @@ export function Sidebar({ onOpenSettings, onOpenProject }: { onOpenSettings: () 
       <div className="flex flex-col gap-1 pt-4 border-t border-[var(--b1)]">
         <button 
           onClick={onOpenSettings}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--t2)] hover:text-white hover:bg-[var(--bg-hover)] transition-all"
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--t2)] hover:text-white hover:bg-[var(--bg-hover)] transition-all group"
         >
-          <Settings size={14} />
+          <GothicButton icon="settings" size="sm" className="pointer-events-none group-hover:ring-1 group-hover:ring-[var(--acc)]" />
           <span className="text-[11px] font-medium">Neural Config</span>
         </button>
         <button 
           onClick={onOpenProject}
           className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--t2)] hover:text-white hover:bg-[var(--bg-hover)] transition-all"
         >
-          <BrainCircuit size={14} />
-          <span className="text-[11px] font-medium">Core Intelligence</span>
+          <BrainCircuit size={14} className="text-[var(--acc)] ml-2" />
+          <span className="text-[11px] font-medium ml-1">Core Intelligence</span>
+        </button>
+        <button 
+          onClick={() => window.open('https://discord.com', '_blank')}
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--t2)] hover:text-white hover:bg-[var(--bg-hover)] transition-all group"
+        >
+          <GothicButton icon="discord" size="sm" className="pointer-events-none group-hover:ring-1 group-hover:ring-[var(--acc)]" />
+          <span className="text-[11px] font-medium">Discord Community</span>
         </button>
       </div>
     </div>

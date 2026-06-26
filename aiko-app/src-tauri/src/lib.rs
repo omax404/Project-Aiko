@@ -145,7 +145,6 @@ fn find_project_root() -> Option<PathBuf> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, Some(vec!["--start-hidden"])))
@@ -243,7 +242,8 @@ pub fn run() {
             let menu = Menu::with_items(app, &[&show_i, &mascot_i, &quit_i])?;
             
             let _tray = TrayIconBuilder::new()
-                .icon(app.default_window_icon().unwrap().clone())
+                .icon(tauri::image::Image::from_bytes(include_bytes!("../icons/tray-icon.png")).unwrap())
+                .icon_as_template(true)
                 .menu(&menu)
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "show" => { 
@@ -301,19 +301,15 @@ pub fn run() {
                     let _ = apply_mica(&window, Some(true));
                 }
 
-                // Listen for app-ready from frontend
+                // Force window visible immediately
+                let _ = window.show();
+                let _ = window.set_focus();
+
+                // Listen for app-ready from frontend (re-show + focus)
                 let win_clone = window.clone();
                 app.listen("app-ready", move |_| {
                     let _ = win_clone.show();
                     let _ = win_clone.set_focus();
-                });
-
-                // Fallback: show window after 3s
-                let win_fallback = window.clone();
-                std::thread::spawn(move || {
-                    std::thread::sleep(std::time::Duration::from_millis(3000));
-                    let _ = win_fallback.show();
-                    let _ = win_fallback.set_focus();
                 });
             }
 

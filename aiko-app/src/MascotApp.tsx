@@ -5,6 +5,8 @@ import { Live2DAvatar } from './components/Live2DAvatar';
 import { useNeuralStore } from './store/useNeuralStore';
 import { Home, X, MessageCircle, Send, Volume2, VolumeX } from 'lucide-react';
 import { Window } from '@tauri-apps/api/window';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 /**
  * AIKO MASCOT v3.0 — "Ghost Pet"
@@ -94,9 +96,30 @@ export default function MascotApp() {
   }, [handleSend]);
 
   // Get last assistant message for the speech bubble
-  const lastReply = streamingContent.trim() ||
+  const lastReplyRaw = streamingContent.trim() ||
     [...messages].reverse().find(m => m.role === 'assistant')?.content || '';
-  const bubbleText = lastReply.length > 120 ? lastReply.slice(0, 117) + '...' : lastReply;
+
+  // Clean the speech bubble: strip sticker/image markdown, tool tags, and debug junk
+  const cleanForBubble = (text: string): string => {
+    let cleaned = text;
+    // Strip markdown images — extract alt text if present
+    cleaned = cleaned.replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1');
+    // Strip tool tags like [SCAN], [MCP:...], [MUSIC:...] etc.
+    cleaned = cleaned.replace(/\[(SCAN|MCP|TASK|BIO_REGISTER|GAME|OPEN|TYPE|CLICK|PRESS|WAIT|WALLPAPER|WEATHER|MUSIC|LETTER|VTS_BG|IMAGE|RECALL|LATEX|GIF)[^\]]*\]/gi, '');
+    // Strip markdown emphasis wrappers for speech bubble readability
+    cleaned = cleaned.replace(/\*([^*]+)\*/g, '$1');
+    // Strip stray dashes and excessive whitespace
+    cleaned = cleaned.replace(/^\s*--\s*$/gm, '').replace(/\n{2,}/g, ' ').trim();
+    // If what remains is just numbers, dots, or empty — discard
+    if (!cleaned || /^[\d.\s-]+$/.test(cleaned)) return '';
+    return cleaned;
+  };
+
+  const bubbleText = (() => {
+    const cleaned = cleanForBubble(lastReplyRaw);
+    if (!cleaned) return '';
+    return cleaned.length > 120 ? cleaned.slice(0, 117) + '...' : cleaned;
+  })();
 
   return (
     <div className="mascot-root">
@@ -235,16 +258,71 @@ export default function MascotApp() {
 
             {/* Messages area */}
             <div className="mascot-chat-messages custom-scrollbar">
-              {messages.slice(-6).map((msg, i) => (
-                <div key={i} className={`mascot-msg ${msg.role}`}>
-                  {msg.content.length > 200
-                    ? msg.content.slice(0, 197) + '...'
-                    : msg.content}
-                </div>
-              ))}
+              {messages.slice(-6).map((msg, i) => {
+                const displayContent = msg.content.length > 200
+                  ? msg.content.slice(0, 197) + '...'
+                  : msg.content;
+                return (
+                  <div key={i} className={`mascot-msg ${msg.role}`}>
+                    {msg.role === 'assistant' ? (
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          img: ({ src, alt, ...props }) => {
+                            if (!src) return null;
+                            const isSticker = src.includes('/stickers/');
+                            if (isSticker) {
+                              const hubUrl = 'http://127.0.0.1:8000';
+                              const absoluteSrc = src.startsWith('http') ? src : `${hubUrl}${src}`;
+                              return (
+                                <img
+                                  src={absoluteSrc}
+                                  alt={alt || 'sticker'}
+                                  style={{ width: 64, height: 64, objectFit: 'contain', display: 'inline-block', margin: '4px 0', filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.2))' }}
+                                  {...props}
+                                />
+                              );
+                            }
+                            return <img src={src} alt={alt} style={{ maxWidth: '100%', borderRadius: 8, margin: '4px 0' }} {...props} />;
+                          },
+                          p: ({ children }) => <span>{children}</span>,
+                        }}
+                      >
+                        {displayContent}
+                      </ReactMarkdown>
+                    ) : (
+                      displayContent
+                    )}
+                  </div>
+                );
+              })}
               {streamingContent && (
                 <div className="mascot-msg assistant streaming">
-                  {streamingContent}
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      img: ({ src, alt, ...props }) => {
+                        if (!src) return null;
+                        const isSticker = src.includes('/stickers/');
+                        if (isSticker) {
+                          const hubUrl = 'http://127.0.0.1:8000';
+                          const absoluteSrc = src.startsWith('http') ? src : `${hubUrl}${src}`;
+                          return (
+                            <img
+                              src={absoluteSrc}
+                              alt={alt || 'sticker'}
+                              style={{ width: 64, height: 64, objectFit: 'contain', display: 'inline-block' }}
+                              {...props}
+                            />
+                          );
+                        }
+                        return <img src={src} alt={alt} style={{ maxWidth: '100%', borderRadius: 8 }} {...props} />;
+                      },
+                      p: ({ children }) => <span>{children}</span>,
+                    }}
+                  >
+                    {streamingContent}
+                  </ReactMarkdown>
                   <span className="mascot-cursor" />
                 </div>
               )}
