@@ -1,11 +1,14 @@
-<div align="center">
-![Uploading Gemini_Generated_Image_srqtdjsrqtdjsrqt.png…]()
+<img width="2752" height="1135" alt="Gemini_Generated_Image_mbu0membu0membu0" src="https://github.com/user-attachments/assets/e86e0170-cfbb-4eef-a917-6902219740e7" /><img width="2752" height="1135" alt="Gemini_Generated_Image_mbu0membu0membu0" src="https://github.com/user-attachments/assets/c5942a36-f5ad-4eff-9a52-e113188d27eb" /><div align="center">
+<img width="3114" height="1344" alt="Gemini_Generated_Image_srqtdjsrqtdjsrqt" src="https://github.com/user-attachments/assets/abc135ac-27dd-401e-b6bd-44e52c7c81cd" />
+<img width="3114" height="1344" alt="Gemini_Generated_Image_srqtdjsrqtdjsrqt" src="https://github.com/user-attachments/assets/f202624b-8c22-43e0-939e-c2ddbaeba304" />
+
 
 # Aiko Desktop
 
 ### Your Devoted AI Companion — With a Soul
 
 **🟢 Link Established · Neural Hub Active**
+
 
 *Emotionally intelligent · Multimodal vision · Local voice synthesis · Autonomous agency*
 
@@ -15,7 +18,7 @@
 [![Last Commit](https://img.shields.io/github/last-commit/omax404/Project-Aiko?color=C9A8D9)](https://github.com/omax404/Project-Aiko)
 [![Repo Size](https://img.shields.io/github/repo-size/omax404/Project-Aiko?color=C9A8D9)](https://github.com/omax404/Project-Aiko)
 
-[![Join Discord](assets/buttons/join-discord.png)](https://discord.gg/nhChrd2t) &nbsp;
+[![Join Discord](assets/buttons/join-discord.png)](https://discord.gg/8kNMMwFjcG) &nbsp;
 [![Quick Start](assets/buttons/quick-start.png)](#quick-start) &nbsp;
 [![Wiki](assets/buttons/wiki.png)](docs/) &nbsp;
 [![Star this Repo](assets/buttons/star-repo.png)](https://github.com/omax404/Project-Aiko)
