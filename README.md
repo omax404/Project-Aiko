@@ -4,11 +4,8 @@
 
 # Aiko Desktop
 
-### Your Devoted AI Companion — With a Soul
+<img width="2419" height="1089" alt="Gemini_Generated_Image_rm1jjfrm1jjfrm1j_perfect" src="https://github.com/user-attachments/assets/aaf3575b-75f7-4a4d-89ef-60a9eb733b04" />
 
-
-
-*Emotionally intelligent · Multimodal vision · Local voice synthesis · Autonomous agency*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-C9A8D9.svg)](LICENSE)
 [![Python 3.10 - 3.12](https://img.shields.io/badge/Python-3.10--3.12-2A1B30.svg)](https://python.org)
