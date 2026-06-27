@@ -398,6 +398,43 @@ class AikoBrain:
         # Translate virtual sticker paths
         cleaned_response = translate_stickers(cleaned_response)
 
+        # Check if the user requested a selfie/pic
+        is_selfie_req = any(kw in message.lower() for kw in [
+            "send me a selfie", "send a selfie", "take a selfie", 
+            "send me a pic", "send a pic", "send me a picture",
+            "send a photo", "send me a photo", "show yourself", 
+            "how do you look", "how are you looking"
+        ])
+        
+        if is_selfie_req:
+            try:
+                from core.selfie_generator import generate_selfie
+                import time
+                filename = f"selfie_{int(time.time())}.png"
+                stickers_dir = Path(__file__).parent.parent / "stickers"
+                save_path = str(stickers_dir / filename)
+                
+                from core.emotion_engine import emotion_engine
+                emo_state = emotion_engine.get_state()
+                neuromodulators = emo_state.get("neuromodulators", {"dopamine": 50, "serotonin": 50, "cortisol": 50, "adrenaline": 50})
+                
+                logger.info(f"[ChatEngine] Detected selfie request. Launching Perchance Selfie Generator...")
+                success = await generate_selfie(
+                    neuromodulators.get("dopamine", 50),
+                    neuromodulators.get("serotonin", 50),
+                    neuromodulators.get("cortisol", 50),
+                    neuromodulators.get("adrenaline", 50),
+                    save_path
+                )
+                
+                if success:
+                    cleaned_response += f"\n\n![selfie](/stickers/{filename})"
+                    logger.info(f"[ChatEngine] Selfie successfully injected: {filename}")
+                else:
+                    cleaned_response += "\n\n*(I tried to take a selfie, but my camera module is acting up... sorry, Master! ≧◡≦)*"
+            except Exception as selfie_err:
+                logger.error(f"[ChatEngine] Selfie generation failed: {selfie_err}")
+
         # Save & Return
         if save_input:
             self.memory.add_message(user_id, "assistant", cleaned_response)
