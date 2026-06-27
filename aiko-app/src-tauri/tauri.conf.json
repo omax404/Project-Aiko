@@ -13,6 +13,20 @@
     "withGlobalTauri": true,
     "windows": [
       {
+        "label": "splashscreen",
+        "url": "/?splash",
+        "title": "Aiko Splash",
+        "width": 500,
+        "height": 320,
+        "resizable": false,
+        "transparent": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "center": true,
+        "visible": true,
+        "shadow": false
+      },
+      {
         "label": "main",
         "width": 1400,
         "height": 900,
@@ -20,7 +34,7 @@
         "decorations": false,
         "resizable": true,
         "fullscreen": false,
-        "visible": true,
+        "visible": false,
         "backgroundColor": "#0c0b0a"
       },
       {

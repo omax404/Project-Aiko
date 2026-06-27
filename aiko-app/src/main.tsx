@@ -61,19 +61,27 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasErr
 }
 
 import MascotApp from "./MascotApp";
+import SplashScreen from "./SplashScreen";
 
 const isMascot = window.location.search.includes('mascot');
+const isSplash = window.location.search.includes('splash');
 if (isMascot) {
   document.body.classList.add('mascot-mode');
+}
+if (isSplash) {
+  document.body.classList.add('splash-mode');
 }
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <ErrorBoundary>
-      {isMascot 
-        ? <MascotApp /> 
-        : (isMobile() ? <MobileApp /> : <App />)
+      {isSplash 
+        ? <SplashScreen />
+        : (isMascot 
+            ? <MascotApp /> 
+            : (isMobile() ? <MobileApp /> : <App />))
       }
     </ErrorBoundary>
   </React.StrictMode>,
 );
+
