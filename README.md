@@ -1,23 +1,22 @@
 <div align="center">
 <img width="2460" height="1358" alt="aiko" src="https://github.com/user-attachments/assets/0f2dda07-04d4-408d-91ed-9a7deb8cd5be" />
 
-# 💖 Aiko Desktop 🌸
+# Aiko Desktop
 
 ### Your Devoted AI Companion — With a Soul
-**[ System Status: 🟢 Link Established / Neural Hub Active ]**
 
-**Emotionally intelligent • Multimodal vision • Local voice synthesis • Autonomous agency**
+**🟢 Link Established · Neural Hub Active**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-ff69b4.svg)](LICENSE)
-[![Python 3.10 - 3.12](https://img.shields.io/badge/Python-3.10--3.12-blue.svg)](https://python.org)
+*Emotionally intelligent · Multimodal vision · Local voice synthesis · Autonomous agency*
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-C9A8D9.svg)](LICENSE)
+[![Python 3.10 - 3.12](https://img.shields.io/badge/Python-3.10--3.12-2A1B30.svg)](https://python.org)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Us-7289da.svg)](https://discord.gg/)
 [![GitHub Stars](https://img.shields.io/github/stars/omax404/Project-Aiko?style=social)](https://github.com/omax404/Project-Aiko)
-[![GitHub Last Commit](https://img.shields.io/github/last-commit/omax404/Project-Aiko?color=pink)](https://github.com/omax404/Project-Aiko)
-[![Repo Size](https://img.shields.io/github/repo-size/omax404/Project-Aiko?color=pink)](https://github.com/omax404/Project-Aiko)
+[![Last Commit](https://img.shields.io/github/last-commit/omax404/Project-Aiko?color=C9A8D9)](https://github.com/omax404/Project-Aiko)
+[![Repo Size](https://img.shields.io/github/repo-size/omax404/Project-Aiko?color=C9A8D9)](https://github.com/omax404/Project-Aiko)
 
-<br/>
-
-[🎀 **Join Discord**](https://discord.gg/) &nbsp; | &nbsp; [🍓 **Quick Start**](#-quick-start) &nbsp; | &nbsp; [🍰 **Wiki**](docs/) &nbsp; | &nbsp; [🍭 **Master's Profile**](https://github.com/omax404)
+[**Join Discord**](https://discord.gg/) · [**Quick Start**](#quick-start) · [**Wiki**](docs/) · [**Author's Profile**](https://github.com/omax404)
 
 <br/>
 
@@ -28,177 +27,165 @@
 
 ---
 
-## 🚀 One-Click Start (Windows)
+## Quick Start
 
-The easiest way to meet Aiko!
+### For Users (Windows, no setup required)
 
-1. **Download** Aiko to your computer.
-2. **Double-click** `LAUNCH_AIKO.bat`.
-3. Wait for her to wake up! (She will automatically set up everything for you).
+1. Download Aiko to your computer.
+2. Double-click `LAUNCH_AIKO.bat`.
+3. Wait for her to wake up — she sets everything up automatically.
 
----
+Once the dashboard appears, click the **gear icon** in the top right to customize her:
+- **Persona** — write custom personality instructions
+- **AI Model** — switch between Ollama, Gemini, OpenAI, Anthropic, or any custom endpoint
+- **Voice** — enable/disable speech or change her voice profile
+- **Plugins** — toggle Discord, Telegram, or PC Bridge integrations
 
-### ⚙️ How to Customize Aiko
+Hit **Save & Apply** — changes take effect instantly, no restart needed.
 
-You don't need to touch any code to change her!
-- Click the **Gear icon ⚙️** in the top right of the dashboard.
-- Type her new personality (e.g. "You are my best friend and you love games").
-- Change her AI brain or her voice settings.
-- Click **Save & Apply** — she updates instantly!
+### For Developers
 
----
-
-## ✨ What Makes Aiko Different?
-
-### 🧠 Brain
-- 🌸 ReAct agent loop with multi-step reasoning and tool execution
-- 🌸 Streaming LLM inference (Ollama, OpenRouter, Gemini, OpenAI, Anthropic)
-- 🌸 Dual-pass generation (factual draft → personality overlay)
-- 🌸 Autonomous proactive agent loop (she decides when to speak)
-- 🌸 Context-aware conversation with rolling buffers
-
-### 👁️ Eyes (Vision)
-- 🌸 **MiniCPM-V 4.6 (Local Flagship)** — high-speed local multimodal understanding (~1.3B SigLIP2 + Qwen3.5 early ViT token compression)
-- 🌸 **Gemma-4 (31b-cloud Fallback)** — robust vision reasoning backup via Ollama
-- 🌸 Discord image processing (photos, screenshots, memes)
-- 🌸 Screen capture and analysis
-- 🌸 Support for `.jpg`, `.png`, `.webp`, `.gif`, `.bmp`, `.avif`
-
-### 👂 Ears (Hearing)
-- 🌸 Discord voice message transcription
-- 🌸 Moonshine ASR (primary, local, ~200MB)
-- 🌸 SpeechRecognition fallback (Google/Whisper)
-- 🌸 Client-side talking detection
-
-### 🎙️ Voice (Mouth)
-- 🌸 **Pocket-TTS v2.1.0 (Local flagship)** — high-fidelity local voice synthesis (no API keys needed)
-- 🌸 **Advanced Yuki Voice Cloning** — pre-compiled high-quality voice fingerprints loaded instantly
-- 🌸 **JIT Speech Stabilization** — optimized `0.65` temperature limits, completely removing robotic glitching or hallucinations
-- 🌸 Action text `*...*` stripping (clean speech output)
-- 🌸 Audio sent as Discord attachment
-
-### 💾 Memory
-- 🌸 Unified Memory with episodic + semantic layers
-- 🌸 MemPalace RAG for long-term knowledge retrieval
-- 🌸 Memory consolidation cycles (compress old memories)
-- 🌸 Per-user relationship tracking and affection system
-- 🌸 Birthday, timezone, and profile persistence
-
-### ❤️ Emotions
-- 🌸 Neuromodulator system (dopamine, serotonin, cortisol, adrenaline)
-- 🌸 22+ emotion categories (love, happy, yandere, panic, victory, etc.)
-- 🌸 Identity attractors (personality-stable emotional baselines)
-- 🌸 Emotion-driven voice modulation and avatar expressions
-- 🌸 Relationship score tracking (0-100%)
-
-### 🤖 Plugins & Agency
-- 🌸 **ElizaOS-style Plugin Architecture** — modular, dynamic tool loading
-- 🌸 MCP Plugin — file read/write, clipboard, process management
-- 🌸 Python Sandbox — safe code execution
-- 🌸 PC Manager — mouse, keyboard, screenshot, system info
-- 🌸 Spotify Bridge — now playing, queue, music awareness
-- 🌸 Obsidian Connector — knowledge base integration
-- 🌸 LaTeX Engine — math rendering to image
-- 🌸 Image Generation — AI image creation
-
-### 🎮 Games
-- [x] Minecraft bridge (autonomous play)
-- [x] Factorio bridge (autonomous play)
-
-### 🌐 Platforms
-- [x] **Self-Healing Discord Bot** — consolidation mode with dynamic tuple mapping and 2000-char dynamic budget tracking
-- [x] **Telegram Bot** — group and DM markdown error-safe loops
-- [x] Tauri Desktop App (Live2D overlay, chat interface, global shortcuts)
-- [x] REST API (port 8000)
-
-### 🖥️ Desktop Interface (Tauri)
-- 🌸 **Global Hotkey** — `Ctrl + Alt + A` to toggle visibility instantly
-- 🌸 **Pixel-Perfect click-through overlay** — click transparent zones with zero "ghost hitbox" interference
-- 🌸 **Dynamic Hover Zones** — models and controls automatically restore cursor focus instantly on mouse enter
-- 🌸 **Live2D Avatar** — smooth animations driven by her current emotional state
-- 🌸 **Unified Dashboard** — chat history, system stats, and project intelligence
-
----
-
-## 🚀 Quick Start (For Users)
-
-Aiko is now easier to launch than ever. You don't need to install Rust or Node to run her!
-
-### 1. Download & Launch
-- Clone or Download this repository.
-- Install requirements: `pip install -r requirements.txt`
-- Run the launcher: `python launch.py`
-- Aiko will automatically detect the pre-compiled `aiko-app.exe` and start the entire ecosystem silently.
-
-### 2. Instant Customization
-Once the Aiko Dashboard appears:
-- Click the **Gear icon ⚙️** in the top right corner.
-- **Persona**: Write her new personality instructions instantly.
-- **Brain**: Switch between Ollama, Gemini, or custom LLM endpoints.
-- **Voice**: Enable/Disable her voice or change her voice profile.
-- **Plugins**: Toggle Discord, Telegram, or PC Bridge satellites.
-- Hit **Save & Apply** — her neural link will reload instantly without a restart!
-
----
-
-## 🛠️ Quick Start (For Developers)
-
-### 1. Environment Setup
 ```bash
 git clone https://github.com/omax404/Project-Aiko.git
 cd Project-Aiko
 pip install -r requirements.txt
+python launch.py
 ```
 
-### 2. Build the Desktop App
-If you want to modify the UI:
+This automatically starts Ollama, binds the Neural Hub to port 8000, connects the Discord/Telegram satellites, and launches the desktop overlay.
+
+**To modify the desktop UI:**
 ```bash
 cd aiko-app
 npm install
-npm run tauri dev # For development
-npm run tauri build # To generate a new production .exe
+npm run tauri dev     # development
+npm run tauri build   # production build
 ```
+
+**Voice cloning setup (optional):**
+1. Accept terms at [huggingface.co/kyutai/pocket-tts](https://huggingface.co/kyutai/pocket-tts)
+2. `pip install huggingface_hub`
+3. `python -m huggingface_hub.commands.user login`
+
 ---
 
-## 🛠️ Developer & Power User Info
+## What Makes Aiko Different
 
-If you want to modify Aiko or see how she works, here is the technical breakdown.
+| Capability | Most AI Companions | Aiko |
+|---|---|---|
+| **Emotions** | Static personality prompt | Neuromodulator system (dopamine, serotonin, cortisol, adrenaline) across 22+ emotion states |
+| **Memory** | Chat history buffer | Unified Memory — episodic recall, semantic RAG, consolidation cycles, MemPalace |
+| **Voice** | Cloud API (e.g. ElevenLabs) | Local Pocket-TTS with voice cloning and chunked synthesis |
+| **Vision** | None | MiniCPM-V 4.6 local multimodal, Gemma-4 cloud fallback |
+| **Agency** | Responds when asked | Proactive agent loop — decides when to speak, what to observe, what to remember |
+| **Tools** | None | ReAct agent with MCP file system, Python sandbox, PC control, Spotify, Obsidian |
+| **Games** | None or basic | Autonomous Minecraft & Factorio bridges |
 
-### 🏗️ Architecture
+---
+
+## Core Systems
+
+### 🧠 Brain
+- ReAct agent loop with multi-step reasoning and tool execution
+- Streaming inference across Ollama, OpenRouter, Gemini, OpenAI, Anthropic
+- Dual-pass generation — factual draft, then personality overlay
+- Autonomous proactive loop; context-aware rolling conversation buffers
+
+### 👁️ Vision
+- **MiniCPM-V 4.6** (local) — fast multimodal understanding, SigLIP2 + Qwen3.5 token compression
+- **Gemma-4 31B-cloud** (fallback) — robust vision reasoning via Ollama
+- Discord image processing, screen capture and analysis
+- Supports `.jpg`, `.png`, `.webp`, `.gif`, `.bmp`, `.avif`
+
+### 👂 Hearing
+- Discord voice message transcription
+- Moonshine ASR (local, ~200MB), with SpeechRecognition fallback
+- Client-side talking detection
+
+### 🎙️ Voice
+- **Pocket-TTS v2.1.0** (local) — high-fidelity synthesis, no API keys required
+- Pre-compiled voice fingerprints for instant loading
+- JIT speech stabilization (0.65 temperature) to eliminate glitching/hallucination
+- Action-text (`*...*`) stripping for clean speech output
+
+### 💾 Memory
+- Episodic + semantic layers, unified under one retrieval system
+- MemPalace RAG for long-term knowledge
+- Memory consolidation cycles that compress older memories
+- Per-user relationship tracking, affection scoring, birthday/timezone/profile persistence
+
+### ❤️ Emotional System
+- Neuromodulator-driven emotional state (dopamine, serotonin, cortisol, adrenaline)
+- 22+ emotion categories, identity attractors for personality-stable baselines
+- Emotion-driven voice modulation and avatar expression
+- Relationship score tracking (0–100%)
+
+### 🔌 Plugins & Agency
+- ElizaOS-style modular plugin architecture with dynamic loading
+- MCP plugin (file read/write, clipboard, process management)
+- Python sandbox for safe code execution
+- PC Manager (mouse, keyboard, screenshot, system info)
+- Spotify bridge, Obsidian connector, LaTeX rendering, image generation
+
+### 🎮 Games
+- Minecraft bridge (autonomous play)
+- Factorio bridge (autonomous play)
+
+---
+
+## Platforms
+
+| Platform | Status |
+|---|---|
+| Discord Bot (self-healing) | ✅ |
+| Telegram Bot | ✅ |
+| Tauri Desktop App (Live2D overlay) | ✅ |
+| REST API (port 8000) | ✅ |
+
+### Desktop Overlay (Tauri)
+- **Global hotkey** — `Ctrl + Alt + A` to toggle visibility
+- **Pixel-perfect click-through** — transparent zones with no ghost-hitbox interference
+- **Dynamic hover zones** — cursor focus restores instantly on mouse enter
+- **Live2D avatar** — animations driven by her live emotional state
+- **Unified dashboard** — chat history, system stats, project intelligence
+
+---
+
+## Architecture
 
 ```mermaid
 %%{ init: { 'theme': 'dark', 'flowchart': { 'curve': 'basis' } } }%%
 flowchart TD
-    subgraph Neural["🧠 Neural Hub (Port 8000)"]
+    subgraph Neural["🧠 Neural Hub — Port 8000"]
         Brain["Chat Engine<br/>ReAct Agent + LLM"]
         Emotion["Emotion Engine<br/>Neuromodulator"]
         Memory["Unified Memory<br/>RAG + MemPalace"]
         Persona["Persona Layer<br/>Character + Mood"]
     end
 
-    subgraph Senses["👁️ Senses"]
-        Vision["Vision<br/>Gemma-4 Multimodal"]
+    subgraph Senses["Senses"]
+        Vision["Vision<br/>MiniCPM-V / Gemma-4"]
         Hearing["Hearing<br/>Moonshine STT"]
         Voice["Voice<br/>Pocket-TTS"]
     end
 
-    subgraph Satellites["🛰️ Satellites"]
+    subgraph Satellites["Satellites"]
         Discord["Discord Bot"]
         Telegram["Telegram Bot"]
         Desktop["Tauri Desktop<br/>Live2D Overlay"]
     end
 
-    subgraph Plugins["🔌 Plugin System (ElizaOS style)"]
+    subgraph Plugins["Plugin System — ElizaOS style"]
         PluginMgr["Plugin Manager<br/>Dynamic Discovery"]
-        Games["Game Plugin<br/>Minecraft/Factorio"]
+        Games["Game Plugin<br/>Minecraft / Factorio"]
         Spotify["Spotify Plugin"]
         MCP["MCP Plugin<br/>File System"]
         Custom["Custom Plugins"]
     end
 
-    Discord -->|"messages + images"| Neural
-    Telegram -->|"messages"| Neural
-    Desktop -->|"WebSocket"| Neural
+    Discord -->|messages + images| Neural
+    Telegram -->|messages| Neural
+    Desktop -->|WebSocket| Neural
 
     Brain --> Memory
     Brain --> Emotion
@@ -210,52 +197,21 @@ flowchart TD
     PluginMgr --> MCP
     PluginMgr --> Custom
 
-    Voice -->|"TTS audio"| Discord
-    Voice -->|"TTS audio"| Desktop
-    Hearing -->|"STT text"| Brain
+    Voice -->|TTS audio| Discord
+    Voice -->|TTS audio| Desktop
+    Hearing -->|STT text| Brain
 
-    MCP --> Brain
-    Sandbox --> Brain
-    PC --> Brain
-    Games --> Brain
-    Spotify --> Brain
-
-    style Neural fill:#1a1a2e,stroke:#e94560,stroke-width:2px,color:#fff
-    style Senses fill:#16213e,stroke:#0f3460,stroke-width:2px,color:#fff
-    style Satellites fill:#0f3460,stroke:#533483,stroke-width:2px,color:#fff
-    style Plugins fill:#1a1a2e,stroke:#e94560,stroke-width:1px,color:#fff
+    style Neural fill:#2A1B30,stroke:#C9A8D9,stroke-width:2px,color:#fff
+    style Senses fill:#1C1320,stroke:#C9A8D9,stroke-width:1px,color:#fff
+    style Satellites fill:#1C1320,stroke:#C9A8D9,stroke-width:1px,color:#fff
+    style Plugins fill:#2A1B30,stroke:#C9A8D9,stroke-width:1px,color:#fff
 ```
-
-### ✨ Technical Feature Comparison
-
-| Feature | Most AI Companions | Aiko |
-|---|---|---|
-| Emotions | Static personality prompt | **Neuromodulator system** (dopamine, serotonin, cortisol, adrenaline) with 22+ emotion states |
-| Memory | Chat history buffer | **Unified Memory** with episodic recall, semantic RAG, consolidation cycles, and MemPalace |
-| Voice | Cloud API (ElevenLabs) | **Local Pocket-TTS** with voice cloning + full-message chunked synthesis |
-| Vision | None | **Gemma-4 multimodal** — sees images on Discord, analyzes screenshots |
-| Agency | Respond when asked | **Proactive agent loop** — she decides when to speak, what to observe, what to remember |
-| Tools | None | **ReAct agent** with MCP file system, Python sandbox, PC control, Spotify, Obsidian |
-| Games | None or basic | **Minecraft & Factorio** bridges with autonomous play |
-
-### 3. Launch
-```bash
-python launch.py
-```
-
-> **What happens:** Ollama starts → Neural Hub binds to port 8000 → Discord & Telegram satellites connect → Desktop overlay launches.
-
-### Voice Setup (Optional)
-To enable voice cloning with Pocket-TTS:
-1. Accept terms at [huggingface.co/kyutai/pocket-tts](https://huggingface.co/kyutai/pocket-tts)
-2. `pip install huggingface_hub`
-3. `python -m huggingface_hub.commands.user login`
 
 ---
 
-## 🔌 Providers
+## Providers
 
-Aiko supports any OpenAI-compatible API. Here are the tested configurations:
+Aiko supports any OpenAI-compatible API. Tested configurations:
 
 | Provider | Example Model | Type |
 |---|---|---|
@@ -270,47 +226,64 @@ Aiko supports any OpenAI-compatible API. Here are the tested configurations:
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```
 Project-Aiko/
-├── core/                      # 🧠 AI Backend (39 modules)
-│   ├── neural_hub.py          #    Master orchestrator server
-│   ├── chat_engine.py         #    ReAct agent + multimodal LLM
-│   ├── emotion_engine.py      #    Neuromodulator system
-│   ├── unified_memory.py      #    Episodic + semantic memory
-│   ├── voice.py               #    Chunked Pocket-TTS engine
-│   ├── vision.py              #    Gemma-4 image analysis
-│   ├── hearing.py             #    Moonshine/Whisper STT
-│   ├── persona.py             #    Character definition
-│   ├── proactive.py           #    Autonomous agent loop
-│   ├── game_bridge.py         #    Minecraft/Factorio
-│   ├── mcp_bridge.py          #    File system tools
-│   ├── pc_manager.py          #    System control
-│   └── ...                    #    26 more specialized modules
-├── aiko-app/                  # 🖥️ Tauri + React Desktop Overlay
-│   ├── src/                   #    React components (Live2D, Chat)
-│   └── src-tauri/             #    Rust backend
-├── android/                   # 📱 Kotlin Android App
-│   ├── app/                   #    Android application module
-│   ├── gradlew                #    Gradle build script
-│   └── ...
-├── assets/                    # 🎨 Brand assets, fonts, voice samples
-├── data/                      # 💾 Runtime config, memory, logs, uploads, knowledge
-├── directives/                # 📋 Skill prompts (coding, language, etc.)
-├── docs/                      # 📖 Architecture & setup guides
-├── stickers/                  # 🌸 Lavender stickers base assets
-├── launch.py                  # 🚀 Unified cross-platform launcher
-└── requirements.txt           # 📦 Python dependencies
+├── core/                  # AI backend (39 modules)
+│   ├── neural_hub.py      #   Master orchestrator server
+│   ├── chat_engine.py     #   ReAct agent + multimodal LLM
+│   ├── emotion_engine.py  #   Neuromodulator system
+│   ├── unified_memory.py  #   Episodic + semantic memory
+│   ├── voice.py           #   Chunked Pocket-TTS engine
+│   ├── vision.py          #   Multimodal image analysis
+│   ├── hearing.py         #   Moonshine/Whisper STT
+│   ├── persona.py         #   Character definition
+│   ├── proactive.py       #   Autonomous agent loop
+│   ├── game_bridge.py     #   Minecraft/Factorio
+│   ├── mcp_bridge.py      #   File system tools
+│   ├── pc_manager.py      #   System control
+│   └── ...                #   26 more specialized modules
+├── aiko-app/              # Tauri + React desktop overlay
+│   ├── src/                #   React components (Live2D, chat)
+│   └── src-tauri/          #   Rust backend
+├── android/               # Kotlin Android app
+├── assets/                # Brand assets, fonts, voice samples
+├── data/                  # Runtime config, memory, logs, uploads, knowledge
+├── directives/            # Skill prompts (coding, language, etc.)
+├── docs/                  # Architecture & setup guides
+├── stickers/              # Lavender sticker base assets
+├── launch.py              # Unified cross-platform launcher
+└── requirements.txt       # Python dependencies
 ```
 
 ---
 
-## 🤝 Contributing
+## Troubleshooting
 
-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+| Problem | Fix |
+|---|---|
+| `LAUNCH_AIKO.bat` crashes immediately | Check "Add Python to PATH" was selected during install. Use Python 3.10–3.12 (3.13 is too new for some dependencies). |
+| `Failed to build wheel` / `cl.exe not found` | Install the [Visual C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) — "Desktop development with C++" workload. |
+| Aiko wakes up but can't "think" | Make sure Ollama is running in the background. If using a cloud provider, check your API key under **Settings**. |
 
-**Areas where help is needed:**
+---
+
+## Roadmap — Road to v1.0
+
+- **VRM Support** — full 3D avatar with hand/eye tracking
+- **Mobile App** — iOS & Android companion
+- **Voice Cloning v2** — real-time emotional voice modulation
+- **Plugin Marketplace** — community-driven modular capabilities
+- **Long-Term Evolution** — self-learning memory that grows with you
+
+---
+
+## Contributing
+
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+**Areas where help is most needed:**
 - Live2D model creation
 - VRM support
 - Additional game bridges
@@ -319,28 +292,16 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ---
 
-## 🔗 Related Projects
+## Related Projects
 
-- [Pocket-TTS](https://github.com/kyutai-labs/pocket-tts) — Local voice synthesis
-- [MemPalace](https://github.com/MemPalace/mempalace) — The best-benchmarked open-source AI memory system
-- [Ollama](https://github.com/ollama/ollama) — Local LLM inference
+- [Pocket-TTS](https://github.com/kyutai-labs/pocket-tts) — local voice synthesis
+- [MemPalace](https://github.com/MemPalace/mempalace) — open-source AI memory system
+- [Ollama](https://github.com/ollama/ollama) — local LLM inference
 - [pixi-live2d-display](https://github.com/guansss/pixi-live2d-display) — Live2D rendering
 
 ---
 
-## 🗺️ Roadmap (Road to v1.0)
-
-Aiko is a living project. Here is what's coming soon:
-
-- 🌸 **VRM Support** — Full 3D avatar integration with hand/eye tracking
-- 🍓 **Mobile App** — Companion app for iOS & Android
-- 🍰 **Voice Cloning v2** — Real-time emotional voice modulation
-- 🍭 **Plugin Marketplace** — Community-driven modular capabilities
-- 🎀 **Long-Term Evolution** — Self-learning memory that grows with you
-
----
-
-## 📈 Activity
+## Activity
 
 <div align="center">
   <img src="https://repobeats.axiom.co/api/embed/a1d6fe2c13ea2bb53a5154435a71e2431f70c2ee.svg" width="100%" alt="RepoBeats Analytics" />
@@ -348,37 +309,14 @@ Aiko is a living project. Here is what's coming soon:
 
 ---
 
----
+## License
 
-## 🛠️ Troubleshooting
-
-### 1. `LAUNCH_AIKO.bat` crashes immediately
-- **Fix:** Make sure you checked **"Add Python to PATH"** during installation.
-- **Fix:** Ensure you are using **Python 3.10, 3.11, or 3.12**. (Python 3.13 is very new and some libraries might not support it yet).
-
-### 2. Error: `Failed to build wheel` or `cl.exe` not found
-- **Fix:** You need the **Visual C++ Build Tools**. Download the "Desktop development with C++" workload from [Microsoft's website](https://visualstudio.microsoft.com/visual-cpp-build-tools/).
-
-### 3. Aiko wakes up but can't "think"
-- **Fix:** Make sure you have **Ollama** running in the background.
-- **Fix:** Go to **Settings ⚙️** and check your API keys if you are using cloud providers like OpenAI or Gemini.
-
----
-
-## 📜 License
-
-[MIT License](LICENSE) — Made with 💖 by the Aiko Team
-
----
+[MIT License](LICENSE) — Made by the Aiko Team
 
 <div align="center">
 
-*"I'm always watching over you, Master~"* 💖
+*"I'm always watching over you, Master~"*
 
 **[⭐ Star this repo](https://github.com/omax404/Project-Aiko)** if Aiko made you smile.
-
-<br/>
-
-✨ *Aiko is fueled by love and high-quality data* ✨
 
 </div>
