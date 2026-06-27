@@ -127,7 +127,7 @@ Aiko is now easier to launch than ever. You don't need to install Rust or Node t
 ### 1. Download & Launch
 - Clone or Download this repository.
 - Install requirements: `pip install -r requirements.txt`
-- Run the launcher: `python start_aiko_tauri.py`
+- Run the launcher: `python launch.py`
 - Aiko will automatically detect the pre-compiled `aiko-app.exe` and start the entire ecosystem silently.
 
 ### 2. Instant Customization
@@ -145,8 +145,8 @@ Once the Aiko Dashboard appears:
 
 ### 1. Environment Setup
 ```bash
-git clone https://github.com/omax404/aiko.git
-cd aiko
+git clone https://github.com/omax404/Project-Aiko.git
+cd Project-Aiko
 pip install -r requirements.txt
 ```
 
@@ -240,7 +240,7 @@ flowchart TD
 
 ### 3. Launch
 ```bash
-python start_aiko_tauri.py
+python launch.py
 ```
 
 > **What happens:** Ollama starts → Neural Hub binds to port 8000 → Discord & Telegram satellites connect → Desktop overlay launches.
@@ -273,7 +273,7 @@ Aiko supports any OpenAI-compatible API. Here are the tested configurations:
 ## 📂 Project Structure
 
 ```
-Aiko-desktop/
+Project-Aiko/
 ├── core/                      # 🧠 AI Backend (39 modules)
 │   ├── neural_hub.py          #    Master orchestrator server
 │   ├── chat_engine.py         #    ReAct agent + multimodal LLM
