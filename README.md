@@ -16,7 +16,7 @@
 [![Last Commit](https://img.shields.io/github/last-commit/omax404/Project-Aiko?color=C9A8D9)](https://github.com/omax404/Project-Aiko)
 [![Repo Size](https://img.shields.io/github/repo-size/omax404/Project-Aiko?color=C9A8D9)](https://github.com/omax404/Project-Aiko)
 
-[![Join Discord](assets/buttons/join-discord.png)](https://discord.gg/) &nbsp;
+[![Join Discord](assets/buttons/join-discord.png)](https://discord.gg/your-invite-code) &nbsp;
 [![Quick Start](assets/buttons/quick-start.png)](#quick-start) &nbsp;
 [![Wiki](assets/buttons/wiki.png)](docs/) &nbsp;
 [![Star this Repo](assets/buttons/star-repo.png)](https://github.com/omax404/Project-Aiko)
