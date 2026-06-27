@@ -13,11 +13,7 @@ import { AnimatePresence } from "framer-motion";
 import { GothicButton } from "./GothicButton";
 
 
-interface InputDockProps {
-  onOpenProject: () => void;
-}
-
-export function InputDock({ onOpenProject }: InputDockProps) {
+export function InputDock() {
   const [text, setText] = useState("");
   const [ttsEnabled, setTtsEnabled] = useState(true);
   const [showGifPicker, setShowGifPicker] = useState(false);
@@ -90,14 +86,7 @@ export function InputDock({ onOpenProject }: InputDockProps) {
                    <Sparkles size={11} className="text-accent" />
                    <span className="text-[11px] font-bold text-[var(--accent)] uppercase tracking-widest">{apiConfig.model}</span>
                 </div>
-                <div className="h-4 w-px bg-white/5" />
-                <button 
-                  onClick={onOpenProject} 
-                  title="Project Context" 
-                  className="text-[10px] font-bold text-slate-500 hover:text-white transition-colors uppercase tracking-widest px-1"
-                >
-                   # Neural_Context
-                </button>
+
              </div>
 
              <div className="flex items-center gap-2 text-slate-500">

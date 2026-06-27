@@ -476,7 +476,7 @@ Use MCP tools whenever Master asks about his PC state, files, wants you to read/
                         content = f.read()
                 else:
                     # Local fallback to avoid self-HTTP request
-                    local_upload_path = os.path.join(os.getcwd(), "uploads", filename)
+                    local_upload_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "uploads", filename)
                     if os.path.exists(local_upload_path):
                         with open(local_upload_path, 'rb') as f:
                             content = f.read()

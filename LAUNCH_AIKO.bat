@@ -1,4 +1,12 @@
 @echo off
+if "%1"=="h" goto :run_hidden
+
+echo Set WshShell = CreateObject("WScript.Shell") > "%temp%\launcher_hidden.vbs"
+echo WshShell.Run """%~dp0LAUNCH_AIKO.bat"" h", 0, False >> "%temp%\launcher_hidden.vbs"
+wscript.exe "%temp%\launcher_hidden.vbs"
+exit /b
+
+:run_hidden
 setlocal enabledelayedexpansion
 title Aiko Core Launcher
 mode con: cols=90 lines=28

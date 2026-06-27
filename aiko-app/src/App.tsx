@@ -24,7 +24,6 @@ import {
   PanelLeft,
   ChevronLeft,
   ChevronRight,
-  Activity,
   Zap,
   ExternalLink,
   Minus,
@@ -36,11 +35,10 @@ import { GothicButton } from './components/GothicButton';
 
 
 /* ── Custom TitleBar ─────────────────────────────────────── */
-function TitleBar({ sessionLabel, showAnimatedAssets, onSettings, onProject, onToggleSidebar }: {
+function TitleBar({ sessionLabel, showAnimatedAssets, onSettings, onToggleSidebar }: {
   sessionLabel: string;
   showAnimatedAssets: boolean;
   onSettings: () => void;
-  onProject: () => void;
   onToggleSidebar: () => void;
 }) {
   const isTauri = !!(window as any).__TAURI__;
@@ -99,14 +97,7 @@ function TitleBar({ sessionLabel, showAnimatedAssets, onSettings, onProject, onT
 
       {/* Right: action icons + window controls */}
       <div className="flex items-center px-2 gap-1" style={noDrag}>
-        <button
-          onClick={onProject}
-          title="Project"
-          className="w-10 h-12 bg-transparent border-none cursor-pointer flex items-center justify-center text-white/[0.35] hover:bg-white/[0.07] hover:text-white/80 transition-all duration-100 shrink-0"
-          style={noDrag}
-        >
-          <Activity size={14} />
-        </button>
+
         <GothicButton
           icon="settings"
           size="sm"
@@ -419,7 +410,6 @@ function App() {
         sessionLabel={sessionLabel}
         showAnimatedAssets={showAnimatedAssets}
         onSettings={() => setIsSettingsOpen(true)}
-        onProject={() => setIsProjectOpen(true)}
         onToggleSidebar={toggleSidebar}
       />
 
@@ -447,7 +437,7 @@ function App() {
               }}
               style={{ overflow: 'hidden', flexShrink: 0 }}
             >
-              <Sidebar onOpenSettings={() => setIsSettingsOpen(true)} onOpenProject={() => setIsProjectOpen(true)} />
+              <Sidebar onOpenSettings={() => setIsSettingsOpen(true)} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -570,7 +560,7 @@ function App() {
             padding: '0 0 16px 0',
             background: 'var(--bg-base)',
           }}>
-            <InputDock onOpenProject={() => setIsProjectOpen(true)} />
+            <InputDock />
           </div>
         </main>
 

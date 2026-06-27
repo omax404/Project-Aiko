@@ -4,8 +4,7 @@ import {
   Search,
   MoreVertical,
   Pin,
-  Edit2,
-  BrainCircuit
+  Edit2
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { clsx } from 'clsx';
@@ -129,7 +128,7 @@ const SessionItem = ({ id, title, preview, timestamp, active, pinned, onSelect, 
   );
 };
 
-export function Sidebar({ onOpenSettings, onOpenProject }: { onOpenSettings: () => void, onOpenProject: () => void }) {
+export function Sidebar({ onOpenSettings }: { onOpenSettings: () => void }) {
   const { 
     sessions, 
     activeSessionId,
@@ -285,13 +284,7 @@ export function Sidebar({ onOpenSettings, onOpenProject }: { onOpenSettings: () 
           <GothicButton icon="settings" size="sm" className="pointer-events-none group-hover:ring-1 group-hover:ring-[var(--acc)]" />
           <span className="text-[11px] font-medium">Neural Config</span>
         </button>
-        <button 
-          onClick={onOpenProject}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--t2)] hover:text-white hover:bg-[var(--bg-hover)] transition-all"
-        >
-          <BrainCircuit size={14} className="text-[var(--acc)] ml-2" />
-          <span className="text-[11px] font-medium ml-1">Core Intelligence</span>
-        </button>
+
         <button 
           onClick={() => window.open('https://discord.com', '_blank')}
           className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--t2)] hover:text-white hover:bg-[var(--bg-hover)] transition-all group"

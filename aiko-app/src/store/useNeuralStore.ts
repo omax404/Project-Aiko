@@ -175,7 +175,7 @@ function connectSocket() {
           type: 'system',
           action: 'proactive_toggle',
           state: active,
-          interval: active ? 10 : 180
+          interval: active ? 45 : 180
         }));
       }
 
@@ -746,7 +746,7 @@ export const useNeuralStore = create<NeuralState>()(
             type: 'system',
             action: 'proactive_toggle',
             state: active,
-            interval: active ? 10 : 180
+            interval: active ? 45 : 180
           }));
         }
       }
