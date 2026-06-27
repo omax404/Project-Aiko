@@ -1,5 +1,5 @@
 <div align="center">
-<img width="2460" height="1358" alt="aiko" src="https://github.com/user-attachments/assets/0f2dda07-04d4-408d-91ed-9a7deb8cd5be" />
+![Uploading Gemini_Generated_Image_srqtdjsrqtdjsrqt.png…]()
 
 # Aiko Desktop
 
@@ -11,12 +11,11 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-C9A8D9.svg)](LICENSE)
 [![Python 3.10 - 3.12](https://img.shields.io/badge/Python-3.10--3.12-2A1B30.svg)](https://python.org)
-[![Discord](https://img.shields.io/badge/Discord-Join%20Us-7289da.svg)](https://discord.gg/)
-[![GitHub Stars](https://img.shields.io/github/stars/omax404/Project-Aiko?style=social)](https://github.com/omax404/Project-Aiko)
+
 [![Last Commit](https://img.shields.io/github/last-commit/omax404/Project-Aiko?color=C9A8D9)](https://github.com/omax404/Project-Aiko)
 [![Repo Size](https://img.shields.io/github/repo-size/omax404/Project-Aiko?color=C9A8D9)](https://github.com/omax404/Project-Aiko)
 
-[![Join Discord](assets/buttons/join-discord.png)](https://discord.gg/your-invite-code) &nbsp;
+[![Join Discord](assets/buttons/join-discord.png)](https://discord.gg/nhChrd2t) &nbsp;
 [![Quick Start](assets/buttons/quick-start.png)](#quick-start) &nbsp;
 [![Wiki](assets/buttons/wiki.png)](docs/) &nbsp;
 [![Star this Repo](assets/buttons/star-repo.png)](https://github.com/omax404/Project-Aiko)
