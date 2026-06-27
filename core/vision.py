@@ -216,11 +216,7 @@ class VisionEngine:
                 pass
             return f"My visual sensors are a bit blurry, Master... {e}", None
 
-    async def _capture_screen_cv2(self):
-        """Alternative screen capture using PIL for robustness."""
-        from PIL import ImageGrab
-        img = ImageGrab.grab()
-        return img
+
 
     async def analyze_file(self, file_path: str) -> str:
         """Analyze a local image file (Cloud First, Ollama Fallback)."""

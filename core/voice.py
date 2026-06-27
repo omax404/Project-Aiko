@@ -213,7 +213,7 @@ class VoiceEngine:
         except (OSError, PermissionError, RuntimeError, TypeError, ValueError):
             pass
 
-    async def speak(self, text: str, emotion: str = "neutral", on_audio=None, **kwargs):
+    async def speak(self, text: str, emotion: str = "neutral", on_audio=None, on_amplitude=None, **kwargs):
         """Synthesize speech for the FULL message using chunked TTS."""
         clean_text = self.clean_text_for_tts(text)
         if not clean_text:
@@ -279,6 +279,21 @@ class VoiceEngine:
 
                 duration_s = len(full_audio) / slower_sample_rate
                 logger.info(f"✅ Audio saved: {filename} ({duration_s:.1f}s, 0.9x speed (pitch drop), {len(chunks)} chunks)")
+
+                # Broadcast amplitude data for lip-sync
+                if on_amplitude and audio_segments:
+                    try:
+                        import asyncio
+                        rms = float(np.sqrt(np.mean(full_audio.astype(np.float64) ** 2)))
+                        amplitude = min(1.0, rms / 0.15)  # Normalize to 0-1
+                        loop_ref = asyncio.get_event_loop()
+                        if asyncio.iscoroutinefunction(on_amplitude):
+                            loop_ref.call_soon_threadsafe(asyncio.ensure_future, on_amplitude(amplitude))
+                        else:
+                            loop_ref.call_soon_threadsafe(on_amplitude, amplitude)
+                    except Exception:
+                        pass  # Non-critical: don't break TTS for amplitude
+
                 return filename
 
             except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:

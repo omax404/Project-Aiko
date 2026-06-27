@@ -9,6 +9,7 @@ import uuid
 import time
 import requests
 import logging
+logger = logging.getLogger("RAG")
 try:
     from mempalace.searcher import search_memories
     from mempalace.miner import get_collection, add_drawer, chunk_text
@@ -137,13 +138,18 @@ class MemPalaceRAG:
             return self._cached_count
         except Exception: return self._cached_count
 
+_mempalace_instance = None
+
 def get_mempalace_rag() -> MemPalaceRAG:
-    return MemPalaceRAG()
+    global _mempalace_instance
+    if _mempalace_instance is None:
+        _mempalace_instance = MemPalaceRAG()
+    return _mempalace_instance
+
 from functools import lru_cache
 from dotenv import load_dotenv
 
 load_dotenv()
-logger = logging.getLogger("RAG")
 
 # Configuration
 CHROMA_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "chroma_db")

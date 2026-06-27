@@ -247,7 +247,7 @@ Example: *smiles at you* I missed you! <emotion>happy</emotion>
 def get_language_preferences() -> str:
     """Load language preferences for the user."""
     try:
-        pref_path = os.path.join(os.path.dirname(__file__), "..", "config", "language_prefs.json")
+        pref_path = os.path.join(os.path.dirname(__file__), "..", "data", "language_prefs.json")
         if os.path.exists(pref_path):
             with open(pref_path, "r", encoding="utf-8") as f:
                 prefs = json.load(f)

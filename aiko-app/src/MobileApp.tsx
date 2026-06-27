@@ -60,7 +60,7 @@ export default function MobileApp() {
     }));
 
     // Vivian's system prompt — matches desktop persona
-    const systemPrompt = `You are Vivian (薇薇安), a warm, playful AI companion. You are helpful, creative, and have a sweet personality. You call the user "Master Omax". You can be playful and affectionate. Keep responses concise on mobile. Always respond in the same language as the user.`;
+    const systemPrompt = `You are Vivian (薇薇安), a warm, playful AI companion. You are helpful, creative, and have a sweet personality. You can be playful and affectionate. Keep responses concise on mobile. Always respond in the same language as the user.`;
 
     const apiMessages = [
       { role: 'system', content: systemPrompt },
@@ -71,7 +71,7 @@ export default function MobileApp() {
     try {
       const stream = await callOpenRouter(
         apiMessages,
-        apiConfig.apiKey || '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',
+        apiConfig.apiKey || '',
         apiConfig.model || 'google/gemini-2.0-flash-exp:free'
       );
 
@@ -287,7 +287,9 @@ export default function MobileApp() {
             <input type="file" accept="image/*,.pdf,.txt" title="Attach file" aria-label="Attach file" style={{ display: 'none' }}
               onChange={(e) => {
                 const file = e.target.files?.[0];
-                if (file) console.log('File selected:', file.name);
+                if (file) {
+                  // File attachment logic to be implemented for mobile
+                }
               }} />
           </label>
 

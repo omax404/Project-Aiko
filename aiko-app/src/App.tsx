@@ -44,8 +44,8 @@ function TitleBar({ sessionLabel, showAnimatedAssets, onSettings, onProject, onT
   onToggleSidebar: () => void;
 }) {
   const isTauri = !!(window as any).__TAURI__;
-  const minimize = () => isTauri ? getCurrentWindow().minimize().catch(console.error) : console.log("Minimize");
-  const maximize = () => isTauri ? getCurrentWindow().toggleMaximize().catch(console.error) : console.log("Maximize");
+  const minimize = () => isTauri ? getCurrentWindow().minimize().catch(console.error) : undefined;
+  const maximize = () => isTauri ? getCurrentWindow().toggleMaximize().catch(console.error) : undefined;
   const close = () => isTauri ? getCurrentWindow().close().catch(console.error) : window.close();
 
   const noDrag = { WebkitAppRegion: 'no-drag' } as React.CSSProperties;

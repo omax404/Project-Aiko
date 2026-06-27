@@ -1,17 +1,19 @@
-import React, { useEffect } from 'react';
-import { listen } from '@tauri-apps/api/event';
-import { Window } from '@tauri-apps/api/window';
+import { useEffect } from 'react';
 import splashBg from './assets/ui/splash-bg.png';
 import appIcon from './assets/ui/app-icon.png';
 
 export default function SplashScreen() {
   useEffect(() => {
+    const isTauri = !!(window as any).__TAURI__;
+    if (!isTauri) return;
+
     let isTransitioning = false;
 
     const transitionToMain = async () => {
       if (isTransitioning) return;
       isTransitioning = true;
       try {
+        const { Window } = await import('@tauri-apps/api/window');
         const mainWindow = new Window('main');
         await mainWindow.show();
         const splashWindow = new Window('splashscreen');
@@ -21,17 +23,19 @@ export default function SplashScreen() {
       }
     };
 
-    const unlisten = listen('app-ready', () => {
-      // Add a slight delay for smooth visual presentation
-      setTimeout(transitionToMain, 1000);
+    let unlisten: (() => void) | null = null;
+
+    import('@tauri-apps/api/event').then(({ listen }) => {
+      listen('app-ready', () => {
+        setTimeout(transitionToMain, 1000);
+      }).then(fn => { unlisten = fn; });
     });
 
-    // Fallback safety timer to ensure transition happens
     const timer = setTimeout(transitionToMain, 3000);
 
     return () => {
       clearTimeout(timer);
-      unlisten.then(f => f());
+      unlisten?.();
     };
   }, []);
 
@@ -46,10 +50,7 @@ export default function SplashScreen() {
         backgroundColor: '#1C1320'
       }}
     >
-      {/* Full-bleed overlay gradient for premium depth */}
       <div className="absolute inset-0 bg-gradient-to-b from-[#2A1B30]/40 via-transparent to-[#1C1320]/80 pointer-events-none" />
-
-      {/* Centered App Icon */}
       <div className="relative z-10 flex flex-col items-center gap-6">
         <img 
           src={appIcon} 
