@@ -497,11 +497,12 @@ function App() {
                                 components={{
                                   img: ({ node, src, alt, ...props }) => {
                                     if (!src) return null;
-                                    const isSticker = src.includes('/stickers/');
+                                    const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI__;
+                                    const hubUrl = isTauri ? 'http://127.0.0.1:8000' : (typeof window !== 'undefined' ? window.location.origin : 'http://127.0.0.1:8000');
+                                    const absoluteSrc = src.startsWith('http') || src.startsWith('data:') ? src : `${hubUrl}${src}`;
+                                    
+                                    const isSticker = src.includes('/stickers/') && !src.includes('selfie') && !src.includes('gen_');
                                     if (isSticker) {
-                                      const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI__;
-                                      const hubUrl = isTauri ? 'http://127.0.0.1:8000' : (typeof window !== 'undefined' ? window.location.origin : 'http://127.0.0.1:8000');
-                                      const absoluteSrc = src.startsWith('http') ? src : `${hubUrl}${src}`;
                                       return (
                                         <img 
                                           src={absoluteSrc} 
@@ -511,7 +512,7 @@ function App() {
                                         />
                                       );
                                     }
-                                    return <img src={src} alt={alt} className="max-w-full rounded-xl my-2" {...props} />;
+                                    return <img src={absoluteSrc} alt={alt} className="max-w-[320px] max-h-[480px] rounded-xl my-2 object-cover shadow-lg border border-white/10" {...props} />;
                                   }
                                 }}
                               >

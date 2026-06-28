@@ -250,6 +250,64 @@ class AikoBrain:
             return response, "annoyed"
 
         await self._init_plugins()
+
+        # Check if the user is calling the /generate command
+        if message.strip().startswith("/generate"):
+            import time
+            custom_prompt = message.replace("/generate", "").strip()
+            
+            if save_input:
+                self.memory.add_message(user_id, input_role, message)
+                
+            from pathlib import Path
+            filename = f"gen_{int(time.time())}.png"
+            stickers_dir = Path(__file__).parent.parent / "stickers"
+            save_path = str(stickers_dir / filename)
+            
+            if not custom_prompt:
+                # Generate Aiko selfie reflecting her live neuromodulator state
+                from core.emotion_engine import emotion_engine
+                from core.selfie_generator import generate_selfie
+                
+                emo_state = emotion_engine.get_state()
+                neuromodulators = emo_state.get("neuromodulators", {"dopamine": 50, "serotonin": 50, "cortisol": 50, "adrenaline": 50})
+                
+                logger.info(f"[ChatEngine] /generate command with empty prompt. Invoking selfie generator...")
+                text_reply = "Here is a selfie showing how I'm feeling right now, Master! (≧◡≦)"
+                
+                if self.on_thinking:
+                    self.on_thinking(True)
+                success = await generate_selfie(
+                    neuromodulators.get("dopamine", 50),
+                    neuromodulators.get("serotonin", 50),
+                    neuromodulators.get("cortisol", 50),
+                    neuromodulators.get("adrenaline", 50),
+                    save_path
+                )
+            else:
+                # Generate custom prompt
+                from core.selfie_generator import generate_image_via_perchance
+                
+                logger.info(f"[ChatEngine] /generate command with custom prompt: '{custom_prompt}'")
+                text_reply = f"Here is the image for '{custom_prompt}' you requested, Master! ♡"
+                
+                if self.on_thinking:
+                    self.on_thinking(True)
+                success = await generate_image_via_perchance(custom_prompt, save_path, shape="square")
+                
+            if self.on_thinking:
+                self.on_thinking(False)
+                
+            if success:
+                text_reply += f"\n\n![image](/stickers/{filename})"
+            else:
+                text_reply += "\n\n*(I tried to generate the image, but my visual canvas module is offline... ≧◡≦)*"
+                
+            if save_input:
+                self.memory.add_message(user_id, "assistant", text_reply)
+                
+            self._emit_sentence(text_reply)
+            return text_reply, "happy", [], [], False, None
         # Process Attachments
         processed_images = []
         file_context = ""

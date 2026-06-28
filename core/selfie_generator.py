@@ -1,8 +1,8 @@
 """
-Aiko Selfie Generator
-──────────────────────
-Generates dynamic selfies of Aiko reflecting her live neuromodulator stats.
-Uses the unofficial Perchance API with modern browser context and direct proxy downloads.
+Aiko Selfie & Image Generator
+──────────────────────────────
+Generates dynamic selfies of Aiko reflecting her live neuromodulator stats,
+or any custom prompt using the robust Perchance AI engine.
 """
 
 import asyncio
@@ -23,7 +23,7 @@ BASE_DESCRIPTION = (
     "A highly-detailed, illustrative style full-body photograph capturing the specific character Vivian Banshee from Zenless Zone Zero. "
     "Character Features: Hair: Extremely long, light purple/periwinkle hair, flowing dynamically. "
     "Headwear: A massive, intricate black fabric gothic headdress featuring elaborate ruffles, pleats, and dark purple ribbon accents sitting high on her head. "
-    "Face: Features include distinct pointed, elf-like ears, vibrant ruby-red eyes with detailed eyelashes, and a prominent beauty mark (mole) located under her right eye. Her expression is neutral and composed. "
+    "Face: Features include distinct pointed, elf-like ears, vibrant ruby-red eyes with detailed eyelashes, and a beauty mark (mole) located under her right eye. Her expression is neutral and composed. "
     "Outfit: A complex, multi-layered gothic-circus inspired ensemble. A white Victorian-style blouse with prominent ruffles and puff sleeves. "
     "Note the unique cutout side panels on the bodice. The high collar features a multi-layered purple and black jabot/ruffle tie. "
     "Over the blouse, she wears a black, highly structured leather harness-vest with multiple horizontal straps and detailed silver buckles, which has geometric patterns and silver hardware down the front. "
@@ -59,16 +59,20 @@ def build_mood_prompt(dopamine: float, serotonin: float, cortisol: float, adrena
 
     return f"{BASE_DESCRIPTION}, {mood}"
 
-async def generate_selfie(dopamine: float, serotonin: float, cortisol: float, adrenaline: float, save_path: str) -> bool:
+async def generate_image_via_perchance(prompt: str, save_path: str, shape: str = "square") -> bool:
     """
-    Generates Aiko's selfie and saves it to save_path.
-    Returns True if successful, False otherwise.
+    Generates any custom prompt using Perchance and saves it to save_path.
+    Supported shapes: "square" (512x512), "portrait" (512x768), "landscape" (768x512).
     """
-    prompt = build_mood_prompt(dopamine, serotonin, cortisol, adrenaline)
-    
+    resolution = "512x512"
+    if shape == "portrait":
+        resolution = "512x768"
+    elif shape == "landscape":
+        resolution = "768x512"
+        
     try:
         async with async_playwright() as p:
-            logger.info("Initializing headless browser context for Selfie...")
+            logger.info("Initializing headless browser context for Perchance Generation...")
             browser = await p.chromium.launch(headless=True)
             context = await browser.new_context(
                 user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -98,11 +102,11 @@ async def generate_selfie(dopamine: float, serotonin: float, cortisol: float, ad
                 "prompt": prompt,
                 "negativePrompt": NEGATIVE_PROMPT,
                 "seed": -1,
-                "resolution": "512x768",  # Portrait shape
+                "resolution": resolution,
                 "guidanceScale": 7.0
             }
             
-            logger.info("Requesting image generation from Perchance AI...")
+            logger.info(f"Requesting Perchance generation for prompt: '{prompt[:50]}...' ({resolution})")
             response = await page.evaluate("""
                 async ({ url, body }) => {
                     const response = await fetch(url, {
@@ -151,12 +155,19 @@ async def generate_selfie(dopamine: float, serotonin: float, cortisol: float, ad
                 Path(save_path).parent.mkdir(exist_ok=True, parents=True)
                 with open(save_path, "wb") as f:
                     f.write(img_data)
-                logger.info(f"Selfie successfully saved to: {save_path}")
+                logger.info(f"Image successfully saved to: {save_path}")
                 return True
             else:
-                logger.error(f"Failed to download selfie image: status {download_response.get('status')}")
+                logger.error(f"Failed to download image: status {download_response.get('status')}")
                 return False
                 
     except Exception as e:
-        logger.error(f"Error during selfie generation workflow: {e}")
+        logger.error(f"Error during Perchance generation workflow: {e}")
         return False
+
+async def generate_selfie(dopamine: float, serotonin: float, cortisol: float, adrenaline: float, save_path: str) -> bool:
+    """
+    Generates Aiko's selfie based on current stats and saves it to save_path.
+    """
+    prompt = build_mood_prompt(dopamine, serotonin, cortisol, adrenaline)
+    return await generate_image_via_perchance(prompt, save_path, shape="portrait")
