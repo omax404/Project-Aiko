@@ -2,7 +2,10 @@
 Aiko Selfie & Image Generator
 ──────────────────────────────
 Generates dynamic selfies of Aiko reflecting her live neuromodulator stats,
-or any custom prompt using the robust Perchance AI engine.
+or any custom prompt using the Perchance AI engine.
+
+Uses the user's real installed Chrome/Edge browser via CDP to bypass
+Cloudflare Turnstile verification (Playwright's bundled Chromium is blocked).
 """
 
 import asyncio
@@ -10,15 +13,39 @@ import os
 import random
 import base64
 import logging
+import subprocess
+import time
+import json
+import urllib.parse
 from pathlib import Path
-from playwright.async_api import async_playwright
-import perchance.utils
 
 logger = logging.getLogger("SelfieGenerator")
 
-# Monkey-patch user agent to prevent Cloudflare blocks on verifyUser
-perchance.utils.generate_user_agent = lambda: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+# ─── Chrome / Edge detection ───────────────────────────────────
+CHROME_PATHS = [
+    r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+    r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+    r"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    r"/usr/bin/google-chrome",
+    r"/usr/bin/chromium-browser",
+]
+EDGE_PATHS = [
+    r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+    r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+    r"/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+    r"/usr/bin/microsoft-edge",
+]
 
+def _find_real_browser() -> str | None:
+    """Return path to the first real Chrome or Edge installation found."""
+    for p in CHROME_PATHS + EDGE_PATHS:
+        if Path(p).exists():
+            return p
+    return None
+
+CDP_PORT = 9223  # Port for remote debugging; avoid 9222 (commonly used by other tools)
+
+# ─── Aiko character base description ──────────────────────────
 BASE_DESCRIPTION = (
     "A highly-detailed, illustrative style full-body photograph capturing the specific character Vivian Banshee from Zenless Zone Zero. "
     "Character Features: Hair: Extremely long, light purple/periwinkle hair, flowing dynamically. "
@@ -59,9 +86,51 @@ def build_mood_prompt(dopamine: float, serotonin: float, cortisol: float, adrena
 
     return f"{BASE_DESCRIPTION}, {mood}"
 
+
+async def _launch_chrome_with_cdp(browser_path: str) -> subprocess.Popen:
+    """Launch real Chrome/Edge with remote debugging enabled."""
+    import tempfile
+    profile_dir = Path(tempfile.gettempdir()) / "aiko_perchance_profile"
+    profile_dir.mkdir(exist_ok=True)
+
+    args = [
+        browser_path,
+        f"--remote-debugging-port={CDP_PORT}",
+        f"--user-data-dir={str(profile_dir)}",
+        "--window-position=-3000,-3000",
+        "--window-size=900,700",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-popup-blocking",
+        "about:blank",
+    ]
+    proc = subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    # Give browser time to open its debug port
+    await asyncio.sleep(2)
+    return proc
+
+
+async def _wait_for_cdp(timeout: int = 10) -> bool:
+    """Poll until Chrome's CDP endpoint is ready."""
+    import aiohttp
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            async with aiohttp.ClientSession() as s:
+                async with s.get(f"http://127.0.0.1:{CDP_PORT}/json/version", timeout=aiohttp.ClientTimeout(total=2)) as r:
+                    if r.status == 200:
+                        return True
+        except Exception:
+            pass
+        await asyncio.sleep(0.5)
+    return False
+
+
 async def generate_image_via_perchance(prompt: str, save_path: str, shape: str = "square") -> bool:
     """
     Generates any custom prompt using Perchance and saves it to save_path.
+
+    Uses the real Chrome/Edge browser (via CDP) to pass Cloudflare Turnstile.
     Supported shapes: "square" (512x512), "portrait" (512x768), "landscape" (768x512).
     """
     resolution = "512x512"
@@ -69,105 +138,137 @@ async def generate_image_via_perchance(prompt: str, save_path: str, shape: str =
         resolution = "512x768"
     elif shape == "landscape":
         resolution = "768x512"
-        
+
+    browser_path = _find_real_browser()
+    if not browser_path:
+        logger.error("[SelfieGen] No real Chrome or Edge browser found. Cannot generate image.")
+        return False
+
+    logger.info(f"[SelfieGen] Launching real browser for Perchance: {browser_path}")
+    browser_proc = None
+
     try:
+        from playwright.async_api import async_playwright
+
+        # Launch the real browser with CDP
+        browser_proc = await _launch_chrome_with_cdp(browser_path)
+        if not await _wait_for_cdp():
+            logger.error("[SelfieGen] Chrome CDP port did not open in time.")
+            return False
+
         async with async_playwright() as p:
-            logger.info("Initializing headless browser context for Perchance Generation...")
-            browser = await p.chromium.launch(headless=True)
-            context = await browser.new_context(
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            )
+            # Connect to the real browser via CDP
+            browser = await p.chromium.connect_over_cdp(f"http://127.0.0.1:{CDP_PORT}")
+            context = browser.contexts[0] if browser.contexts else await browser.new_context()
             page = await context.new_page()
-            
-            # 1. Access verifyUser to get user key
-            await page.goto("https://image-generation.perchance.org/api/verifyUser?thread=0")
-            content = await page.content()
-            
-            key_entry = content.find('"userKey":"')
-            if key_entry == -1:
-                logger.error("Failed to find userKey for Perchance.")
-                await browser.close()
-                return False
-                
-            start_index = key_entry + len('"userKey":"')
-            end_index = content.find('"', start_index)
-            key = content[start_index:end_index]
-            
-            # 2. Trigger generation
-            url_generate = f"https://image-generation.perchance.org/api/generate?userKey={key}&requestId=aiImageCompletion{random.randint(0, 2**30)}"
-            body = {
-                "generatorName": "ai-image-generator",
-                "channel": "ai-text-to-image-generator",
-                "subChannel": "public",
+
+            # Build hash data for the embed page
+            request_id = f"aiImageCompletion{random.randint(0, 2**30)}"
+            hash_data = {
+                "saveChannel": "ai-image-generator",
+                "saveTitle": "",
+                "saveDescription": "",
                 "prompt": prompt,
                 "negativePrompt": NEGATIVE_PROMPT,
                 "seed": -1,
                 "resolution": resolution,
-                "guidanceScale": 7.0
+                "guidanceScale": 7,
+                "defaultGuidanceScale": 7,
+                "requestId": request_id,
+                "iframeId": "aikoFrame",
+                "referenceImage": None
             }
-            
-            logger.info(f"Requesting Perchance generation for prompt: '{prompt[:50]}...' ({resolution})")
-            response = await page.evaluate("""
-                async ({ url, body }) => {
-                    const response = await fetch(url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(body)
-                    });
-                    return await response.json();
-                }
-            """, {"url": url_generate, "body": body})
-            
-            if not response or 'imageDownloadUrl' not in response:
-                logger.error(f"Perchance generation response error: {response}")
-                await browser.close()
-                return False
-                
-            dl_path = response['imageDownloadUrl']
-            url_download = f"https://image-generation.perchance.org{dl_path}"
-            
-            # 3. Wait for propagation
+            hash_str = urllib.parse.quote(json.dumps(hash_data))
+            url = f"https://image-generation.perchance.org/embed#{hash_str}"
+
+            logger.info(f"[SelfieGen] Navigating to Perchance embed page...")
+            await page.goto(url, wait_until="domcontentloaded")
             await asyncio.sleep(2)
-            
-            # 4. Download image in the same authenticated page context
-            logger.info("Downloading generated image via proxy token...")
-            download_response = await page.evaluate("""
-                async (url) => {
-                    const response = await fetch(url);
-                    if (!response.ok) {
-                        return { ok: false, status: response.status };
-                    }
-                    const blob = await response.blob();
-                    const base64 = await new Promise(resolve => {
-                        const reader = new FileReader();
-                        reader.onloadend = () => resolve(reader.result.split(',')[1]);
-                        reader.readAsDataURL(blob);
-                    });
-                    return { ok: true, data: base64 };
-                }
-            """, url_download)
-            
-            await browser.close()
-            
-            if download_response['ok']:
-                img_data = base64.b64decode(download_response['data'])
-                # Create parent directories if they don't exist
-                Path(save_path).parent.mkdir(exist_ok=True, parents=True)
-                with open(save_path, "wb") as f:
-                    f.write(img_data)
-                logger.info(f"Image successfully saved to: {save_path}")
-                return True
-            else:
-                logger.error(f"Failed to download image: status {download_response.get('status')}")
-                return False
-                
+
+            # Trigger the start() function to begin generation + verification
+            try:
+                await page.evaluate("start({reloadPageOnFail: false})")
+            except Exception as e:
+                logger.warning(f"[SelfieGen] start() call issue (may be ok): {e}")
+
+            logger.info("[SelfieGen] Waiting for Turnstile verification and image generation...")
+
+            # Poll for the image result — up to 120 seconds
+            image_b64 = None
+            for _ in range(120):
+                await asyncio.sleep(1)
+                try:
+                    # Check if an image appeared in the output element
+                    result = await page.evaluate("""
+                        () => {
+                            const img = document.querySelector('#outputEl img');
+                            if (!img || !img.src) return null;
+                            // Convert to base64 via canvas
+                            try {
+                                const canvas = document.createElement('canvas');
+                                canvas.width = img.naturalWidth || img.width;
+                                canvas.height = img.naturalHeight || img.height;
+                                const ctx = canvas.getContext('2d');
+                                ctx.drawImage(img, 0, 0);
+                                return canvas.toDataURL('image/png').split(',')[1];
+                            } catch (e) {
+                                // CORS restriction — return the src URL instead
+                                return img.src.startsWith('data:') ? img.src.split(',')[1] : '__URL__:' + img.src;
+                            }
+                        }
+                    """)
+                    if result and not result.startswith("__URL__"):
+                        image_b64 = result
+                        break
+                    elif result and result.startswith("__URL__:"):
+                        # Download via page fetch (authenticated context)
+                        img_url = result[8:]
+                        dl = await page.evaluate("""
+                            async (url) => {
+                                const r = await fetch(url);
+                                if (!r.ok) return null;
+                                const blob = await r.blob();
+                                return await new Promise(res => {
+                                    const reader = new FileReader();
+                                    reader.onloadend = () => res(reader.result.split(',')[1]);
+                                    reader.readAsDataURL(blob);
+                                });
+                            }
+                        """, img_url)
+                        if dl:
+                            image_b64 = dl
+                            break
+                except Exception:
+                    pass
+
+            await page.close()
+            await browser.disconnect()
+
+        if image_b64:
+            img_data = base64.b64decode(image_b64)
+            Path(save_path).parent.mkdir(exist_ok=True, parents=True)
+            with open(save_path, "wb") as f:
+                f.write(img_data)
+            logger.info(f"[SelfieGen] Image saved to: {save_path}")
+            return True
+        else:
+            logger.error("[SelfieGen] Timed out waiting for Perchance image output.")
+            return False
+
     except Exception as e:
-        logger.error(f"Error during Perchance generation workflow: {e}")
+        logger.error(f"[SelfieGen] Error during Perchance generation: {e}", exc_info=True)
         return False
+    finally:
+        if browser_proc:
+            try:
+                browser_proc.terminate()
+            except Exception:
+                pass
+
 
 async def generate_selfie(dopamine: float, serotonin: float, cortisol: float, adrenaline: float, save_path: str) -> bool:
     """
-    Generates Aiko's selfie based on current stats and saves it to save_path.
+    Generates Aiko's selfie based on current neuromodulator stats and saves it to save_path.
     """
     prompt = build_mood_prompt(dopamine, serotonin, cortisol, adrenaline)
     return await generate_image_via_perchance(prompt, save_path, shape="portrait")
