@@ -192,6 +192,8 @@ async def generate_image_via_perchance(prompt: str, save_path: str, shape: str =
                 logger.warning(f"[SelfieGen] start() call issue (may be ok): {e}")
 
             logger.info("[SelfieGen] Waiting for Turnstile verification and image generation...")
+            # Give start() some time to kick off the verification flow
+            await asyncio.sleep(3)
 
             # Poll for the image result — up to 120 seconds
             image_b64 = None
@@ -242,7 +244,11 @@ async def generate_image_via_perchance(prompt: str, save_path: str, shape: str =
                     pass
 
             await page.close()
-            await browser.disconnect()
+            # For CDP-connected browsers, just close the context — don't call disconnect()
+            try:
+                await context.close()
+            except Exception:
+                pass
 
         if image_b64:
             img_data = base64.b64decode(image_b64)
