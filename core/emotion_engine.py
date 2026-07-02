@@ -222,7 +222,6 @@ class EmotionEngine:
         # We read the host PC's state to influence Aiko's stress levels mathematically.
         try:
             import psutil
-            import math
             cpu_load = psutil.cpu_percent()
             ram_load = psutil.virtual_memory().percent
             
