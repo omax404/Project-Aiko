@@ -12,14 +12,22 @@ import aiohttp
 import re
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters, CommandHandler
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# Robust absolute path .env loading
+BASE_DIR = Path(__file__).parent.resolve()
+load_dotenv(BASE_DIR / ".env")
+
 logger = logging.getLogger("AikoTelegramV2")
 logging.basicConfig(level=logging.INFO)
 
 TOKEN = os.getenv("TELEGRAM_TOKEN")
-MASTER_ID = int(os.getenv("MASTER_ID", "0"))
+raw_master_id = os.getenv("MASTER_ID", "0").strip()
+try:
+    MASTER_ID = int(raw_master_id) if raw_master_id.isdigit() else 0
+except ValueError:
+    MASTER_ID = 0
 HUB_URL = "http://127.0.0.1:8000"
 
 async def get_hub_response(message: str, user_id: int, attachments: list = None):

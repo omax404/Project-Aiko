@@ -35,13 +35,15 @@ class StartupManager:
         return False
 
     @staticmethod
-    def launch_background(command: str | list, env: dict = None) -> bool:
+    def launch_background(command: str | list, env: dict = None, cwd: str = None) -> bool:
         """Launches a command in the background without a CMD window on Windows."""
         try:
             kwargs = {"shell": isinstance(command, str)}
             if sys.platform == "win32":
                 kwargs["creationflags"] = 0x08000000  # CREATE_NO_WINDOW
             merged_env = {**os.environ, **(env or {})}
+            if cwd:
+                kwargs["cwd"] = cwd
             subprocess.Popen(command, env=merged_env, **kwargs)
             return True
         except Exception as e:
@@ -81,7 +83,7 @@ class StartupManager:
                 if not cls.is_process_running("discord_bot.py"):
                     logger.info("[Startup] Launching Discord satellite bot...")
                     bot_script = str(BASE / "discord_bot.py")
-                    cls.launch_background([python_exe, bot_script])
+                    cls.launch_background([python_exe, bot_script], cwd=str(BASE))
                     logger.info("[Startup] Discord bot started.")
                 else:
                     logger.info("[Startup] Discord bot already running.")
@@ -95,7 +97,7 @@ class StartupManager:
                 if not cls.is_process_running("telegram_bot.py"):
                     logger.info("[Startup] Launching Telegram satellite bot...")
                     bot_script = str(BASE / "telegram_bot.py")
-                    cls.launch_background([python_exe, bot_script])
+                    cls.launch_background([python_exe, bot_script], cwd=str(BASE))
                     logger.info("[Startup] Telegram bot started.")
                 else:
                     logger.info("[Startup] Telegram bot already running.")

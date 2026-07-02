@@ -12,13 +12,22 @@ import asyncio
 import aiohttp
 import logging
 import re
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# Robust absolute path .env loading
+BASE_DIR = Path(__file__).parent.resolve()
+load_dotenv(BASE_DIR / ".env")
+
 logger = logging.getLogger("AikoDiscordV2")
 logging.basicConfig(level=logging.INFO)
 
 TOKEN = os.getenv("DISCORD_TOKEN")
+raw_master_id = os.getenv("MASTER_ID", "0").strip()
+try:
+    MASTER_ID = int(raw_master_id) if raw_master_id.isdigit() else 0
+except ValueError:
+    MASTER_ID = 0
 HUB_URL = "http://127.0.0.1:8000"
 
 intents = discord.Intents.default()
@@ -65,7 +74,7 @@ async def on_message(message):
             if is_mentioned: clean_text = clean_text.replace(f"<@{bot.user.id}>", "").strip()
             
             # Metadata for persona recognition
-            meta_prefix = f"[DISCORD_METADATA: Handle: {message.author.name}, Name: {message.author.display_name}, Status: {'MASTER' if message.author.id == int(os.getenv('MASTER_ID', 0)) else 'member'}] "
+            meta_prefix = f"[DISCORD_METADATA: Handle: {message.author.name}, Name: {message.author.display_name}, Status: {'MASTER' if message.author.id == MASTER_ID else 'member'}] "
             
             # Download image attachments locally to pipe into Moondream Vision
             local_attachments = []
