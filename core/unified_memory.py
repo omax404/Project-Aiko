@@ -501,7 +501,12 @@ class UnifiedMemoryManager:
                     metadata={"user_id": user_id, "type": "archived_chat"},
                     room="conversations"
                 )
-        except Exception: pass
+            else:
+                logger.error(f"[Memory] Failed to compress history for {user_id}: MemPalace RAG is unavailable. Aborting compression to avoid data loss.")
+                return
+        except Exception as e:
+            logger.error(f"[Memory] Failed to compress history for {user_id} RAG archive: {e}. Aborting compression to avoid data loss.", exc_info=True)
+            return
 
         # Replace first 20 with 1 summary entry
         archive_entry = {

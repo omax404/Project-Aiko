@@ -291,8 +291,8 @@ class VoiceEngine:
                             loop_ref.call_soon_threadsafe(asyncio.ensure_future, on_amplitude(amplitude))
                         else:
                             loop_ref.call_soon_threadsafe(on_amplitude, amplitude)
-                    except Exception:
-                        pass  # Non-critical: don't break TTS for amplitude
+                    except Exception as e:
+                        logger.warning(f"Lip-sync amplitude broadcast failed: {e}")
 
                 return filename
 

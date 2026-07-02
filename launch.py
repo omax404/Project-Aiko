@@ -451,7 +451,8 @@ def start_neural_hub() -> subprocess.Popen:
         UI.warn(f"Direct spawn failed, falling back to desktop launch: {e}")
         if IS_WINDOWS:
             from core.desktop_utils import launch_on_desktop
-            cmd = f'C:\\Windows\\System32\\cmd.exe /c ""{PYTHON}" -m core.neural_hub > "{LOG_DIR}/neural_hub.log" 2>&1"'
+            cmd_exe = os.environ.get("COMSPEC", "cmd.exe")
+            cmd = f'"{cmd_exe}" /c ""{PYTHON}" -m core.neural_hub > "{LOG_DIR}/neural_hub.log" 2>&1"'
             pid = launch_on_desktop(cmd)
             if pid:
                 class MockProcess:

@@ -18,6 +18,7 @@ import time
 import json
 import urllib.parse
 from pathlib import Path
+from playwright.async_api import async_playwright
 
 logger = logging.getLogger("SelfieGenerator")
 
@@ -37,10 +38,38 @@ EDGE_PATHS = [
 ]
 
 def _find_real_browser() -> str | None:
-    """Return path to the first real Chrome or Edge installation found."""
+    """Return path to the first real Chrome or Edge installation found, checking config and system PATH first."""
+    import shutil
+    
+    # 1. Check environment variable override
+    env_path = os.getenv("AIKO_BROWSER_PATH")
+    if env_path and Path(env_path).exists():
+        logger.info(f"[SelfieGen] Using browser from environment variable: {env_path}")
+        return env_path
+        
+    # 2. Check config.json override via central config manager
+    try:
+        from core.config_manager import config
+        config_path = config.get("browser_path") or config.get("AIKO_BROWSER_PATH")
+        if config_path and Path(config_path).exists():
+            logger.info(f"[SelfieGen] Using browser from user configuration: {config_path}")
+            return config_path
+    except Exception:
+        pass
+
+    # 3. Check system PATH via shutil.which
+    for bin_name in ["google-chrome", "chrome", "google-chrome-stable", "chromium", "chromium-browser", "microsoft-edge", "msedge"]:
+        path = shutil.which(bin_name)
+        if path and Path(path).exists():
+            logger.info(f"[SelfieGen] Detected browser on system PATH: {path}")
+            return path
+
+    # 4. Fall back to typical hardcoded OS locations
     for p in CHROME_PATHS + EDGE_PATHS:
         if Path(p).exists():
+            logger.info(f"[SelfieGen] Detected browser in default OS directory: {p}")
             return p
+            
     return None
 
 CDP_PORT = 9223  # Port for remote debugging; avoid 9222 (commonly used by other tools)
@@ -146,9 +175,9 @@ async def generate_image_via_perchance(prompt: str, save_path: str, shape: str =
 
     logger.info(f"[SelfieGen] Launching real browser for Perchance: {browser_path}")
     browser_proc = None
+    image_b64 = None
 
     try:
-        from playwright.async_api import async_playwright
 
         # Launch the real browser with CDP
         browser_proc = await _launch_chrome_with_cdp(browser_path)

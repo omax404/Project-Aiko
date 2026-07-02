@@ -32,71 +32,55 @@ def test_build_mood_prompt():
 async def test_generate_selfie_success(tmp_path):
     save_path = tmp_path / "selfie.png"
     
-    # Configure mock playwright objects explicitly
     mock_page = MagicMock()
-    mock_page.content = AsyncMock(return_value='<html><body>{"userKey":"mock_key_12345"}</body></html>')
     mock_page.goto = AsyncMock()
     mock_page.close = AsyncMock()
     
     # Mock evaluate returning responses sequentially
+    # 1. start() call returns None
+    # 2. polling loop evaluate returns the base64 string for "mock_image_data"
     mock_page.evaluate = AsyncMock()
     mock_page.evaluate.side_effect = [
-        # First evaluate: POST to generate
-        {"imageDownloadUrl": "/api/downloadTemporaryImageProxy?t=mock_t_token"},
-        # Second evaluate: GET download
-        {"ok": True, "data": "bW9ja19pbWFnZV9kYXRh"} # base64 for "mock_image_data"
+        None,
+        "bW9ja19pbWFnZV9kYXRh" # base64 for "mock_image_data"
     ]
     
     mock_context = MagicMock()
     mock_context.new_page = AsyncMock(return_value=mock_page)
+    mock_context.close = AsyncMock()
     
     mock_browser = MagicMock()
-    mock_browser.new_context = AsyncMock(return_value=mock_context)
-    mock_browser.close = AsyncMock()
+    mock_browser.contexts = [mock_context]
+    mock_browser.disconnect = AsyncMock()
     
     mock_playwright = MagicMock()
-    # Mock the async context manager behavior
     mock_playwright.__aenter__ = AsyncMock(return_value=mock_playwright)
     mock_playwright.__aexit__ = AsyncMock()
     
+    # Mock chromium connection
     mock_playwright.chromium = MagicMock()
-    mock_playwright.chromium.launch = AsyncMock(return_value=mock_browser)
+    mock_playwright.chromium.connect_over_cdp = AsyncMock(return_value=mock_browser)
     
-    # Patch the function, not the return value, so it returns our context-manager mock
-    with patch("core.selfie_generator.async_playwright", return_value=mock_playwright):
-        with patch("asyncio.sleep", return_value=None):
-            success = await generate_selfie(50, 50, 50, 50, str(save_path))
-            
-            assert success is True
-            assert os.path.exists(save_path)
-            with open(save_path, "rb") as f:
-                assert f.read() == b"mock_image_data"
+    # Patch all the local Chrome runner methods
+    with patch("core.selfie_generator._find_real_browser", return_value="/usr/bin/chrome"), \
+         patch("core.selfie_generator._launch_chrome_with_cdp", return_value=MagicMock()), \
+         patch("core.selfie_generator._wait_for_cdp", return_value=True), \
+         patch("core.selfie_generator.async_playwright", return_value=mock_playwright), \
+         patch("asyncio.sleep", return_value=None):
+         
+        success = await generate_selfie(50, 50, 50, 50, str(save_path))
+        
+        assert success is True
+        assert os.path.exists(save_path)
+        with open(save_path, "rb") as f:
+            assert f.read() == b"mock_image_data"
 
 @pytest.mark.asyncio
 async def test_generate_selfie_failure(tmp_path):
     save_path = tmp_path / "failed_selfie.png"
     
-    mock_page = MagicMock()
-    mock_page.content = AsyncMock(return_value='<html><body>no key here</body></html>')
-    mock_page.goto = AsyncMock()
-    mock_page.close = AsyncMock()
-    
-    mock_context = MagicMock()
-    mock_context.new_page = AsyncMock(return_value=mock_page)
-    
-    mock_browser = MagicMock()
-    mock_browser.new_context = AsyncMock(return_value=mock_context)
-    mock_browser.close = AsyncMock()
-    
-    mock_playwright = MagicMock()
-    mock_playwright.__aenter__ = AsyncMock(return_value=mock_playwright)
-    mock_playwright.__aexit__ = AsyncMock()
-    
-    mock_playwright.chromium = MagicMock()
-    mock_playwright.chromium.launch = AsyncMock(return_value=mock_browser)
-    
-    with patch("core.selfie_generator.async_playwright", return_value=mock_playwright):
+    # Mock find browser returning None to simulate browser missing
+    with patch("core.selfie_generator._find_real_browser", return_value=None):
         success = await generate_selfie(50, 50, 50, 50, str(save_path))
-        
         assert success is False
         assert not os.path.exists(save_path)

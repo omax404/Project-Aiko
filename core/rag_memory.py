@@ -335,6 +335,6 @@ class RAGMemorySystem:
         if self.collection:
             try:
                 self._cached_count = self.collection.count()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to query local memory collection count: {e}")
         return self._cached_count

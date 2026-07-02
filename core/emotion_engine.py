@@ -75,6 +75,9 @@ class EmotionEngine:
         # Current active chemical levels
         self.chemicals = {k: v for k, v in BASELINES.items()}
         
+        # Momentum variables for emotional inertia
+        self.momentum = {k: 0.0 for k in BASELINES}
+        
         self.overrides = {}  
         self.last_update = time.time()
         self.is_flushing = False
@@ -124,13 +127,21 @@ class EmotionEngine:
         logger.info(" [EmotionEngine] Neural cache flushed. Chemicals reset to baselines.")
 
     def apply_delta(self, d_dopa=0.0, d_sero=0.0, d_cort=0.0, d_adre=0.0, d_oxy=0.0, d_mela=0.0):
-        """Apply a spike or drop to the chemical field."""
+        """Apply a spike or drop to the chemical field, pushing both concentrations and momentum."""
         self.chemicals["dopamine"] += d_dopa
         self.chemicals["serotonin"] += d_sero
         self.chemicals["cortisol"] += d_cort
         self.chemicals["adrenaline"] += d_adre
         self.chemicals["oxytocin"] += d_oxy
         self.chemicals["melatonin"] += d_mela
+        
+        # Push momentum as well (representing velocity/inertia of emotional shock)
+        self.momentum["dopamine"] += d_dopa * 0.5
+        self.momentum["serotonin"] += d_sero * 0.5
+        self.momentum["cortisol"] += d_cort * 0.5
+        self.momentum["adrenaline"] += d_adre * 0.5
+        self.momentum["oxytocin"] += d_oxy * 0.5
+        self.momentum["melatonin"] += d_mela * 0.5
         
         # Clamp bounds
         for k in self.chemicals:
@@ -158,18 +169,21 @@ class EmotionEngine:
         if not found_emotions:
             found_emotions = ["neutral"]
             
-        # Instead of instantly becoming the target, we apply a significant push
-        # toward the target centers of the found emotions.
+        # Instead of moving a fixed percentage towards the target center,
+        # we calculate a stimulus delta relative to the baseline state.
+        # This makes her response dynamic based on relationship baselines.
+        sensitivity = 0.25
         for em in found_emotions:
             t_d, t_s, t_c, t_a, t_oxy, t_mela = EMOTION_MAP[em]
             
-            # Move 30% towards the target emotion center per interaction
-            self.chemicals["dopamine"] += (t_d - self.chemicals["dopamine"]) * 0.3
-            self.chemicals["serotonin"] += (t_s - self.chemicals["serotonin"]) * 0.3
-            self.chemicals["cortisol"] += (t_c - self.chemicals["cortisol"]) * 0.3
-            self.chemicals["adrenaline"] += (t_a - self.chemicals["adrenaline"]) * 0.3
-            self.chemicals["oxytocin"] += (t_oxy - self.chemicals["oxytocin"]) * 0.3
-            self.chemicals["melatonin"] += (t_mela - self.chemicals["melatonin"]) * 0.3
+            d_dopa = (t_d - self.baselines["dopamine"]) * sensitivity
+            d_sero = (t_s - self.baselines["serotonin"]) * sensitivity
+            d_cort = (t_c - self.baselines["cortisol"]) * sensitivity
+            d_adre = (t_a - self.baselines["adrenaline"]) * sensitivity
+            d_oxy = (t_oxy - self.baselines["oxytocin"]) * sensitivity
+            d_mela = (t_mela - self.baselines["melatonin"]) * sensitivity
+            
+            self.apply_delta(d_dopa, d_sero, d_cort, d_adre, d_oxy, d_mela)
             
         # Clamp
         for k in self.chemicals:
@@ -189,11 +203,20 @@ class EmotionEngine:
         if self.is_flushing and (now - self._flush_timer > 2.0):
             self.is_flushing = False
             
+        # 1. Decay momentum toward 0 (friction)
+        # Momentum friction rate: 0.15 (decays in ~15-20 seconds)
+        momentum_friction = 0.15
+        for chem in self.chemicals:
+            self.momentum[chem] *= math.exp(-momentum_friction * dt)
+            
+        # 2. Update chemicals: exponential decay towards baseline + momentum force
         for chem, val in self.chemicals.items():
             base = self.baselines[chem]
             rate = DECAY_RATES[chem]
-            # Exponential decay toward baseline
-            self.chemicals[chem] += (base - val) * rate * dt
+            # Continuous exponential decay: C(t) = base + (C(t0) - base) * e^(-rate * dt)
+            decayed_val = base + (val - base) * math.exp(-rate * dt)
+            # Add momentum force
+            self.chemicals[chem] = decayed_val + self.momentum[chem] * dt
             
         # SOMATIC FEEDBACK (Fake Body)
         # We read the host PC's state to influence Aiko's stress levels mathematically.
