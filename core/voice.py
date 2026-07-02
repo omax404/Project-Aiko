@@ -219,6 +219,10 @@ class VoiceEngine:
         if not clean_text:
             return
 
+        # Lazy load model on demand
+        if not _tts_ready.is_set() and not _tts_failed and _tts_model is None:
+            self.start_warmup()
+
         loop = asyncio.get_running_loop()
 
         def _blocking_speak():

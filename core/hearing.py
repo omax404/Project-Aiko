@@ -110,17 +110,7 @@ class HearingEngine:
         self._moonshine = None
         self._moonshine_ready = False
 
-        # Init Moonshine (lightweight, loads fast)
-        if HAS_MOONSHINE:
-            try:
-                model_path, model_arch = get_model_for_language("en")
-                self._moonshine = MicTranscriber(model_path, model_arch)
-                self._moonshine_ready = True
-                logger.info("Moonshine ASR loaded (~200MB RAM). Ready.")
-            except Exception as e:
-                logger.error(f"Moonshine init failed: {e}")
-
-        # Init SR fallback
+        # Init SR fallback (lightweight wrapper, no local models)
         if HAS_SR:
             try:
                 self.recognizer = sr.Recognizer()
@@ -129,9 +119,23 @@ class HearingEngine:
                 logger.warning(f"SpeechRecognition mic init failed: {e}")
                 self.microphone = None
 
+    def _ensure_moonshine_initialized(self):
+        """Lazy load Moonshine ASR model to preserve baseline memory."""
+        if self._moonshine_ready:
+            return
+        if HAS_MOONSHINE:
+            try:
+                logger.info("🔊 Lazy-loading Moonshine ASR model...")
+                model_path, model_arch = get_model_for_language("en")
+                self._moonshine = MicTranscriber(model_path, model_arch)
+                self._moonshine_ready = True
+                logger.info("✅ Moonshine ASR loaded (~200MB RAM). Ready.")
+            except Exception as e:
+                logger.error(f"Moonshine init failed: {e}")
+
     def is_available(self):
         """Engine is available if Moonshine OR SpeechRecognition is ready."""
-        return self._moonshine_ready or (HAS_SR and self.microphone is not None)
+        return HAS_MOONSHINE or (HAS_SR and self.microphone is not None)
 
     def listen_sync(self):
         """Blocking listen — routes to best available engine."""
@@ -139,8 +143,10 @@ class HearingEngine:
         stt_model = config.get("STT_MODEL", "moonshine")
 
         # Primary: Moonshine
-        if stt_model in ("moonshine", "moonshine-voice") and self._moonshine_ready:
-            return self._listen_moonshine()
+        if stt_model in ("moonshine", "moonshine-voice") and HAS_MOONSHINE:
+            self._ensure_moonshine_initialized()
+            if self._moonshine_ready:
+                return self._listen_moonshine()
 
         # Fallback: SpeechRecognition
         if HAS_SR and self.microphone is not None:

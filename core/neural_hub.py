@@ -82,7 +82,6 @@ async def on_startup(app):
     tts_url = config.get("TTS_URL", "")
     hub.voice_engine = VoiceEngine()
     hub.voice_engine.enabled = config.get("TTS_ENABLED", True)
-    hub.voice_engine.start_warmup()
     hub.hearing_engine = HearingEngine()
     
     # 6. Vision
