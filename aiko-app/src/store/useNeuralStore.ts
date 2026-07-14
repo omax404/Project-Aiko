@@ -71,12 +71,14 @@ interface NeuralState {
   dynamicsIntensity: number;
   showAnimatedAssets: boolean;
   avatarScale: number;
+  pendingToolRequest: null | { requestId: string, toolName: string, args: any };
 
   // Actions
   toggleSidebar: () => void;
   setThemeColor: (color: string) => void;
   updateSettings: (settings: Partial<NeuralState>) => void;
   connect: (url: string) => void;
+  respondToToolRequest: (requestId: string, approved: boolean) => void;
   uploadFile: (file: File) => Promise<{url: string, filename: string, type: string}>;
   sendMessage: (content: string, attachments?: string[]) => void;
   loadSessions: () => Promise<void>;
@@ -205,9 +207,11 @@ function connectSocket() {
     socket.onmessage = (event) => {
       try {
         const raw = JSON.parse(event.data);
-        // Neural Hub wraps as {type, data} — unwrap both formats
+        // Neural Hub wraps as {type, data} — unwrap both formats (including standard payload)
         const type = raw.type;
-        const data = raw.data !== undefined ? raw.data : raw;
+        const data = raw.payload !== undefined 
+          ? raw.payload 
+          : (raw.data !== undefined ? raw.data : raw);
         switch (type) {
           case 'chat_start':
             useNeuralStore.setState({ isThinking: true, streamingContent: '', streamingId: data.message_id || Date.now().toString() });
@@ -372,6 +376,15 @@ function connectSocket() {
               });
             }
             break;
+          case 'tool_request':
+            useNeuralStore.setState({
+              pendingToolRequest: {
+                requestId: data.request_id,
+                toolName: data.tool_name,
+                args: data.args
+              }
+            });
+            break;
           case 'stt_result':
             const sttText = data.text || '';
             if (sttText.trim()) {
@@ -449,6 +462,7 @@ export const useNeuralStore = create<NeuralState>()(
       dynamicsIntensity: 80,
       showAnimatedAssets: true,
       avatarScale: 1.0,
+      pendingToolRequest: null,
 
       toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
       
@@ -467,6 +481,17 @@ export const useNeuralStore = create<NeuralState>()(
       connect: (url) => {
         hubUrl = url;
         connectSocket();
+      },
+
+      respondToToolRequest: (requestId: string, approved: boolean) => {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({
+            type: 'tool_response',
+            request_id: requestId,
+            approved: approved
+          }));
+        }
+        set({ pendingToolRequest: null });
       },
 
       uploadFile: async (file: File) => {

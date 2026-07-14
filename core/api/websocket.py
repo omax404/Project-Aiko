@@ -6,8 +6,34 @@ S+ grade: specific exception types, Pydantic validation, structured error handli
 import asyncio
 import json
 import logging
+import uuid
 from aiohttp import WSMsgType, web
 import aiohttp
+
+pending_tool_requests = {}
+
+async def request_tool_permission(tool_name: str, args: dict) -> bool:
+    """Sends a tool_request to all connected WS clients and waits for a response."""
+    request_id = str(uuid.uuid4())
+    future = asyncio.get_running_loop().create_future()
+    pending_tool_requests[request_id] = future
+    
+    # Broadcast request to all clients
+    await broadcast_event("tool_request", {
+        "request_id": request_id,
+        "tool_name": tool_name,
+        "args": args
+    })
+    
+    try:
+        # Wait with a timeout of 30 seconds
+        approved = await asyncio.wait_for(future, timeout=30.0)
+        return approved
+    except asyncio.TimeoutError:
+        logger.warning(f"Tool request {request_id} timed out waiting for approval.")
+        return False
+    finally:
+        pending_tool_requests.pop(request_id, None)
 
 from core.api.hub_state import hub
 from core.api.broadcast import broadcast_event, ws_clients
@@ -299,6 +325,14 @@ async def handle_ws(req):
                     except (OSError, ConnectionError) as e:
                         logger.error(f"Audio device error: {e}")
                         await broadcast_event("state", {"listening": False, "error": "Audio device unavailable"})
+                
+                elif m_type == "tool_response":
+                    req_id = data.get("request_id")
+                    approved = data.get("approved", False)
+                    if req_id in pending_tool_requests:
+                        fut = pending_tool_requests[req_id]
+                        if not fut.done():
+                            fut.set_result(approved)
                 
                 elif m_type == "vts_sync":
                     pass

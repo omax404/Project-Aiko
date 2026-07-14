@@ -252,7 +252,7 @@ class AikoBrain:
 
             has_tool = any(tag in text.upper() for tag in [
                 "[OPEN:", "[SCAN]", "[TYPE:", "[CLICK:", "[PRESS:", "[TASK:", "[LATEX:",
-                "[GAME:", "[RUN_PYTHON:", "[MCP:", "[IMAGE:", "[BIO_REGISTER]", "[MUSIC:"
+                "[GAME:", "[EXEC:", "[MCP:", "[IMAGE:", "[BIO_REGISTER]", "[MUSIC:"
             ])
             
             if not has_tool:

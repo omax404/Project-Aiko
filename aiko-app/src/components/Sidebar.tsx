@@ -9,6 +9,7 @@ import {
 import { useState, useEffect } from 'react';
 import { clsx } from 'clsx';
 import { useNeuralStore } from '../store/useNeuralStore';
+import { useShallow } from 'zustand/react/shallow';
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { NeuralPulse } from './AnimatedIcons';
 import { GothicButton } from './GothicButton';
@@ -140,7 +141,18 @@ export function Sidebar({ onOpenSettings }: { onOpenSettings: () => void }) {
     renameSession,
     setEmotion: _setEmotion,
     showAnimatedAssets
-  } = useNeuralStore();
+  } = useNeuralStore(useShallow((state) => ({
+    sessions: state.sessions,
+    activeSessionId: state.activeSessionId,
+    loadSessions: state.loadSessions,
+    switchSession: state.switchSession,
+    createNewSession: state.createNewSession,
+    deleteSession: state.deleteSession,
+    pinSession: state.pinSession,
+    renameSession: state.renameSession,
+    setEmotion: state.setEmotion,
+    showAnimatedAssets: state.showAnimatedAssets
+  })));
   const [search, setSearch] = useState("");
 
   const filteredSessions = sessions.filter(s => s.title.toLowerCase().includes(search.toLowerCase()) || (s.preview || "").toLowerCase().includes(search.toLowerCase()));

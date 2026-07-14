@@ -320,7 +320,7 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        listOf("WebView" to "Live2D", "Static" to "Offline Card").forEach { (key, label) ->
+                        listOf("Cubism" to "Native GLES", "WebView" to "WebView JS", "Static" to "Offline Card").forEach { (key, label) ->
                             val selected = avatarMode == key
                             Surface(
                                 onClick = { scope.launch { aikoPrefs.setAvatarMode(key) } },

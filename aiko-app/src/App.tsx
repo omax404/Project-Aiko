@@ -12,6 +12,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { announce, ScreenReaderAnnouncer } from './components/ScreenReaderAnnouncer';
 import { SkipLink } from './components/SkipLink';
 import { useNeuralStore, getHubUrl } from './store/useNeuralStore';
+import { useShallow } from 'zustand/react/shallow';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -35,8 +36,34 @@ function App() {
     isThinking, triggerPurge, loadSessions, fetchBridgeStatus, fetchSettings,
     bridgeStatus, currentEmotion, isSidebarOpen, toggleSidebar, themeColor,
     dynamicsIntensity, showAnimatedAssets, isTalking, avatarScale, setAvatarScale,
-    amplitude, apiConfig, chemicals
-  } = useNeuralStore();
+    amplitude, apiConfig, chemicals, pendingToolRequest, respondToToolRequest
+  } = useNeuralStore(useShallow((state) => ({
+    messages: state.messages,
+    streamingContent: state.streamingContent,
+    connect: state.connect,
+    activeSessionId: state.activeSessionId,
+    sessions: state.sessions,
+    isThinking: state.isThinking,
+    triggerPurge: state.triggerPurge,
+    loadSessions: state.loadSessions,
+    fetchBridgeStatus: state.fetchBridgeStatus,
+    fetchSettings: state.fetchSettings,
+    bridgeStatus: state.bridgeStatus,
+    currentEmotion: state.currentEmotion,
+    isSidebarOpen: state.isSidebarOpen,
+    toggleSidebar: state.toggleSidebar,
+    themeColor: state.themeColor,
+    dynamicsIntensity: state.dynamicsIntensity,
+    showAnimatedAssets: state.showAnimatedAssets,
+    isTalking: state.isTalking,
+    avatarScale: state.avatarScale,
+    setAvatarScale: state.setAvatarScale,
+    amplitude: state.amplitude,
+    apiConfig: state.apiConfig,
+    chemicals: state.chemicals,
+    pendingToolRequest: state.pendingToolRequest,
+    respondToToolRequest: state.respondToToolRequest
+  })));
 
   const [activeArtifactCode, setActiveArtifactCode] = useState<string | null>(null);
 
@@ -425,6 +452,30 @@ function App() {
               <button onClick={async () => { setIsPurgeConfirmOpen(false); await triggerPurge(); }}
                 className="flex-1 py-3 rounded-xl bg-[#f87171]/20 border border-[#f87171]/30 text-[13px] font-medium text-[#f87171] hover:bg-[#f87171]/30 transition-all">
                 Proceed
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {pendingToolRequest && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md" role="dialog" aria-modal="true" aria-labelledby="tool-title">
+          <div className="glass-pane rounded-[32px] p-10 max-w-sm w-full mx-4 text-center">
+            <Zap className="mx-auto text-[var(--acc)] mb-4 animate-pulse" size={32} />
+            <h2 id="tool-title" className="text-[14px] font-semibold text-[#f0ebe3] mb-2 uppercase tracking-widest">Aiko Requests Control</h2>
+            <div className="text-[13px] text-[#9a8f7e] leading-relaxed mb-6">
+              Aiko wants to execute tool <strong className="text-[var(--acc)]">{pendingToolRequest.toolName}</strong> with arguments:
+              <pre className="mt-3 p-3 bg-white/[0.02] border border-white/5 rounded-lg text-left text-[11px] font-mono text-[#c9c5bd] overflow-x-auto whitespace-pre-wrap">
+                {JSON.stringify(pendingToolRequest.args, null, 2)}
+              </pre>
+            </div>
+            <div className="flex gap-4">
+              <button onClick={() => respondToToolRequest(pendingToolRequest.requestId, false)}
+                className="flex-1 py-3 rounded-xl bg-white/[0.03] border border-white/5 text-[13px] font-medium text-[#9a8f7e] hover:bg-white/5 hover:text-[#f0ebe3] transition-all">
+                Deny
+              </button>
+              <button onClick={() => respondToToolRequest(pendingToolRequest.requestId, true)}
+                className="flex-1 py-3 rounded-xl bg-[var(--acc)]/20 border border-[var(--acc)]/30 text-[13px] font-medium text-[var(--acc)] hover:bg-[var(--acc)]/30 transition-all">
+                Allow
               </button>
             </div>
           </div>

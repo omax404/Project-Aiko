@@ -11,8 +11,17 @@ from core.config_manager import config
 
 logger = logging.getLogger("AgentExecutor")
 
+# SAFE PYTHON FUNCTIONS ALLOWLIST
+SAFE_PYTHON_FUNCTIONS = {
+    "calculate_tax": lambda income: float(income) * 0.15,
+    "add": lambda x, y: float(x) + float(y),
+    "subtract": lambda x, y: float(x) - float(y),
+    "multiply": lambda x, y: float(x) * float(y),
+    "divide": lambda x, y: float(x) / float(y) if float(y) != 0 else "division by zero",
+}
+
 # PRE-COMPILED REGEX PATTERNS (Performance Optimization)
-RUN_PYTHON_PATTERN = re.compile(r'\[RUN_PYTHON\s*:\s*(.*?)\]', re.IGNORECASE | re.DOTALL)
+EXEC_PATTERN = re.compile(r'\[EXEC\s*:\s*(\w+)\](?:\s*\[ARGS\s*:\s*(.*?)\])?', re.IGNORECASE | re.DOTALL)
 LATEX_PATTERN = re.compile(r'\[LATEX\s*:\s*(.*?)\]', re.IGNORECASE | re.DOTALL)
 OPEN_PATTERN = re.compile(r'\[OPEN\s*:\s*(.*?)\]', re.IGNORECASE)
 TYPE_PATTERN = re.compile(r'\[TYPE\s*:\s*(.*?)\]', re.IGNORECASE)
@@ -54,7 +63,7 @@ class AgentExecutor:
         for tag in re.findall(r'\[([A-Z0-9_]+)\b.*?\]', text, re.I):
             # Skip core tools to avoid duplicate parsing
             if tag.upper() in {
-                "RUN_PYTHON", "LATEX", "OPEN", "TYPE", "CLICK", "PRESS", "TASK", "NOTE", 
+                "EXEC", "ARGS", "LATEX", "OPEN", "TYPE", "CLICK", "PRESS", "TASK", "NOTE", 
                 "READ", "WRITE", "DRAW", "VIDEO", "MCP", "IMAGE", "GIF", "RECALL", 
                 "BIO_REGISTER", "SCAN", "CAMERA"
             }:
@@ -67,9 +76,15 @@ class AgentExecutor:
                     raw_content=match.group(0)
                 )))
 
-        # 3. RUN_PYTHON
-        for match in RUN_PYTHON_PATTERN.finditer(text):
-            actions_with_pos.append((match.start(), AgentAction(tool_name="RUN_PYTHON", args={"code": match.group(1).strip()}, raw_content=match.group(0))))
+        # 3. EXEC
+        for match in EXEC_PATTERN.finditer(text):
+            func_name = match.group(1).strip()
+            args_str = (match.group(2) or "").strip()
+            actions_with_pos.append((match.start(), AgentAction(
+                tool_name="EXEC",
+                args={"func": func_name, "args_str": args_str},
+                raw_content=match.group(0)
+            )))
 
         # 4. SCAN
         for match in re.finditer(r'\[SCAN\]', text, re.I):
@@ -128,6 +143,24 @@ class AgentExecutor:
         
         for action in actions:
             try:
+                # --- Human-in-the-Loop Confirmation Gate ---
+                requires_confirmation = False
+                if action.tool_name in {"OPEN", "TYPE", "CLICK", "PRESS"}:
+                    requires_confirmation = True
+                elif action.tool_name == "MCP":
+                    tool_mcp = action.args.get("tool", "")
+                    if tool_mcp in {"write_file", "delete_file", "kill_proc", "run_cmd", "set_clipboard", "uia_click", "uia_type"}:
+                        requires_confirmation = True
+                
+                if requires_confirmation:
+                    from core.api.websocket import request_tool_permission
+                    approved = await request_tool_permission(action.tool_name, action.args)
+                    if not approved:
+                        res = f"[System Block: User denied permission to execute tool '{action.tool_name}' with args {action.args}.]"
+                        observations.append(res)
+                        orchestrator.emit_tool_result(action.tool_name, "Denied by user")
+                        continue
+
                 # --- BIO_REGISTER ---
                 if action.tool_name == "BIO_REGISTER":
                     orchestrator.emit_tool_call("BIO_REGISTER", "Scanning your face... Stay still, Master~")
@@ -163,15 +196,19 @@ class AgentExecutor:
                                 observations.append(f"[{tag}_RESULT]: {res}")
                                 orchestrator.emit_tool_result(tag, "Success")
 
-                # --- RUN_PYTHON ---
-                elif action.tool_name == "RUN_PYTHON":
-                    code = action.args["code"]
-                    if not is_admin:
-                        observations.append(f"[Security Block: The remote user '{user_id}' is unauthorized to execute Python code.]")
-                        continue
-                    if brain.sandbox:
-                        res = await brain.sandbox.execute_python(code)
-                        observations.append(f"Sandbox Result:\n{res}")
+                # --- EXEC ---
+                elif action.tool_name == "EXEC":
+                    func_name = action.args["func"]
+                    args_str = action.args["args_str"]
+                    if func_name in SAFE_PYTHON_FUNCTIONS:
+                        try:
+                            parts = [p.strip() for p in args_str.split(",") if p.strip()]
+                            res = SAFE_PYTHON_FUNCTIONS[func_name](*parts)
+                            observations.append(f"[EXEC Result]: {res}")
+                        except Exception as e:
+                            observations.append(f"[EXEC Error]: {e}")
+                    else:
+                        observations.append(f"[EXEC Error: Function '{func_name}' is not in the safe allowlist.]")
 
                 # --- SCAN ---
                 elif action.tool_name == "SCAN":

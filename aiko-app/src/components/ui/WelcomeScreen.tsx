@@ -7,7 +7,7 @@ interface WelcomeScreenProps {
 }
 
 export function WelcomeScreen({ onRecall }: WelcomeScreenProps) {
-  const { dynamicsIntensity } = useNeuralStore();
+  const dynamicsIntensity = useNeuralStore(state => state.dynamicsIntensity);
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}

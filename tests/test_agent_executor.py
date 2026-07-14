@@ -12,11 +12,12 @@ def test_parse_actions():
     assert len(actions) == 1
     assert actions[0].tool_name == "BIO_REGISTER"
 
-    # Test RUN_PYTHON
-    actions = executor.parse_actions("[RUN_PYTHON: print('test')]")
+    # Test EXEC
+    actions = executor.parse_actions("[EXEC: calculate_tax] [ARGS: 15000]")
     assert len(actions) == 1
-    assert actions[0].tool_name == "RUN_PYTHON"
-    assert actions[0].args["code"] == "print('test')"
+    assert actions[0].tool_name == "EXEC"
+    assert actions[0].args["func"] == "calculate_tax"
+    assert actions[0].args["args_str"] == "15000"
 
     # Test SCAN and CAMERA
     actions = executor.parse_actions("[SCAN] [CAMERA]")

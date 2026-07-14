@@ -1,5 +1,6 @@
 package com.aiko.app.ui.components
 
+import android.opengl.GLSurfaceView
 import android.util.Log
 import android.webkit.ConsoleMessage
 import android.webkit.JavascriptInterface
@@ -78,7 +79,8 @@ fun AikoAvatar(
     dominantEmotion: String,
     isTyping: Boolean,
     isSpeaking: Boolean,
-    avatarMode: String = "WebView",
+    amplitude: Float = 0.0f,
+    avatarMode: String = "Cubism",
     modifier: Modifier = Modifier,
     size: Dp = 160.dp
 ) {
@@ -268,6 +270,30 @@ fun AikoAvatar(
                     )
                 }
             }
+        } else if (avatarMode == "Cubism") {
+            val customRenderer = remember { CubismGLRenderer() }
+            val glSurfaceView = remember {
+                GLSurfaceView(context).apply {
+                    setEGLContextClientVersion(2)
+                    setRenderer(customRenderer)
+                    renderMode = GLSurfaceView.RENDERMODE_CONTINUOUSLY
+                }
+            }
+
+            // Push dynamic updates to the GLES renderer
+            LaunchedEffect(dominantEmotion, animatedGlowColor, isSpeaking, amplitude) {
+                val r = animatedGlowColor.red
+                val g = animatedGlowColor.green
+                val b = animatedGlowColor.blue
+                val a = animatedGlowColor.alpha
+                customRenderer.updateEmotion(floatArrayOf(r, g, b, a))
+                customRenderer.updateMouthOpen(if (isSpeaking) amplitude else 0.0f)
+            }
+
+            AndroidView(
+                factory = { glSurfaceView },
+                modifier = Modifier.size(size - 24.dp)
+            )
         } else {
             // HIGH-FIDELITY FALLBACK: Glowing Frosted Glass Refraction Sphere Core
             AikoPersona(

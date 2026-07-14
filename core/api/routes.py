@@ -641,6 +641,14 @@ async def handle_webrtc_offer(req):
 
         @pc.on("datachannel")
         def on_datachannel(channel):
+            from core.api.broadcast import webrtc_channels
+            webrtc_channels.add(channel)
+
+            @channel.on("close")
+            def on_close():
+                from core.api.broadcast import webrtc_channels
+                webrtc_channels.discard(channel)
+
             @channel.on("message")
             async def on_message(message):
                 try:

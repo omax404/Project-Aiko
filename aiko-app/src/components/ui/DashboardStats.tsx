@@ -21,7 +21,7 @@ export function DashboardStats({
   bridgeStatus, isThinking, isTalking, currentEmotion,
   avatarScale, setAvatarScale, amplitude, chemicals, isCompact
 }: DashboardStatsProps) {
-  const { apiConfig } = useNeuralStore();
+  const apiConfig = useNeuralStore(state => state.apiConfig);
   const width = isCompact ? 160 : 320;
 
   return (

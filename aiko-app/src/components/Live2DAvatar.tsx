@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNeuralStore } from '../store/useNeuralStore';
+import { useShallow } from 'zustand/react/shallow';
 
 interface Live2DAvatarProps {
   modelUrl: string;
@@ -35,10 +36,8 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
   offsetX = 0,
   offsetY = 0
 }) => {
-  const store = useNeuralStore();
-  const currentChemicals = chemicals || store.chemicals;
-
   const {
+    chemicals: storeChemicals,
     jitterIntensity = 0.4,
     tearIntensity = 1.0,
     leanIntensity = 1.0,
@@ -47,7 +46,18 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
     bobaIntensity = 1.0,
     oxytocinIntensity = 1.0,
     melatoninIntensity = 1.0
-  } = store;
+  } = useNeuralStore(useShallow((state) => ({
+    chemicals: state.chemicals,
+    jitterIntensity: state.jitterIntensity,
+    tearIntensity: state.tearIntensity,
+    leanIntensity: state.leanIntensity,
+    blushIntensity: state.blushIntensity,
+    poutIntensity: state.poutIntensity,
+    bobaIntensity: state.bobaIntensity,
+    oxytocinIntensity: state.oxytocinIntensity,
+    melatoninIntensity: state.melatoninIntensity
+  })));
+  const currentChemicals = chemicals || storeChemicals;
 
   const scalersRef = useRef({
     jitterIntensity,

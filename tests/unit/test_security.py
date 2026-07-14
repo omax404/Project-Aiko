@@ -106,3 +106,39 @@ class TestMemoryCipher:
         """Decrypting garbage should raise an exception."""
         with pytest.raises(Exception):
             memory_cipher.decrypt(b"not a valid token")
+
+
+class TestHITLPermissionGate:
+    """Test Human-in-the-Loop tool permission gate."""
+
+    @pytest.mark.asyncio
+    @patch("core.api.websocket.request_tool_permission")
+    async def test_tool_permission_gate_approved(self, mock_request_permission):
+        """Should execute command if user approves."""
+        mock_request_permission.return_value = True
+        from core.infrastructure.tools.executor import AgentExecutor
+        executor = AgentExecutor()
+        brain = MagicMock()
+        observations = []
+        images_data = []
+
+        with patch.object(policy_engine, "is_admin", return_value=True):
+            await executor.execute_tools(brain, "[OPEN: calc.exe]", observations, images_data, "admin_user")
+
+        assert any("Successfully requested OS to open" in obs for obs in observations)
+
+    @pytest.mark.asyncio
+    @patch("core.api.websocket.request_tool_permission")
+    async def test_tool_permission_gate_denied(self, mock_request_permission):
+        """Should block execution if user denies."""
+        mock_request_permission.return_value = False
+        from core.infrastructure.tools.executor import AgentExecutor
+        executor = AgentExecutor()
+        brain = MagicMock()
+        observations = []
+        images_data = []
+
+        with patch.object(policy_engine, "is_admin", return_value=True):
+            await executor.execute_tools(brain, "[OPEN: calc.exe]", observations, images_data, "admin_user")
+
+        assert any("User denied permission to execute tool" in obs for obs in observations)

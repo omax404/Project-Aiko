@@ -103,3 +103,11 @@ class SessionCreate(BaseModel):
     id: str = Field(..., min_length=1, max_length=256, description="Session ID")
     title: str = Field(default="New Conversation", min_length=1, max_length=128, description="Session title")
 
+
+class StateSyncEnvelope(BaseModel):
+    """Validate structured state synchronization event messages."""
+    msg_id: str = Field(..., description="Unique message UUID")
+    timestamp: float = Field(..., description="Epoch timestamp")
+    type: str = Field(..., description="Sync event type (e.g. biological_sync)")
+    payload: Dict[str, Any] = Field(..., description="Structured sync payload")
+

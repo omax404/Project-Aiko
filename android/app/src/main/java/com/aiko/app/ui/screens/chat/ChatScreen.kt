@@ -228,6 +228,7 @@ fun ChatScreen(
                         dominantEmotion = emotionEngine.determineDominantEmotion(chemistry),
                         isTyping = thinking,
                         isSpeaking = amplitude > 0.05f,
+                        amplitude = amplitude,
                         avatarMode = avatarMode,
                         size = 210.dp
                     )

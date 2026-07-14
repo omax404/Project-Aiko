@@ -267,28 +267,48 @@ class ChatRepository @Inject constructor(
 
     private fun handleIncomingWebRtcMessage(text: String) {
         try {
-            val json = JSONObject(text)
-            val type = json.optString("type")
+            val raw = JSONObject(text)
+            val type = raw.optString("type")
+            val payload = if (raw.has("payload")) raw.getJSONObject("payload") else raw
 
             when (type) {
                 "chat_token" -> {
-                    val token = json.optString("token")
+                    val token = payload.optString("token")
                     activeChatChannel?.trySend(token)
-                    val emotion = json.optString("emotion")
+                    val emotion = payload.optString("emotion")
                     if (emotion.isNotEmpty() && emotion != "null") {
                         updateEmotionState(emotion)
                     }
                 }
                 "tts_amplitude" -> {
-                    val amp = json.optDouble("amplitude", 0.0).toFloat()
+                    val amp = payload.optDouble("amplitude", 0.0).toFloat()
                     _currentAmplitude.value = amp
                 }
                 "chat_end" -> {
-                    val emotion = json.optString("emotion")
+                    val emotion = payload.optString("emotion")
                     if (emotion.isNotEmpty() && emotion != "null") {
                         updateEmotionState(emotion)
                     }
                     activeChatChannel?.close()
+                }
+                "biological_sync" -> {
+                    val chemicals = payload.optJSONObject("chemicals")
+                    if (chemicals != null) {
+                        val dopamine = chemicals.optDouble("dopamine", 50.0).toFloat()
+                        val serotonin = chemicals.optDouble("serotonin", 50.0).toFloat()
+                        val cortisol = chemicals.optDouble("cortisol", 50.0).toFloat()
+                        val adrenaline = chemicals.optDouble("adrenaline", 50.0).toFloat()
+                        val state = EmotionState(
+                            dopamine = dopamine / 100f,
+                            serotonin = serotonin / 100f,
+                            cortisol = cortisol / 100f,
+                            adrenaline = adrenaline / 100f
+                        )
+                        _currentEmotion.value = state
+                        repositoryScope.launch {
+                            saveEmotionLog(state)
+                        }
+                    }
                 }
             }
         } catch (e: Exception) {
