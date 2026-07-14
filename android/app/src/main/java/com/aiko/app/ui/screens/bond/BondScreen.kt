@@ -160,6 +160,9 @@ fun BondScreen(
                     } else {
                         // Drawing custom lines representing chemistry indexes
                         val reversedLogs = logs.reversed()
+                        val flusteredPink = AikoColors.FlusteredPink
+                        val devotedViolet = AikoColors.DevotedViolet
+                        val worriedOrange = AikoColors.WorriedOrange
                         Canvas(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -193,11 +196,11 @@ fun BondScreen(
                             }
 
                             // Render Dopamine logs line (Pink)
-                            drawLogLine({ it.dopamine }, AikoColors.FlusteredPink)
+                            drawLogLine({ it.dopamine }, flusteredPink)
                             // Render Serotonin logs line (Violet)
-                            drawLogLine({ it.serotonin }, AikoColors.DevotedViolet)
+                            drawLogLine({ it.serotonin }, devotedViolet)
                             // Render Cortisol logs line (Orange)
-                            drawLogLine({ it.cortisol }, AikoColors.WorriedOrange)
+                            drawLogLine({ it.cortisol }, worriedOrange)
                         }
 
                         Spacer(modifier = Modifier.height(12.dp))

@@ -35,14 +35,14 @@ GREETINGS = {
 
 
 class ProactiveAgent:
-    def __init__(self, brain, vision, pc_manager, voice, obsidian=None):
+    def __init__(self, brain, vision, pc_manager, voice, obsidian=None) -> None:
         self.brain = brain
         self.vision = vision
         self.pc = pc_manager
         self.voice = voice
         self.obsidian = obsidian
         self.active = False
-        self.interval = 180  # Check every 3 minutes (less annoying)
+        self.interval = 600  # Check every 10 minutes (prevents CPU/RAM overhead when idle)
         self.last_consolidation = date.today()
         self.last_greeting_date = None
         self.last_greeting_hour = -1
@@ -52,7 +52,7 @@ class ProactiveAgent:
         self.face_scan_interval = 300 # 5 minutes
         self._broadcast = None  # Set externally by neural_hub
 
-    async def start_loop(self):
+    async def start_loop(self) -> None:
         logger.info("[Proactive] Agent Loop Started.")
         # Delay the first proactive check on startup to allow the API server to bind and respond to status pings
         await asyncio.sleep(15.0)
@@ -79,7 +79,7 @@ class ProactiveAgent:
                         emotion_engine.chemicals["cortisol"] = 0.0
                         emotion_engine.chemicals["adrenaline"] = 0.0
                         logger.info("[Proactive] Woke up from REM Sleep. Cortisol flushed.")
-                    except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
+                    except (OSError, ValueError, RuntimeError) as e:
                         logger.error(f"[Proactive] REM Sleep cycle failed: {e}")
 
                 # Time-based greeting (once per session block)
@@ -108,7 +108,7 @@ class ProactiveAgent:
             logger.info("[Proactive] Agent Loop Cancelled gracefully.")
             raise
 
-    async def _maybe_greet(self, now: datetime):
+    async def _maybe_greet(self, now: datetime) -> None:
         """Send a greeting when user first arrives in morning/evening."""
         hour = now.hour
         today = now.date()
@@ -134,7 +134,7 @@ class ProactiveAgent:
             await self._send_proactive(greeting, "shy")
             self.last_greeting_hour = 0
 
-    async def _send_proactive(self, text: str, emotion: str = "neutral"):
+    async def _send_proactive(self, text: str, emotion: str = "neutral") -> None:
         """Broadcast a proactive message to the UI and speak it."""
         logger.info(f"[Proactive] Sending: {text[:50]}")
         if self._broadcast:
@@ -165,10 +165,10 @@ class ProactiveAgent:
                 asyncio.create_task(
                     self.voice.speak(text, emotion=emotion, on_amplitude=broadcast_amplitude, on_audio=broadcast_audio)
                 )
-            except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
+            except (OSError, ValueError, RuntimeError) as e:
                 logger.error(f"[Proactive] TTS failed: {e}")
 
-    async def _check_obsidian_tasks(self, now: datetime):
+    async def _check_obsidian_tasks(self, now: datetime) -> None:
         """Check the Master's Obsidian Daily Note for open TODOs."""
         if not self.obsidian or not self.obsidian.is_valid: return
         
@@ -202,10 +202,10 @@ class ProactiveAgent:
                 from core.persona import detect_emotion
                 await self._send_proactive(nag_msg, detect_emotion(nag_msg))
                 
-        except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
+        except (OSError, ValueError, RuntimeError) as e:
             logger.error(f"[Proactive] Obsidian Nag Error: {e}")
 
-    async def _check_music(self):
+    async def _check_music(self) -> None:
         """Check if Master changed tracks on Spotify."""
         try:
             from core.spotify_bridge import spotify
@@ -229,10 +229,10 @@ class ProactiveAgent:
                 if comment and len(comment.strip()) > 3:
                     from core.persona import detect_emotion
                     await self._send_proactive(comment, detect_emotion(comment))
-        except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
+        except (OSError, ValueError, RuntimeError) as e:
             logger.error(f"[Proactive] Music check error: {e}")
 
-    async def tick(self):
+    async def tick(self) -> None:
         """Single proactive cycle — observe screen and comment if interesting."""
         if getattr(self, "is_ticking", False):
             logger.info("[Proactive] Screen scan already in progress, skipping concurrent run.")
@@ -259,7 +259,7 @@ class ProactiveAgent:
                             vision_context_buffer.add_observation("Autonomous scan identified Master in front of the screen.")
                             await self._send_proactive("I see you, Master... Welcome back~ 💖", "happy")
                             return
-                except (OSError, PermissionError, RuntimeError, TypeError, ValueError):
+                except (OSError, ValueError, RuntimeError):
                     pass  # Biometrics not critical
 
             # 2. Push observation to short-term visual buffer
@@ -270,7 +270,7 @@ class ProactiveAgent:
             try:
                 from core.spotify_bridge import spotify
                 music_ctx = spotify.get_music_context()
-            except (OSError, PermissionError, RuntimeError, TypeError, ValueError):
+            except (OSError, ValueError, RuntimeError):
                 pass
 
             # 3. Request comment using brain.chat() (unified context)
@@ -304,12 +304,12 @@ class ProactiveAgent:
                 # Vocalize proactive message (broadcasts + TTS)
                 await self._send_proactive(comment, emotion)
 
-        except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
+        except (OSError, ValueError, RuntimeError) as e:
             logger.error(f"[Proactive] Tick error: {e}")
         finally:
             self.is_ticking = False
 
-    async def _check_inner_monologue(self, now: datetime):
+    async def _check_inner_monologue(self, now: datetime) -> None:
         """Trigger an internal thought if chemicals are high and we are idle."""
         if self.active: return # Don't think out loud if we are already doing screen observations
         
@@ -350,7 +350,7 @@ class ProactiveAgent:
             else:
                 logger.debug(f" [Proactive] Aiko had a silent thought: {trigger}")
 
-    def toggle(self, state: bool, force_tick: bool = False):
+    def toggle(self, state: bool, force_tick: bool = False) -> bool:
         was_active = self.active
         self.active = state
         logger.info(f"[Proactive] Active: {self.active}")
@@ -364,7 +364,7 @@ class ProactiveAgent:
                 pass
         return self.active
 
-    async def _trigger_immediate_tick(self):
+    async def _trigger_immediate_tick(self) -> None:
         await asyncio.sleep(1)
         if self.active:
             logger.info("[Proactive] Triggering immediate scan after toggle.")

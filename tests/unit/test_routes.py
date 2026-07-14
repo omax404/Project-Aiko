@@ -7,7 +7,6 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, AsyncMock, patch
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from aiohttp import web
 from core.api.routes import handle_status, handle_health, _redact_secrets

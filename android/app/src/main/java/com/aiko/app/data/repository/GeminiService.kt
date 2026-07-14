@@ -30,7 +30,10 @@ class GeminiService @Inject constructor() {
         history: List<MessageEntity>,
         newMessage: String
     ): Flow<GenerateContentResponse> {
-        val timeOfDay = SimpleDateFormat("EEEE, h:mm a", Locale.getDefault()).format(Date())
+        // API key validation
+        require(apiKey.isNotBlank()) { "API key is blank. Configure it in Settings." }
+
+        val timeOfDay = SimpleDateFormat("EEEE, h:mm a", Locale.ROOT).format(Date())
         val memoryString = memories.joinToString("; ") { "[${it.category}] ${it.content}" }.ifEmpty { "None yet" }
 
         val systemPrompt = """

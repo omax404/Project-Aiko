@@ -128,3 +128,31 @@ def async_retry(
             raise last_exception
         return wrapper
     return decorator
+
+from urllib.parse import urlparse
+
+class SecurityError(Exception):
+    """Exception raised when a security policy is violated."""
+    pass
+
+def verify_connection_safety(url: str) -> None:
+    """
+    Validates that connections to LLM/VLM APIs are secure.
+    If the endpoint is remote (not localhost/127.0.0.1/::1),
+    it requires HTTPS to prevent man-in-the-middle data sniffing.
+    """
+    if not url:
+        return
+    parsed = urlparse(url)
+    host = parsed.hostname or ""
+    scheme = parsed.scheme or ""
+    
+    # Loopback targets are inherently secure as traffic doesn't leave the host
+    is_loopback = host in ("localhost", "127.0.0.1", "::1")
+    
+    if not is_loopback and scheme == "http":
+        raise SecurityError(
+            f"Blocked unencrypted HTTP connection to remote host '{host}'. "
+            f"To secure your private chat, files, and screenshot data from hackers, "
+            f"remote endpoints must use HTTPS."
+        )

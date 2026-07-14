@@ -9,6 +9,7 @@ import time
 import asyncio
 import io
 import logging
+from typing import Optional, Union, Tuple
 from PIL import Image, ImageDraw, ImageFont, ImageChops, ImageStat
 import numpy as np
 from core.utils import retry
@@ -17,7 +18,7 @@ from .config_manager import config
 logger = logging.getLogger("Vision")
 
 class VisionEngine:
-    def __init__(self):
+    def __init__(self) -> None:
         self.ready = False
         self.error_msg = None
         self.processor = None
@@ -26,7 +27,7 @@ class VisionEngine:
         self.camera = None  # Persistent DXCAM instance for GPU direct frame grabbing
         self._prev_image = None  # Cached last screenshot for difference checking
         
-    async def load_model(self):
+    async def load_model(self) -> None:
         """Prepare local vision fallback using Ollama (replacing HF BLIP)."""
         logger.info("Initializing Local Ollama Vision Fallback.")
         self.ready = True
@@ -40,57 +41,63 @@ class VisionEngine:
             return True if description else False
         except Exception: return False
 
-    def _capture_sync(self):
+    def _capture_sync(self) -> Union[Image.Image, str, None]:
         """Synchronous screen capture using DXCAM (DXGI/DirectX) or PyAutoGUI fallback."""
         from .desktop_utils import use_interactive_desktop
         
-        with use_interactive_desktop():
-            # 1. Try DXCAM on Windows for sub-10ms direct GPU capture
-            if sys.platform == "win32":
-                try:
-                    import dxcam
-                    if self.camera is None:
-                        self.camera = dxcam.create()
-                    
-                    # dxcam.grab() returns None if screen hasn't changed.
-                    # Try a few times with tiny sleeps to grab the latest frame.
-                    frame = None
-                    for _ in range(5):
-                        frame = self.camera.grab()
+        try:
+            with use_interactive_desktop():
+                # 1. Try DXCAM on Windows for sub-10ms direct GPU capture
+                if sys.platform == "win32":
+                    try:
+                        import dxcam
+                        if self.camera is None:
+                            self.camera = dxcam.create()
+                        
+                        # dxcam.grab() returns None if screen hasn't changed.
+                        # Try a few times with tiny sleeps to grab the latest frame.
+                        frame = None
+                        for _ in range(5):
+                            frame = self.camera.grab()
+                            if frame is not None:
+                                break
+                            time.sleep(0.02)
+                        
                         if frame is not None:
-                            break
-                        time.sleep(0.02)
-                    
-                    if frame is not None:
-                        # Convert DXCAM's RGB numpy array to PIL Image
-                        return Image.fromarray(frame)
-                except (ImportError, RuntimeError, OSError, ValueError) as dx_err:
-                    logger.warning(f"DXCAM capture failed: {dx_err}. Falling back to PyAutoGUI.")
-            
-            # 2. Cross-platform / Windows GDI fallback
-            try:
-                import pyautogui
-                return pyautogui.screenshot()
-            except OSError as py_err:
-                if "screen grab failed" in str(py_err).lower():
-                    logger.info("[Vision] Screen capture offline (session locked or display sleep).")
-                    return "offline"
-                logger.error(f"PyAutoGUI screen capture failed: {py_err}")
-            except (ImportError, RuntimeError, ValueError) as py_err:
-                logger.error(f"PyAutoGUI screen capture failed: {py_err}")
+                            # Convert DXCAM's RGB numpy array to PIL Image
+                            return Image.fromarray(frame)
+                    except (ImportError, RuntimeError, OSError, ValueError) as dx_err:
+                        logger.warning(f"DXCAM capture failed: {dx_err}. Falling back to PyAutoGUI.")
                 
-            # 3. Last resort fallback
-            try:
-                from PIL import ImageGrab
-                return ImageGrab.grab()
-            except OSError as grab_err:
-                if "screen grab failed" in str(grab_err).lower():
-                    logger.info("[Vision] PIL Screen capture offline (session locked or display sleep).")
-                    return "offline"
-                logger.error(f"PIL ImageGrab fallback failed: {grab_err}")
-            except (ImportError, RuntimeError, ValueError) as grab_err:
-                logger.error(f"PIL ImageGrab fallback failed: {grab_err}")
-                return None
+                # 2. Cross-platform / Windows GDI fallback
+                try:
+                    import pyautogui
+                    return pyautogui.screenshot()
+                except OSError as py_err:
+                    if "screen grab failed" in str(py_err).lower():
+                        logger.info("[Vision] Screen capture offline (session locked or display sleep).")
+                        return "offline"
+                    logger.error(f"PyAutoGUI screen capture failed: {py_err}")
+                except (ImportError, RuntimeError, ValueError) as py_err:
+                    logger.error(f"PyAutoGUI screen capture failed: {py_err}")
+                    
+                # 3. Last resort fallback
+                try:
+                    from PIL import ImageGrab
+                    return ImageGrab.grab()
+                except OSError as grab_err:
+                    if "screen grab failed" in str(grab_err).lower():
+                        logger.info("[Vision] PIL Screen capture offline (session locked or display sleep).")
+                        return "offline"
+                    logger.error(f"PIL ImageGrab fallback failed: {grab_err}")
+                except (ImportError, RuntimeError, ValueError) as grab_err:
+                    logger.error(f"PIL ImageGrab fallback failed: {grab_err}")
+            
+            # Fall back to a black frame if no method succeeded
+            return Image.new("RGB", (1920, 1080), (0, 0, 0))
+        except Exception as e:
+            logger.error(f"[Vision] Ultimate screen capture failure: {e}")
+            return Image.new("RGB", (1920, 1080), (0, 0, 0))
 
     def draw_coordinate_grid(self, image: Image.Image, step: int = 100) -> Image.Image:
         """Draw a semi-transparent pink coordinate grid with labels on the screen capture."""
@@ -162,12 +169,12 @@ class VisionEngine:
                 
             logger.info(f"[Vision] Screen changed (mean diff: {mean_diff:.3f}). Proceeding with scan.")
             return True
-        except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.warning(f"Error checking screen difference: {e}. Defaulting to True.")
             self._prev_image = img
             return True
 
-    async def scan_screen(self, force: bool = False) -> tuple:
+    async def scan_screen(self, force: bool = False) -> Tuple[Union[str, None], Optional[Image.Image]]:
         """Capture screen via DXCAM/GPU and query vision provider with coordinates overlay."""
         try:
             loop = asyncio.get_event_loop()
@@ -198,7 +205,7 @@ class VisionEngine:
                 
             return description, img
             
-        except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
+        except (OSError, RuntimeError, ValueError) as e:
             logger.error(f"Scan Error: {e}")
             # Final fallback to PIL ImageGrab if everything fails
             try:
@@ -227,7 +234,7 @@ class VisionEngine:
             # Analyze
             description = await self._analyze(img)
             return description
-        except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
+        except (OSError, ValueError) as e:
             return f"Error analyzing file: {e}"
 
     async def analyze_base64(self, b64_str: str) -> str:
@@ -237,7 +244,7 @@ class VisionEngine:
             image_data = base64.b64decode(b64_str)
             img = Image.open(io.BytesIO(image_data))
             return await self._analyze(img)
-        except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
+        except (OSError, ValueError) as e:
             logger.error(f"Base64 Analysis Error: {e}")
             return "I tried to look, but the image data is corrupted, Master."
 
@@ -290,7 +297,7 @@ class VisionEngine:
                         local_files_only=True,
                         **device_args
                     )
-                except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
+                except (OSError, ValueError) as e:
                     logger.info(f"[Vision] Offline loading failed ({e}). Fetching from Hugging Face...")
                     processor = AutoProcessor.from_pretrained(model_name, trust_remote_code=True)
                     model = AutoModelForImageTextToText.from_pretrained(
@@ -310,7 +317,7 @@ class VisionEngine:
             if not torch.cuda.is_available() and not (hasattr(torch.backends, "mps") and torch.backends.mps.is_available()):
                 try:
                     torch.set_num_threads(2)
-                except (OSError, PermissionError, RuntimeError, TypeError, ValueError):
+                except RuntimeError:
                     pass
             with torch.no_grad():
                 # Format using MiniCPM-V chat template
@@ -395,6 +402,8 @@ class VisionEngine:
                     ],
                     "stream": False
                 }
+                from core.utils import verify_connection_safety
+                verify_connection_safety(url)
                 def _req():
                     resp = requests.post(url, json=payload, timeout=30)
                     resp.raise_for_status()
@@ -415,12 +424,14 @@ class VisionEngine:
                     "images": [img_str],
                     "stream": False
                 }
+                from core.utils import verify_connection_safety
+                verify_connection_safety(url)
                 def _req():
                     try:
                         resp = requests.post(url, json=payload, timeout=90)
                         resp.raise_for_status()
                         return resp.json().get("response", "I see something, but I can't quite describe it, Master.")
-                    except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
+                    except (OSError, ValueError) as e:
                         logger.error(f"Ollama internal error at {url}: {e}")
                         err_str = str(e)
                         if "404" in err_str or "not found" in err_str.lower():
@@ -428,7 +439,7 @@ class VisionEngine:
                         return f"Ollama is having trouble seeing this: {e}. (Make sure 'ollama pull {model}' has been run successfully)"
             
             return await loop.run_in_executor(None, _req)
-        except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
+        except (OSError, ValueError) as e:
             logger.error(f"Local Vision Error ({vision_provider}): {e}")
             return "My local visual cortex is having trouble processing this frame, Master... 👁️‍🗨️"
 
@@ -439,7 +450,7 @@ class VisionEngine:
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, self._capture_camera_sync)
 
-    def _capture_camera_sync(self):
+    def _capture_camera_sync(self) -> Image.Image:
         import cv2
         import time
         cap = cv2.VideoCapture(0)

@@ -62,7 +62,24 @@ async def _process_chat_ws(data: dict, ws: web.WebSocketResponse):
     uid = validated.session_id or validated.user_id or hub.user_id
     attachments = validated.attachments or []
     
-    await broadcast_event("chat_start", {"role": "user", "text": text})
+    # === SECURITY GATE ===
+    from core.api.routes import _sanitize_input
+    from core.structured_logger import system_logger
+    
+    sanitized_text, is_safe, rejection_reason = _sanitize_input(text)
+    if not is_safe:
+        system_logger.warning(
+            f"SECURITY_REJECT (WS): user={uid} reason={rejection_reason}"
+        )
+        await ws.send_str(json.dumps({
+            "type": "error",
+            "code": "SECURITY_VIOLATION",
+            "message": rejection_reason
+        }))
+        return
+    # === END SECURITY GATE ===
+    
+    await broadcast_event("chat_start", {"role": "user", "text": sanitized_text})
     await sync_star_office("researching", "Processing user request...")
     
     original_on_sentence = hub.brain.on_sentence
@@ -79,7 +96,7 @@ async def _process_chat_ws(data: dict, ws: web.WebSocketResponse):
     hub.brain.on_sentence = _bridge_sentence
     
     try:
-        chat_res = await hub.brain.chat(text, user_id=uid, initial_images=attachments)
+        chat_res = await hub.brain.chat(sanitized_text, user_id=uid, initial_images=attachments)
         reply = chat_res[0]
         active_emotion = chat_res[1]
         gif_url = chat_res[5] if len(chat_res) > 5 else None

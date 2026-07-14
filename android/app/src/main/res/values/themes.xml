@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <style name="Theme.Aiko" parent="@android:style/Theme.Material.NoActionBar">
+        <!-- Base Theme -->
+    </style>
+
     <style name="Theme.App.Starting" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">#0B0B10</item>
         <item name="windowSplashScreenAnimatedIcon">@android:drawable/sym_def_app_icon</item>
-        <item name="postSplashScreenTheme">@android:style/Theme.DeviceDefault.NoActionBar</item>
+        <item name="postSplashScreenTheme">@style/Theme.Aiko</item>
     </style>
 </resources>

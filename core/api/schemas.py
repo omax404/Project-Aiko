@@ -69,11 +69,6 @@ class LatexRenderRequest(BaseModel):
             raise ValueError("LaTeX snippet cannot be empty")
         return v.strip()
 
-class RelationshipResponse(BaseModel):
-    """Response model for /api/relationship."""
-    affection: int = Field(..., ge=0, le=1000)
-    level: str
-    trust: int = Field(..., ge=0, le=100)
 
 class HealthResponse(BaseModel):
     """Response model for /health."""
@@ -88,6 +83,7 @@ class StatusResponse(BaseModel):
     hub_name: str
     metrics: Dict[str, Any]
     rag_available: bool
+    local_ip: Optional[str] = None
 
 class WSChatMessage(BaseModel):
     """Validate WebSocket chat messages."""

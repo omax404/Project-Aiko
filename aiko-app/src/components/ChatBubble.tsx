@@ -15,7 +15,7 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
-import { useNeuralStore } from '../store/useNeuralStore';
+import { useNeuralStore, getHubUrl } from '../store/useNeuralStore';
 import { useState } from 'react';
 
 interface ChatBubbleProps {
@@ -26,6 +26,10 @@ interface ChatBubbleProps {
   timestamp?: string;
   isTyping?: boolean;
   attachments?: string[];
+}
+
+function stripEmotionTags(text: string): string {
+  return text.replace(/<emotion>.*?<\/emotion>/gi, '').trim();
 }
 
 export function ChatBubble({ 
@@ -173,8 +177,7 @@ export function ChatBubble({
                     components={{
                       img: ({ node, src, alt, ...props }) => {
                         if (!src) return null;
-                        const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI__;
-                        const hubUrl = isTauri ? 'http://127.0.0.1:8000' : (typeof window !== 'undefined' ? window.location.origin : 'http://127.0.0.1:8000');
+                        const hubUrl = getHubUrl();
                         const absoluteSrc = src.startsWith('http') || src.startsWith('data:') ? src : `${hubUrl}${src}`;
                         
                         const isSticker = src.includes('/stickers/') && !src.includes('selfie') && !src.includes('gen_');
@@ -192,7 +195,7 @@ export function ChatBubble({
                       }
                     }}
                   >
-                    {content}
+                    {stripEmotionTags(content)}
                   </ReactMarkdown>
                   
                   {attachments && attachments.length > 0 && (
@@ -251,10 +254,10 @@ export function ChatBubble({
               aria-label="Copy message to clipboard"
               title="Copy" className="p-1.5 hover:text-white transition-colors text-[var(--t4)]"
             >
-               <Copy size={13} />
+               <Copy size={13} strokeWidth={1.8} />
             </button>
             <button aria-label="Add reaction" title="Reaction" className="p-1.5 hover:text-[var(--acc)] transition-colors text-[var(--t4)]">
-               <Smile size={13} />
+               <Smile size={13} strokeWidth={1.8} />
             </button>
             {!isUser ? (
                <>
@@ -263,14 +266,14 @@ export function ChatBubble({
                    aria-label="Retry generating response"
                    title="Retry" className="p-1.5 hover:text-[var(--acc)] transition-colors text-[var(--t4)]"
                  >
-                    <RotateCcw size={13} />
+                    <RotateCcw size={13} strokeWidth={1.8} />
                  </button>
                  <button 
                    onClick={() => playTTS(content)}
                    aria-label="Play text-to-speech"
                    title="Speech" className="p-1.5 hover:text-[var(--acc)] transition-colors text-[var(--t4)]"
                  >
-                    <Volume2 size={13} />
+                    <Volume2 size={13} strokeWidth={1.8} />
                  </button>
                </>
             ) : (
@@ -280,14 +283,14 @@ export function ChatBubble({
                    aria-label="Edit message"
                    title="Edit" className="p-1.5 hover:text-[var(--acc)] transition-colors text-[var(--t4)]"
                  >
-                    <Edit3 size={13} />
+                    <Edit3 size={13} strokeWidth={1.8} />
                  </button>
                  <button 
                    onClick={() => (id || timestamp) && deleteMessage(id || timestamp!)}
                    aria-label="Delete message"
                    title="Delete" className="p-1.5 hover:text-red-400 transition-colors text-[var(--t4)]"
                  >
-                    <Trash size={13} />
+                    <Trash size={13} strokeWidth={1.8} />
                  </button>
                </>
             )}

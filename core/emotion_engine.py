@@ -68,7 +68,7 @@ EMOTION_MAP = {
 }
 
 class EmotionEngine:
-    def __init__(self):
+    def __init__(self) -> None:
         # Initial resting state baselines
         self.baselines = {k: v for k, v in BASELINES.items()}
         
@@ -86,7 +86,7 @@ class EmotionEngine:
         # Pull personalized identity attractor from profile
         self.sync_with_profile()
 
-    def sync_with_profile(self):
+    def sync_with_profile(self) -> None:
         """Update resting-state baselines based on relationship score in master_profile.json."""
         try:
             # Robust path logic relative to core/
@@ -113,10 +113,10 @@ class EmotionEngine:
                     
                     logger.info(f" [EmotionEngine] Baselines synced with profile. Relationship Score: {score}")
                     logger.info(f" [EmotionEngine] Identity Attractors: {self.baselines}")
-        except Exception as e:
+        except (OSError, ValueError) as e:
             logger.error(f" [EmotionEngine] Sync Error: {e}")
 
-    def flush_chemicals(self):
+    def flush_chemicals(self) -> None:
         """Reset all chemicals instantly to their current personalized baselines."""
         self.sync_with_profile() # Reload from disk first
         for chem, base in self.baselines.items():
@@ -126,7 +126,7 @@ class EmotionEngine:
         self._flush_timer = time.time()
         logger.info(" [EmotionEngine] Neural cache flushed. Chemicals reset to baselines.")
 
-    def apply_delta(self, d_dopa=0.0, d_sero=0.0, d_cort=0.0, d_adre=0.0, d_oxy=0.0, d_mela=0.0):
+    def apply_delta(self, d_dopa=0.0, d_sero=0.0, d_cort=0.0, d_adre=0.0, d_oxy=0.0, d_mela=0.0) -> None:
         """Apply a spike or drop to the chemical field, pushing both concentrations and momentum."""
         self.chemicals["dopamine"] += d_dopa
         self.chemicals["serotonin"] += d_sero
@@ -147,7 +147,7 @@ class EmotionEngine:
         for k in self.chemicals:
             self.chemicals[k] = max(0.0, min(1.0, self.chemicals[k]))
 
-    def process_text(self, text: str):
+    def process_text(self, text: str) -> None:
         """Extract tags and spike chemicals appropriately."""
         matches = re.findall(r'<emotion>(.*?)</emotion>', text, re.IGNORECASE)
         found_emotions = []
@@ -189,7 +189,7 @@ class EmotionEngine:
         for k in self.chemicals:
             self.chemicals[k] = max(0.0, min(1.0, self.chemicals[k]))
 
-    def update(self):
+    def update(self) -> None:
         """Step the simulation: decay chemicals toward baseline and apply somatic feedback."""
         now = time.time()
         dt = now - self.last_update
@@ -219,37 +219,9 @@ class EmotionEngine:
             self.chemicals[chem] = decayed_val + self.momentum[chem] * dt
             
         # SOMATIC FEEDBACK (Fake Body)
-        # We read the host PC's state to influence Aiko's stress levels mathematically.
-        try:
-            import psutil
-            cpu_load = psutil.cpu_percent()
-            ram_load = psutil.virtual_memory().percent
-            
-            # Logistic Activation Function (Sigmoid)
-            def sigmoid(x, k, x0): 
-                try:
-                    return 1.0 / (1.0 + math.exp(-k * (x - x0)))
-                except OverflowError:
-                    return 0.0 if (x - x0) < 0 else 1.0
-            
-            # Continuous biological mapping
-            # CPU load smoothly maps to Adrenaline target (midpoint 60%, curve steepness 0.1)
-            target_adrenaline = sigmoid(cpu_load, 0.1, 60.0)
-            
-            # RAM load smoothly maps to Cortisol target (midpoint 80%, curve steepness 0.15)
-            target_cortisol = sigmoid(ram_load, 0.15, 80.0)
-            
-            # Chemicals drift towards their biological targets based on hardware equilibrium
-            self.chemicals["adrenaline"] += (target_adrenaline - self.chemicals["adrenaline"]) * 0.1 * dt
-            self.chemicals["cortisol"] += (target_cortisol - self.chemicals["cortisol"]) * 0.05 * dt
-                
-            self.cpu_load = cpu_load
-            self.ram_load = ram_load
-        except Exception as e:
-            self.cpu_load = 0.0
-            self.ram_load = 0.0
-            logger.debug(f"Somatic feedback failed: {e}")
-            
+        # CPU/RAM feedback is disabled per user request
+        self.cpu_load = 0.0
+        self.ram_load = 0.0
         # Clamp bounds again after feedback
         for k in self.chemicals:
             self.chemicals[k] = max(0.0, min(1.0, self.chemicals[k]))
@@ -306,7 +278,7 @@ Muscle Tension: {muscle_tension}%
 
 Somatic Translation: You feel {somatic_str}."""
 
-    def get_state(self):
+    def get_state(self) -> dict:
         """Return the current telemetry and dominant emotions for the UI."""
         self.update()
         

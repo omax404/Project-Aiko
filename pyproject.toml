@@ -1,0 +1,130 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aiko-desktop"
+version = "2.0.0"
+description = "Self-hosted AI companion with emotional depth, memory, and agency"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10,<3.13"
+authors = [
+    { name = "Aiko Team" }
+]
+keywords = ["ai", "companion", "llm", "agent", "memory"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "pymupdf4llm>=0.0.1",
+    "pymupdf>=1.22.0",
+    "websockets>=11.0",
+    "httpx>=0.24.0",
+    "Pillow>=10.0.0",
+    "pyautogui>=0.9.54",
+    "psutil>=5.9.0",
+    "opencv-python>=4.8.0",
+    "GPUtil>=1.4.0",
+    "pyperclip>=1.8.2",
+    "flask>=3.0.0",
+    "requests>=2.31.0",
+    "discord.py>=2.3.0",
+    "python-telegram-bot>=20.0",
+    "cryptography>=41.0.0",
+    "imageio-ffmpeg>=0.4.9",
+    "python-dotenv>=1.0.0",
+    "aiohttp>=3.9.0",
+    "aiortc>=1.9.0",
+    "uvicorn>=0.22.0",
+    "pylatex>=1.4.1",
+    "numpy>=1.24.0",
+    "pydantic>=2.0.0",
+    "openai>=1.0.0",
+    "anthropic>=0.5.0",
+    "python-multipart>=0.0.6",
+    "mempalace>=3.0.0",
+    "pynacl>=1.5.0",
+    "huggingface_hub>=0.16.0",
+    "spotipy>=2.23.0",
+    "perchance>=0.1.0",
+    "playwright>=1.40.0",
+    "jinja2>=3.0.0",
+]
+
+[project.optional-dependencies]
+vision = [
+    "torch>=2.2.0",
+    "torchvision>=0.17.0",
+    "timm>=0.9.0",
+    "transformers>=4.40.0",
+    "accelerate>=0.28.0",
+    "hf_transfer>=0.1.6",
+]
+voice = [
+    "pocket-tts>=1.0.3",
+    "moonshine-voice>=0.0.62",
+    "pyaudio>=0.2.14",
+    "SpeechRecognition>=3.10.0",
+    "pydub>=0.25.1",
+    "soundfile>=0.12.1",
+    "scipy>=1.10.0",
+]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.0.0",
+    "ruff>=0.4.0",
+    "mypy>=1.10.0",
+    "pre-commit>=3.7.0",
+]
+windows = [
+    "dxcam>=0.3.0",
+    "comtypes>=1.4.16",
+    "pywinauto>=0.6.8",
+]
+full = [
+    "aiko-desktop[vision,voice]",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["core*", "execution*", "discord_bot*", "telegram_bot*"]
+exclude = ["tests*", "aiko-app*", "android*", "docs*", "assets*", "data*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+select = [
+    "E", "W", "F", "I", "N", "UP", "B", "C4", "SIM", "ARG",
+]
+ignore = [
+    "E501",  # Line too long — handled by formatter
+    "B008",  # Do not perform function calls in argument defaults
+    "SIM102", # Nested ifs
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-ra -q --strict-markers"
+markers = [
+    "integration: marks tests as integration tests",
+    "slow: marks tests as slow",
+]

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Save, X, Settings } from 'lucide-react';
-import { useNeuralStore } from '../store/useNeuralStore';
+import { Save, X, Settings, User, Palette, Brain, Volume2, Eye, Plug, Smartphone } from 'lucide-react';
+import { useNeuralStore, getHubUrl } from '../store/useNeuralStore';
 
 interface SettingsPanelProps {
   isOpen: boolean;
@@ -9,7 +9,7 @@ interface SettingsPanelProps {
 }
 
 const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI__;
-const HUB_URL = 'http://127.0.0.1:8000';
+const HUB_URL = getHubUrl();
 
 async function loadSettingsFromBackend(): Promise<any> {
   if (isTauri) {
@@ -72,10 +72,19 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, o
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'ok' | 'err'>('idle');
   const [activeTab, setActiveTab] = useState('persona');
+  const [localIp, setLocalIp] = useState<string>('');
 
   useEffect(() => {
     if (isOpen) {
       loadSettings();
+      fetch(`${HUB_URL}/status`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.local_ip) {
+            setLocalIp(data.local_ip);
+          }
+        })
+        .catch(err => console.warn('Could not fetch status for local IP:', err));
     }
   }, [isOpen]);
 
@@ -137,13 +146,27 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, o
   if (!isOpen) return null;
 
   const tabs = [
-    { id: 'persona', icon: '🎭', label: 'Persona' },
-    { id: 'appearance', icon: '🎨', label: 'Appearance' },
-    { id: 'llm', icon: '🧠', label: 'AI Model' },
-    { id: 'tts', icon: '🎙️', label: 'Voice' },
-    { id: 'vision', icon: '👁️', label: 'Vision' },
-    { id: 'plugins', icon: '🔌', label: 'Plugins' },
+    { id: 'persona', label: 'Persona' },
+    { id: 'appearance', label: 'Appearance' },
+    { id: 'llm', label: 'AI Model' },
+    { id: 'tts', label: 'Voice' },
+    { id: 'vision', label: 'Vision' },
+    { id: 'plugins', label: 'Plugins' },
+    { id: 'mobile', label: 'Mobile Link' },
   ];
+
+  const getTabIcon = (id: string) => {
+    switch (id) {
+      case 'persona': return <User size={14} strokeWidth={1.8} />;
+      case 'appearance': return <Palette size={14} strokeWidth={1.8} />;
+      case 'llm': return <Brain size={14} strokeWidth={1.8} />;
+      case 'tts': return <Volume2 size={14} strokeWidth={1.8} />;
+      case 'vision': return <Eye size={14} strokeWidth={1.8} />;
+      case 'plugins': return <Plug size={14} strokeWidth={1.8} />;
+      case 'mobile': return <Smartphone size={14} strokeWidth={1.8} />;
+      default: return <Settings size={14} strokeWidth={1.8} />;
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity">
@@ -175,13 +198,17 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, o
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all text-left ${
+                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all text-left group ${
                     activeTab === tab.id
                       ? 'bg-white/[0.05] text-[var(--accent)]'
                       : 'text-[#9a8f7e] hover:bg-white/[0.03] hover:text-[#f0ebe3]'
                   }`}
                 >
-                  <span>{tab.icon}</span>
+                  <span className={`shrink-0 flex items-center justify-center transition-colors ${
+                    activeTab === tab.id ? 'text-[var(--accent)]' : 'text-[#5a5248] group-hover:text-[#f0ebe3]'
+                  }`}>
+                    {getTabIcon(tab.id)}
+                  </span>
                   {tab.label}
                 </button>
               ))}
@@ -451,6 +478,39 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, o
                     <Checkbox label="Telegram Bot (Satellite)" checked={settings.plugins.telegram_bot} onChange={v => setSettings({...settings, plugins: {...settings.plugins, telegram_bot: v}})} />
                     <Checkbox label="Hermes AI Agent (Cognitive Bridge)" checked={settings.plugins.hermes_agent} onChange={v => setSettings({...settings, plugins: {...settings.plugins, hermes_agent: v}})} />
                   </div>
+                </div>
+              )}
+
+              {activeTab === 'mobile' && (
+                <div className="flex flex-col gap-4 items-center text-center">
+                  <h3 className="text-[16px] font-semibold text-[#f0ebe3] self-start text-left">Mobile Companion Link</h3>
+                  <p className="text-[12px] text-[#9a8f7e] leading-relaxed self-start text-left">
+                    Scan this QR code using the Aiko Mobile App to instantly pair your phone with this desktop hub.
+                    Make sure both devices are connected to the same local Wi-Fi network.
+                  </p>
+                  
+                  {localIp ? (
+                    (() => {
+                      const activePort = new URL(HUB_URL).port || '8000';
+                      return (
+                        <div className="flex flex-col items-center gap-4 bg-white/[0.02] border border-white/[0.06] rounded-xl p-6 mt-4">
+                          <img 
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=http://${localIp}:${activePort}`} 
+                            alt="Pairing QR Code"
+                            className="w-48 h-48 rounded-lg border border-white/[0.1] bg-white p-2"
+                          />
+                          <div className="flex flex-col gap-1">
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#5a5248]">Desktop Server Address</span>
+                            <span className="text-[13px] font-mono text-[var(--accent)] font-medium">http://{localIp}:{activePort}</span>
+                          </div>
+                        </div>
+                      );
+                    })()
+                  ) : (
+                    <div className="p-8 text-[#5a5248] text-[13px]">
+                      Fetching server local network address...
+                    </div>
+                  )}
                 </div>
               )}
 

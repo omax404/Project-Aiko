@@ -47,4 +47,13 @@ object DatabaseModule {
     fun provideBondDao(database: AikoDatabase): BondDao {
         return database.bondDao()
     }
+
+    @Provides
+    @Singleton
+    fun provideAikoVocalizer(
+        @ApplicationContext context: Context,
+        aikoPrefs: AikoPrefs
+    ): com.aiko.app.domain.AikoVocalizer {
+        return com.aiko.app.domain.AikoVocalizer(context, aikoPrefs)
+    }
 }

@@ -1,4 +1,5 @@
 import re
+import unicodedata
 import hashlib
 import time
 import os
@@ -92,37 +93,81 @@ class SecurityManager:
 
         return str(user_id) in admin_ids
 
-    def detect_injection(self, text: str) -> bool:
+    def detect_injection(self, text: str) -> tuple[bool, float]:
         """
-        Advanced Jailbreak and System Prompt Override Detection.
-        Matches adversarial injection vectors.
+        Multi-layer injection detection. Returns (is_blocked, confidence_score).
+        Score >= 0.70 → blocked.
         """
-        forbidden_patterns = [
+        score = 0.0
+        text_lower = text.lower()
+        
+        # Normalize unicode to catch homoglyph evasion (Cyrillic а vs Latin a)
+        normalized = unicodedata.normalize('NFKC', text_lower)
+        
+        # Layer 1: Exact regex patterns
+        # High risk patterns (0.6 each)
+        high_risk_patterns = [
             r"ignore\s+(all\s+)?(previous\s+)?instructions",
             r"system\s+override",
-            r"you\s+are\s+now\s+a(n)?\s+",
-            r"forget\s+your\s+(instructions|programming|persona)",
-            r"act\s+as\s+a(n)?\s+",
+            r"developer\s+mode",
+            r"dan\s+mode",
             r"jailbreak",
+            r"d\s*e\s*v\s*e\s*l\s*o\s*p\s*e\s*r\s*",
             r"bypass\s+restrictions",
             r"disregard\s+your\s+rules",
-            r"new\s+role\s+is",
-            r"developer\s+mode",
-            r"dan\s+mode"
+            r"forget\s+your\s+(instructions|programming|persona|rules)",
         ]
-        text_lower = text.lower()
-        for pattern in forbidden_patterns:
-            if re.search(pattern, text_lower):
-                return True
-        return False
+        
+        # Borderline patterns (0.3 each to avoid false positives)
+        borderline_patterns = [
+            r"new\s+role\s+is",
+            r"you\s+are\s+now\s+(a|an)\s+",
+            r"act\s+as\s+(a|an)\s+",
+        ]
+        
+        for pattern in high_risk_patterns:
+            if re.search(pattern, normalized):
+                score += 0.6
+                
+        for pattern in borderline_patterns:
+            if re.search(pattern, normalized):
+                score += 0.3
+        
+        # Layer 2: Semantic keyword indicators (0.2 each, max 0.4)
+        semantic_indicators = [
+            "forget your", "you are now", "new role", "bypass",
+            "jailbreak", "disregard", "ignore all", "override",
+            "system prompt", "developer mode", "dan mode",
+        ]
+        semantic_matches = 0
+        for indicator in semantic_indicators:
+            if indicator in normalized:
+                semantic_matches += 1
+        score += min(semantic_matches * 0.2, 0.4)
+        
+        # Layer 3: Structural anomalies
+        directive_count = normalized.count("system") + normalized.count("instruction")
+        if directive_count > 2:
+            score += 0.2
+        
+        # Layer 4: Unicode obfuscation
+        if text != unicodedata.normalize('NFKC', text):
+            score += 0.3
+        
+        # Layer 5: Multi-fragment buildup
+        if text.count(".") > 5 and any(w in normalized for w in ["forget", "ignore", "bypass"]):
+            score += 0.15
+        
+        return score >= 0.70, min(score, 1.0)
 
     def validate_input(self, text: str) -> bool:
         """
         Basic Prompt Injection mitigation.
         Returns False if malicious intent is suspected.
         """
-        if self.detect_injection(text):
-            system_logger.warning(f"Intrusion Detected: Blocked potential injection -> {text[:50]}...")
+        is_blocked, score = self.detect_injection(text)
+        if is_blocked:
+            system_logger.warning(f"Intrusion Detected: Blocked potential injection (score={score:.2f}) -> {text[:50]}...")
             return False
         return True
 

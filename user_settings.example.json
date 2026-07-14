@@ -19,8 +19,8 @@
     "hermes_agent": true
   },
   "vision": {
-    "provider": "transformers",
-    "model": "openbmb/MiniCPM-V-4.6",
+    "provider": "ollama",
+    "model": "minicpm-v",
     "grid_overlay": true
   }
 }

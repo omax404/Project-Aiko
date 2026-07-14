@@ -142,7 +142,7 @@ class AutonomousAgent:
                 await self._one_cycle()
             except asyncio.CancelledError:
                 break
-            except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
+            except (OSError, ValueError, RuntimeError) as e:
                 logger.error(f"[Autonomous] Cycle error: {e}", exc_info=True)
 
             # Dynamic interval: slow down when user is active
@@ -234,7 +234,7 @@ class AutonomousAgent:
             else:
                 logger.error(f"[Autonomous] Script {script_name} failed: {result.stderr}")
                 return None
-        except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
+        except (OSError, subprocess.SubprocessError) as e:
             logger.error(f"[Autonomous] Script error: {e}")
             return None
 
@@ -263,7 +263,7 @@ class AutonomousAgent:
                 await self._goal_report(goal)
             elif goal.gtype == "language_practice":
                 await self._goal_language_practice(goal)
-        except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
+        except (OSError, ValueError, RuntimeError) as e:
             logger.error(f"[Autonomous] Goal {goal.gtype} failed: {e}", exc_info=True)
             orchestrator.emit_error(f"Goal {goal.gtype} failed: {e}")
 
@@ -281,10 +281,10 @@ class AutonomousAgent:
                     input_role="system", save_input=False
                 )
                 return result or ""
-            except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e2:
+            except (OSError, ValueError, RuntimeError) as e2:
                 logger.error(f"[Autonomous] Brain fallback failed: {e2}")
                 return ""
-        except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
+        except (OSError, ValueError, RuntimeError) as e:
             logger.error(f"[Autonomous] Brain.ask_raw failed: {e}")
             return ""
 
@@ -298,7 +298,7 @@ class AutonomousAgent:
                     await self.callback("assistant", text, emotion)
                 else:
                     self.callback("assistant", text, emotion)
-            except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
+            except Exception as e:
                 logger.error(f"[Autonomous] _say dispatch error: {e}")
         try:
             asyncio.create_task(_dispatch())
@@ -383,28 +383,8 @@ class AutonomousAgent:
 
     async def _goal_observe(self, goal: Goal):
         """Watch the system using SOP: system_optimization."""
-        sop = await self._run_directive("system_optimization")
-        stats_raw = await self._execute_script("system_check")
-        
-        if stats_raw:
-            import json
-            stats = json.loads(stats_raw)
-            cpu = stats.get("cpu", 0)
-            ram = stats.get("ram", 0)
-            
-            if cpu > 70 or ram > 85:
-                top_proc = stats.get("top_procs", [{}])[0].get("name", "Unknown")
-                summary = await self._think(
-                    f"SOP: {sop}\nStats: {stats_raw}. "
-                    "Write a short, concerned but caring sentence about this resource spike."
-                )
-                if summary:
-                    self._say(f"*checks stats* {summary}", "worried")
-            
-            orchestrator.events.publish("TOOL_RESULT", {
-                "tool": "SYSTEM_CHECK",
-                "result": f"CPU: {cpu}%, RAM: {ram}%"
-            })
+        # System monitoring remarks disabled per user request
+        pass
 
     async def _goal_language_practice(self, goal: Goal):
         """Practice Darija using the learning_engine and SOP: language_learning."""
@@ -485,9 +465,8 @@ class AutonomousAgent:
         _current_goal = "idle"
         while self.enabled:
             try:
-                import psutil
-                cpu = psutil.cpu_percent(interval=0)
-                ram = psutil.virtual_memory().percent
+                cpu = 0.0
+                ram = 0.0
                 orchestrator.events.publish("SYSTEM_METRICS", {
                     "cpu": cpu, "ram": ram,
                     "cycle": self._total_cycles,
@@ -529,9 +508,9 @@ class AutonomousAgent:
                     )
                 except ImportError as ie:
                     logger.debug(f"Callback server module not loaded: {ie}")
-                except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
+                except (OSError, ValueError, RuntimeError) as e:
                     logger.warning(f"Failed to update live state in system scan loop: {e}")
-            except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
+            except (OSError, ValueError, RuntimeError) as e:
                 logger.error(f"Error in system scan loop tick: {e}")
             await asyncio.sleep(2)
 

@@ -15,6 +15,7 @@ import threading
 import numpy as np
 import io
 import torch
+from typing import Optional, Callable
 
 logger = logging.getLogger("Voice")
 
@@ -24,11 +25,13 @@ _tts_model = None
 _voice_state = None
 _tts_ready = threading.Event()  # Signals when model is loaded
 _tts_failed = False
+_tts_loading = False
 
 
-def _warmup_tts():
+def _warmup_tts() -> None:
     """Load TTS model in background thread. Called once at startup."""
-    global _tts_model, _voice_state, _tts_failed
+    global _tts_model, _voice_state, _tts_failed, _tts_loading
+    _tts_loading = True
     try:
         from pocket_tts import TTSModel
         logger.info("🔊 Loading Pocket-TTS model...")
@@ -87,10 +90,11 @@ def _warmup_tts():
             _voice_state = _tts_model.get_state_for_audio_prompt("alba")
             logger.info("✅ Pocket-TTS ready (voice: alba)")
 
-    except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
+    except (ImportError, OSError, ValueError, RuntimeError) as e:
         logger.warning(f"[Voice] Pocket-TTS init failed: {e}")
         _tts_failed = True
     finally:
+        _tts_loading = False
         _tts_ready.set()  # Unblock any waiting speak() calls
 
 
@@ -125,13 +129,17 @@ MAX_TOTAL_CHARS = 2000
 
 
 class VoiceEngine:
-    def __init__(self):
+    def __init__(self) -> None:
         self.is_speaking = False
         self.output_dir = os.path.join(os.getcwd(), "data", "voices")
         os.makedirs(self.output_dir, exist_ok=True)
 
-    def start_warmup(self):
+    def start_warmup(self) -> None:
         """Start background model loading. Call this once at startup."""
+        global _tts_loading
+        if _tts_loading or _tts_ready.is_set() or _tts_failed:
+            return
+        _tts_loading = True
         t = threading.Thread(target=_warmup_tts, daemon=True)
         t.start()
 
@@ -201,7 +209,7 @@ class VoiceEngine:
 
         return [c for c in chunks if c.strip()]
 
-    def clear_old_cache(self):
+    def clear_old_cache(self) -> None:
         """Remove audio files older than 1 hour."""
         try:
             now = time.time()
@@ -210,10 +218,10 @@ class VoiceEngine:
                     path = os.path.join(self.output_dir, filename)
                     if os.path.isfile(path) and (now - os.path.getmtime(path)) > 3600:
                         os.remove(path)
-        except (OSError, PermissionError, RuntimeError, TypeError, ValueError):
+        except OSError:
             pass
 
-    async def speak(self, text: str, emotion: str = "neutral", on_audio=None, on_amplitude=None, **kwargs):
+    async def speak(self, text: str, emotion: str = "neutral", on_audio=None, on_amplitude=None, **kwargs) -> Optional[str]:
         """Synthesize speech for the FULL message using chunked TTS."""
         clean_text = self.clean_text_for_tts(text)
         if not clean_text:
@@ -300,7 +308,7 @@ class VoiceEngine:
 
                 return filename
 
-            except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
+            except (OSError, ValueError, RuntimeError) as e:
                 logger.error(f"❌ Pocket-TTS error: {e}")
                 return None
             finally:
@@ -315,7 +323,7 @@ class VoiceEngine:
                 on_audio(filename)
 
 
-    async def transcribe_file(self, audio_path: str) -> str:
+    async def transcribe_file(self, audio_path: str) -> Optional[str]:
         """Transcribe an audio file (e.g. Discord voice message) to text using Moonshine/Whisper."""
         loop = asyncio.get_running_loop()
 
@@ -344,13 +352,13 @@ class VoiceEngine:
                 # Try Whisper first (local), then Google (online)
                 try:
                     text = recognizer.recognize_whisper(audio_data, model="base")
-                except (OSError, PermissionError, RuntimeError, TypeError, ValueError):
+                except (OSError, RuntimeError, ValueError):
                     text = recognizer.recognize_google(audio_data)
 
                 logger.info(f"[Voice] Transcribed: '{text[:60]}...'")
                 return text
 
-            except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
+            except (OSError, ValueError, RuntimeError) as e:
                 logger.error(f"[Voice] Transcription error: {e}")
                 return None
 

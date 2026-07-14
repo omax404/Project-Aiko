@@ -254,33 +254,37 @@ fun FloatingNavBar(
  */
 @Composable
 fun AbstractPosterCanvas(modifier: Modifier = Modifier) {
+    val primaryRed = AikoColors.PrimaryRed
+    val surfaceDark = AikoColors.SurfaceDark
+    val textPrimary = AikoColors.TextPrimary
+
     androidx.compose.foundation.Canvas(modifier = modifier) {
         val width = size.width
         val height = size.height
 
         // Top left giant circle (Vibrant Red)
         drawCircle(
-            color = AikoColors.PrimaryRed,
+            color = primaryRed,
             radius = width * 0.45f,
             center = androidx.compose.ui.geometry.Offset(-width * 0.1f, -height * 0.05f)
         )
 
         // Bottom right semi-circle (Dark Charcoal)
         drawCircle(
-            color = AikoColors.SurfaceDark,
+            color = surfaceDark,
             radius = width * 0.6f,
             center = androidx.compose.ui.geometry.Offset(width * 1.1f, height * 1.1f)
         )
         
         // Decorative lines
         drawLine(
-            color = AikoColors.TextPrimary,
+            color = textPrimary,
             start = androidx.compose.ui.geometry.Offset(width * 0.1f, height * 0.3f),
             end = androidx.compose.ui.geometry.Offset(width * 0.9f, height * 0.3f),
             strokeWidth = 3f
         )
         drawLine(
-            color = AikoColors.TextPrimary,
+            color = textPrimary,
             start = androidx.compose.ui.geometry.Offset(width * 0.1f, height * 0.32f),
             end = androidx.compose.ui.geometry.Offset(width * 0.5f, height * 0.32f),
             strokeWidth = 1.5f

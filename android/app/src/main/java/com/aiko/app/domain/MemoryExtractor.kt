@@ -22,7 +22,7 @@ class MemoryExtractor @Inject constructor(
         lastMessages: List<String>,
         existingMemories: List<MemoryEntity>
     ): List<MemoryEntity> = withContext(Dispatchers.IO) {
-        if (apiKey.isEmpty() || lastMessages.isEmpty()) return@withContext emptyList()
+        if (apiKey.isBlank() || lastMessages.isEmpty()) return@withContext emptyList()
 
         try {
             val existingString = existingMemories.joinToString("\n") { "- [${it.category}] ${it.content}" }
@@ -53,15 +53,9 @@ class MemoryExtractor @Inject constructor(
             val response = model.generateContent(prompt)
             val jsonText = response.text?.trim() ?: return@withContext emptyList()
 
-            // Safe parsing of json, strips ```json wrappers if present
-            val cleanJson = if (jsonText.startsWith("```")) {
-                jsonText.lines()
-                    .filter { !it.startsWith("```") }
-                    .joinToString("\n")
-                    .trim()
-            } else {
-                jsonText
-            }
+            // Safe parsing of JSON: extract everything between the first '[' and the last ']'
+            val arrayRegex = Regex("\\[[\\s\\S]*\\]")
+            val cleanJson = arrayRegex.find(jsonText)?.value?.trim() ?: jsonText
 
             Log.d("MemoryExtractor", "Extracted raw json: $cleanJson")
 

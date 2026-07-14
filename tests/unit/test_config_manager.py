@@ -7,7 +7,6 @@ import json
 import pytest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.config_manager import ConfigManager, config, normalize_llm_url
 

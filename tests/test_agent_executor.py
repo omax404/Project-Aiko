@@ -1,5 +1,5 @@
 import pytest
-from core.agent_executor import AgentExecutor, AgentAction
+from core.infrastructure.tools.executor import AgentExecutor, AgentAction
 
 def test_parse_actions():
     executor = AgentExecutor()

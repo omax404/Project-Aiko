@@ -13,7 +13,6 @@ _AIKO_LIVE_STATE: dict = {
     "state":         "idle",
     "cpu":           0.0,
     "ram":           0.0,
-    "affection":     50,
     "last_msg":      "",
     "auto_enabled":  False,
     "auto_cycle":    0,

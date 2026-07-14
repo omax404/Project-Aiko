@@ -19,12 +19,6 @@ export interface Session {
   lastActive: string;
 }
 
-export interface Relationship {
-  affection: number;
-  level: string;
-  points: number;
-}
-
 interface NeuralState {
   // Chat State
   messages: Message[];
@@ -72,7 +66,6 @@ interface NeuralState {
     latency: number;
     lastSeen: string;
   };
-  relationship: Relationship;
   isSidebarOpen: boolean;
   themeColor: string;
   dynamicsIntensity: number;
@@ -96,7 +89,6 @@ interface NeuralState {
   fetchProjectStructure: () => Promise<void>;
   updateApiConfig: (config: Partial<NeuralState['apiConfig']>) => void;
   fetchBridgeStatus: () => Promise<void>;
-  fetchRelationship: () => Promise<void>;
   setEmotion: (emotion: string) => void;
   editMessage: (id: string, newContent: string) => void;
   deleteMessage: (id: string) => void;
@@ -118,8 +110,20 @@ interface NeuralState {
 let socket: WebSocket | null = null;
 let reconnectTimer: any = null;
 let reconnectAttempts = 0;
-const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI__;
-let hubUrl = isTauri ? 'http://127.0.0.1:8000' : (typeof window !== 'undefined' ? window.location.origin : 'http://127.0.0.1:8000');
+export const getHubUrl = (): string => {
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    if (!window.location.port || window.location.port !== '1422') {
+      return window.location.origin;
+    }
+  }
+  const envPort = (import.meta as any).env?.VITE_AIKO_PORT;
+  if (envPort) {
+    return `http://127.0.0.1:${envPort}`;
+  }
+  return 'http://127.0.0.1:8000';
+};
+
+let hubUrl = getHubUrl();
 let isConnecting = false;
 let globalAudioCtx: AudioContext | null = null;
 
@@ -302,14 +306,34 @@ function connectSocket() {
               timestamp: new Date().toISOString(),
               id: store2.streamingId || undefined
             };
-            useNeuralStore.setState((s) => ({
-              messages: [...s.messages, newMessage],
-              streamingContent: '',
-              streamingId: null,
-              isThinking: false,
-              isTalking: false,
-              currentEmotion: emotion
-            }));
+            const cleanedContent = finalContent.replace(/<emotion>.*?<\/emotion>/gi, '').trim();
+            const previewText = cleanedContent.substring(0, 60).replace(/\n/g, ' ') + (cleanedContent.length > 60 ? '...' : '');
+            useNeuralStore.setState((s) => {
+              const updatedSessions = s.sessions.map((sess) => {
+                if (sess.id === s.activeSessionId) {
+                  return {
+                    ...sess,
+                    preview: previewText || "Empty neural buffer...",
+                    lastActive: new Date().toISOString()
+                  };
+                }
+                return sess;
+              });
+              updatedSessions.sort((a, b) => {
+                const timeA = new Date(a.lastActive || 0).getTime();
+                const timeB = new Date(b.lastActive || 0).getTime();
+                return timeB - timeA;
+              });
+              return {
+                messages: [...s.messages, newMessage],
+                sessions: updatedSessions,
+                streamingContent: '',
+                streamingId: null,
+                isThinking: false,
+                isTalking: false,
+                currentEmotion: emotion
+              };
+            });
             break;
           }
           case 'pong':
@@ -420,11 +444,6 @@ export const useNeuralStore = create<NeuralState>()(
         latency: 0,
         lastSeen: "",
       },
-      relationship: {
-        affection: 85,
-        level: "Devoted",
-        points: 1250
-      },
       isSidebarOpen: true,
       themeColor: '#C9A8D9',
       dynamicsIntensity: 80,
@@ -436,6 +455,8 @@ export const useNeuralStore = create<NeuralState>()(
       setThemeColor: (color: string) => {
         set({ themeColor: color });
         document.documentElement.style.setProperty('--acc', color);
+        document.documentElement.style.setProperty('--accent', color);
+        document.documentElement.style.setProperty('--acc2', color);
         // Also update soft glow versions if needed
         document.documentElement.style.setProperty('--acc-soft', `${color}1f`);
         document.documentElement.style.setProperty('--acc-glow', `${color}40`);
@@ -462,12 +483,40 @@ export const useNeuralStore = create<NeuralState>()(
       sendMessage: (content, attachments) => {
         const timestamp = new Date().toISOString();
         const userMsg: Message = { role: 'user', content, timestamp, attachments };
+        const cleanedText = content.replace(/<emotion>.*?<\/emotion>/gi, '').trim();
+        const shortPreview = cleanedText.substring(0, 60).replace(/\n/g, ' ') + (cleanedText.length > 60 ? '...' : '');
 
-        set((state) => ({
-          messages: [...state.messages, userMsg],
-          isThinking: true,
-          streamingContent: ''
-        }));
+        set((state) => {
+          const updatedMessages = [...state.messages, userMsg];
+          const updatedSessions = state.sessions.map((sess) => {
+            if (sess.id === state.activeSessionId) {
+              return {
+                ...sess,
+                preview: shortPreview || "Empty neural buffer...",
+                lastActive: new Date().toISOString()
+              };
+            }
+            return sess;
+          });
+          updatedSessions.sort((a, b) => {
+            const timeA = new Date(a.lastActive || 0).getTime();
+            const timeB = new Date(b.lastActive || 0).getTime();
+            return timeB - timeA;
+          });
+          return {
+            messages: updatedMessages,
+            sessions: updatedSessions,
+            isThinking: true,
+            streamingContent: ''
+          };
+        });
+
+        // Rename session dynamically on first message
+        const currentSession = get().sessions.find(s => s.id === get().activeSessionId);
+        if (currentSession && (currentSession.title === "New Conversation" || get().messages.length <= 1)) {
+          const newName = cleanedText.length > 25 ? cleanedText.substring(0, 22) + "..." : (cleanedText || "New Conversation");
+          get().renameSession(get().activeSessionId!, newName);
+        }
 
         const payload = JSON.stringify({
           type: 'chat',
@@ -495,11 +544,31 @@ export const useNeuralStore = create<NeuralState>()(
               role: 'assistant', content: reply, emotion,
               timestamp: new Date().toISOString()
             };
-            useNeuralStore.setState((s) => ({
-              messages: [...s.messages, aiMsg],
-              isThinking: false,
-              currentEmotion: emotion
-            }));
+            const cleanedReply = reply.replace(/<emotion>.*?<\/emotion>/gi, '').trim();
+            const replyPreview = cleanedReply.substring(0, 60).replace(/\n/g, ' ') + (cleanedReply.length > 60 ? '...' : '');
+            useNeuralStore.setState((s) => {
+              const updatedSessions = s.sessions.map((sess) => {
+                if (sess.id === s.activeSessionId) {
+                  return {
+                    ...sess,
+                    preview: replyPreview || "Empty neural buffer...",
+                    lastActive: new Date().toISOString()
+                  };
+                }
+                return sess;
+              });
+              updatedSessions.sort((a, b) => {
+                const timeA = new Date(a.lastActive || 0).getTime();
+                const timeB = new Date(b.lastActive || 0).getTime();
+                return timeB - timeA;
+              });
+              return {
+                messages: [...s.messages, aiMsg],
+                sessions: updatedSessions,
+                isThinking: false,
+                currentEmotion: emotion
+              };
+            });
           })
           .catch(err => {
             console.error('[Aiko] Both WS and HTTP failed:', err);
@@ -612,14 +681,6 @@ export const useNeuralStore = create<NeuralState>()(
           const res = await fetch(`${hubUrl}/status`);
           const data = await res.json();
           set({ bridgeStatus: data.bridge || get().bridgeStatus });
-        } catch (e) {}
-      },
-
-      fetchRelationship: async () => {
-        try {
-          const res = await fetch(`${hubUrl}/api/relationship`);
-          const data = await res.json();
-          set({ relationship: data || get().relationship });
         } catch (e) {}
       },
 
@@ -755,7 +816,6 @@ export const useNeuralStore = create<NeuralState>()(
       name: 'neural-storage',
       partialize: (state) => ({ 
         apiConfig: state.apiConfig,
-        relationship: state.relationship,
         themeColor: state.themeColor,
         isSidebarOpen: state.isSidebarOpen,
         dynamicsIntensity: state.dynamicsIntensity,

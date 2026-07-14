@@ -1,5 +1,6 @@
 package com.aiko.app.data.repository
 
+import android.content.Context
 import android.util.Log
 import com.aiko.app.data.local.AikoPrefs
 import com.aiko.app.data.local.BondDao
@@ -13,10 +14,12 @@ import com.aiko.app.data.local.MessageEntity
 import com.aiko.app.domain.EmotionEngine
 import com.aiko.app.domain.EmotionState
 import com.aiko.app.domain.MemoryExtractor
-import com.google.ai.client.generativeai.type.GenerateContentResponse
+import com.aiko.app.domain.AikoVocalizer
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -24,19 +27,24 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import org.json.JSONObject
 import org.json.JSONArray
+import org.webrtc.PeerConnection
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class ChatRepository @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val messageDao: MessageDao,
     val memoryDao: MemoryDao,
     val emotionLogDao: EmotionLogDao,
@@ -44,12 +52,28 @@ class ChatRepository @Inject constructor(
     private val aikoPrefs: AikoPrefs,
     private val emotionEngine: EmotionEngine,
     private val memoryExtractor: MemoryExtractor,
-    private val geminiService: GeminiService
+    private val geminiService: GeminiService,
+    private val vocalizer: AikoVocalizer
 ) {
     private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val _currentEmotion = MutableStateFlow(EmotionState())
     val currentEmotion: StateFlow<EmotionState> = _currentEmotion.asStateFlow()
+
+    private val _currentAmplitude = MutableStateFlow(0f)
+    val currentAmplitude: StateFlow<Float> = _currentAmplitude.asStateFlow()
+
+    // WebSocket state variables
+    private var webSocket: okhttp3.WebSocket? = null
+    private var isConnecting = false
+    private var reconnectDelay = 1000L
+    private val wsClient = OkHttpClient.Builder()
+        .pingInterval(15, java.util.concurrent.TimeUnit.SECONDS)
+        .build()
+    private var activeChatChannel: kotlinx.coroutines.channels.Channel<String>? = null
+
+    // WebRTC client state variables
+    private var webRtcClient: WebRtcClient? = null
 
     init {
         // Hydrate initial emotion state from DB
@@ -72,6 +96,9 @@ class ChatRepository @Inject constructor(
                 bondDao.insertOrUpdateBond(BondEntity())
             }
         }
+        
+        // Start WebSocket Connection Monitor
+        startWebSocketConnection()
     }
 
     fun getMessages(conversationId: String): Flow<List<MessageEntity>> {
@@ -94,6 +121,7 @@ class ChatRepository @Inject constructor(
         _currentEmotion.value = EmotionState()
         saveEmotionLog(_currentEmotion.value)
         bondDao.insertOrUpdateBond(BondEntity())
+        vocalizer.stop()
     }
 
     suspend fun saveEmotionLog(state: EmotionState) {
@@ -110,25 +138,250 @@ class ChatRepository @Inject constructor(
     }
 
     /**
-     * Sends the message to Gemini or Desktop Server and returns a character stream.
+     * Converts an HTTP URL to its WebSocket equivalent.
+     */
+    private fun getWebSocketUrl(httpUrl: String): String {
+        val clean = httpUrl.trim()
+        val noProto = when {
+            clean.startsWith("http://") -> clean.substring(7)
+            clean.startsWith("https://") -> clean.substring(8)
+            else -> clean
+        }
+        val proto = if (clean.startsWith("https://")) "wss://" else "ws://"
+        val base = if (noProto.endsWith("/")) noProto.dropLast(1) else noProto
+        return "$proto$base/ws"
+    }
+
+    /**
+     * Reconnect monitor loop.
+     */
+    private fun startWebSocketConnection() {
+        repositoryScope.launch {
+            aikoPrefs.desktopConnectedFlow.collect { isConnected ->
+                if (isConnected) {
+                    val url = aikoPrefs.desktopUrlFlow.first()
+                    connectWs(url)
+
+                    // Also initialize WebRTC pipeline
+                    try {
+                        webRtcClient?.close()
+                        webRtcClient = WebRtcClient(
+                            context = context,
+                            serverUrl = url,
+                            onMessageReceived = { msg ->
+                                handleIncomingWebRtcMessage(msg)
+                            }
+                        ).apply {
+                            startConnection()
+                        }
+                    } catch (e: Exception) {
+                        Log.e("ChatRepository", "WebRTC init failed: ${e.message}")
+                    }
+                } else {
+                    disconnectWs()
+                    webRtcClient?.close()
+                    webRtcClient = null
+                }
+            }
+        }
+    }
+
+    private fun connectWs(serverUrl: String) {
+        if (webSocket != null || isConnecting) return
+        isConnecting = true
+        try {
+            val wsUrl = getWebSocketUrl(serverUrl)
+            val request = Request.Builder().url(wsUrl).build()
+
+            webSocket = wsClient.newWebSocket(request, object : okhttp3.WebSocketListener() {
+                override fun onOpen(webSocket: okhttp3.WebSocket, response: okhttp3.Response) {
+                    Log.i("ChatRepository", "WebSocket Connected to $wsUrl")
+                    isConnecting = false
+                    reconnectDelay = 1000L
+                }
+
+                override fun onMessage(webSocket: okhttp3.WebSocket, text: String) {
+                    try {
+                        val json = JSONObject(text)
+                        val type = json.optString("type")
+
+                        when (type) {
+                            "chat_token" -> {
+                                val token = json.optString("token")
+                                activeChatChannel?.trySend(token)
+                                val emotion = json.optString("emotion")
+                                if (emotion.isNotEmpty() && emotion != "null") {
+                                    updateEmotionState(emotion)
+                                }
+                            }
+                            "tts_amplitude" -> {
+                                val amp = json.optDouble("amplitude", 0.0).toFloat()
+                                _currentAmplitude.value = amp
+                            }
+                            "chat_end" -> {
+                                val emotion = json.optString("emotion")
+                                if (emotion.isNotEmpty() && emotion != "null") {
+                                    updateEmotionState(emotion)
+                                }
+                                activeChatChannel?.close()
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e("ChatRepository", "Error parsing WS message: ${e.message}")
+                    }
+                }
+
+                override fun onClosed(webSocket: okhttp3.WebSocket, code: Int, reason: String) {
+                    Log.i("ChatRepository", "WebSocket Closed: $reason")
+                    scheduleReconnect(serverUrl)
+                }
+
+                override fun onFailure(webSocket: okhttp3.WebSocket, t: Throwable, response: okhttp3.Response?) {
+                    Log.e("ChatRepository", "WebSocket Failure: ${t.message}")
+                    scheduleReconnect(serverUrl)
+                }
+            })
+        } catch (e: Exception) {
+            Log.e("ChatRepository", "Error creating WebSocket: ${e.message}")
+            isConnecting = false
+        }
+    }
+
+    private fun scheduleReconnect(serverUrl: String) {
+        webSocket = null
+        isConnecting = false
+        repositoryScope.launch {
+            delay(reconnectDelay)
+            reconnectDelay = (reconnectDelay * 2).coerceAtMost(15000L)
+            if (aikoPrefs.desktopConnectedFlow.first()) {
+                connectWs(serverUrl)
+            }
+        }
+    }
+
+    private fun disconnectWs() {
+        webSocket?.close(1000, "Disconnected by user")
+        webSocket = null
+        isConnecting = false
+    }
+
+    private fun handleIncomingWebRtcMessage(text: String) {
+        try {
+            val json = JSONObject(text)
+            val type = json.optString("type")
+
+            when (type) {
+                "chat_token" -> {
+                    val token = json.optString("token")
+                    activeChatChannel?.trySend(token)
+                    val emotion = json.optString("emotion")
+                    if (emotion.isNotEmpty() && emotion != "null") {
+                        updateEmotionState(emotion)
+                    }
+                }
+                "tts_amplitude" -> {
+                    val amp = json.optDouble("amplitude", 0.0).toFloat()
+                    _currentAmplitude.value = amp
+                }
+                "chat_end" -> {
+                    val emotion = json.optString("emotion")
+                    if (emotion.isNotEmpty() && emotion != "null") {
+                        updateEmotionState(emotion)
+                    }
+                    activeChatChannel?.close()
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("ChatRepository", "Error parsing WebRTC data message: ${e.message}")
+        }
+    }
+
+    private fun updateEmotionState(emotion: String) {
+        val state = when (emotion) {
+            "happy" -> EmotionState(dopamine = 0.8f, serotonin = 0.8f, cortisol = 0.1f, adrenaline = 0.4f)
+            "flustered" -> EmotionState(dopamine = 0.9f, serotonin = 0.6f, cortisol = 0.3f, adrenaline = 0.7f)
+            "devoted" -> EmotionState(dopamine = 0.7f, serotonin = 0.9f, cortisol = 0.1f, adrenaline = 0.3f)
+            "calm" -> EmotionState(dopamine = 0.5f, serotonin = 0.8f, cortisol = 0.1f, adrenaline = 0.2f)
+            "sad" -> EmotionState(dopamine = 0.2f, serotonin = 0.3f, cortisol = 0.6f, adrenaline = 0.2f)
+            "worried" -> EmotionState(dopamine = 0.3f, serotonin = 0.4f, cortisol = 0.8f, adrenaline = 0.5f)
+            "jealous" -> EmotionState(dopamine = 0.4f, serotonin = 0.5f, cortisol = 0.4f, adrenaline = 0.6f)
+            else -> EmotionState()
+        }
+        _currentEmotion.value = state
+        repositoryScope.launch {
+            saveEmotionLog(state)
+        }
+    }
+
+    /**
+     * Incremental memory synchronization.
+     */
+    suspend fun syncMemories(): Boolean = withContext(Dispatchers.IO) {
+        val isConnected = aikoPrefs.desktopConnectedFlow.first()
+        if (!isConnected) return@withContext false
+
+        val baseUrl = aikoPrefs.desktopUrlFlow.first()
+        val since = aikoPrefs.lastSyncTimestampFlow.first()
+        val url = if (baseUrl.endsWith("/")) {
+            "${baseUrl}api/memory/export?since=${since / 1000.0}"
+        } else {
+            "${baseUrl}/api/memory/export?since=${since / 1000.0}"
+        }
+
+        val request = Request.Builder().url(url).build()
+
+        return@withContext try {
+            val response = wsClient.newCall(request).execute()
+            response.use { resp ->
+                if (resp.isSuccessful) {
+                    val body = resp.body?.string() ?: ""
+                    val json = JSONObject(body)
+                    val memories = json.optJSONArray("memories")
+                    if (memories != null) {
+                        var maxTimestamp = since
+                        for (i in 0 until memories.length()) {
+                            val obj = memories.getJSONObject(i)
+                            val id = obj.optString("id")
+                            val content = obj.optString("content")
+                            val category = obj.optString("category")
+                            val confidence = obj.optDouble("confidence", 1.0).toFloat()
+                            val timestamp = obj.optLong("timestamp", System.currentTimeMillis())
+
+                            memoryDao.insertMemory(
+                                MemoryEntity(
+                                    id = id,
+                                    category = category,
+                                    content = content,
+                                    confidence = confidence,
+                                    createdAt = timestamp,
+                                    lastAccessed = System.currentTimeMillis()
+                                )
+                            )
+                            maxTimestamp = maxOf(maxTimestamp, timestamp)
+                        }
+                        aikoPrefs.setLastSyncTimestamp(maxTimestamp)
+                        true
+                    } else false
+                } else false
+            }
+        } catch (e: Exception) {
+            Log.e("ChatRepository", "Memory sync error: ${e.message}")
+            false
+        }
+    }
+
+    /**
+     * Sends the message and returns a real-time stream flow.
      */
     suspend fun streamAikoResponse(
         conversationId: String,
         newMessage: String,
         base64Image: String? = null
     ): Flow<String> {
-        // 1. Process sentiment of user's incoming text locally (if not connecting to desktop)
         val isDesktopConnected = aikoPrefs.desktopConnectedFlow.first()
         val desktopUrl = aikoPrefs.desktopUrlFlow.first()
 
-        if (!isDesktopConnected) {
-            val current = _currentEmotion.value
-            val userImpactedEmotion = emotionEngine.processMessage(newMessage, current)
-            _currentEmotion.value = userImpactedEmotion
-            saveEmotionLog(userImpactedEmotion)
-        }
-
-        // 2. Insert user message in database
+        // 1. Local logging of user message
         messageDao.insertMessage(
             MessageEntity(
                 conversationId = conversationId,
@@ -139,20 +392,67 @@ class ChatRepository @Inject constructor(
         )
 
         if (isDesktopConnected) {
-            return streamFromDesktop(desktopUrl, newMessage, base64Image)
+            val channel = kotlinx.coroutines.channels.Channel<String>(kotlinx.coroutines.channels.Channel.UNLIMITED)
+            activeChatChannel = channel
+
+            val payload = JSONObject().apply {
+                put("type", "chat")
+                put("text", newMessage)
+                put("session_id", conversationId)
+                val attachmentsArray = JSONArray()
+                if (base64Image != null) {
+                    attachmentsArray.put(base64Image)
+                }
+                put("attachments", attachmentsArray)
+            }
+
+            // Route over active WebRTC peer-to-peer data channel if connected
+            val isRtcConnected = webRtcClient?.connectionState?.value == PeerConnection.PeerConnectionState.CONNECTED
+            var sent = false
+            if (isRtcConnected) {
+                sent = webRtcClient?.sendMessage(payload.toString()) ?: false
+                if (sent) {
+                    Log.i("ChatRepository", "Message routed over WebRTC P2P DataChannel")
+                }
+            }
+
+            // Fallback to local network WebSocket
+            if (!sent) {
+                if (webSocket == null) {
+                    connectWs(desktopUrl)
+                    delay(300)
+                }
+                val ws = webSocket
+                if (ws != null) {
+                    ws.send(payload.toString())
+                    Log.i("ChatRepository", "Message routed over local WebSocket link")
+                } else {
+                    channel.trySend("Error: Neural Hub not connected. Re-checking link...")
+                    channel.close()
+                }
+            }
+
+            return flow {
+                for (token in channel) {
+                    emit(token)
+                }
+            }
         }
 
-        // 3. Fetch configs from DataStore for local execution
+        // 2. Local fallback inference mode
+        _currentEmotion.update { current ->
+            val userImpactedEmotion = emotionEngine.processMessage(newMessage, current)
+            repositoryScope.launch { saveEmotionLog(userImpactedEmotion) }
+            userImpactedEmotion
+        }
+
         val apiKey = aikoPrefs.apiKeyFlow.first()
         val modelName = aikoPrefs.modelChoiceFlow.first()
         val userName = aikoPrefs.userNameFlow.first()
-
-        // 4. Fetch state dependencies from database
         val bond = bondDao.getBond() ?: BondEntity()
         val recentMessages = messageDao.getRecentMessages(12)
         val memories = memoryDao.getAllMemories()
 
-        // 5. Generate and return the API response stream flow mapped to String
         return geminiService.generateStreamingResponse(
             apiKey = apiKey,
             modelName = modelName,
@@ -167,70 +467,16 @@ class ChatRepository @Inject constructor(
             history = recentMessages,
             newMessage = newMessage
         ).map { it.text ?: "" }
+         .catch { err ->
+             emit("Connection sync issues: ${err.message ?: "Failed to generate response. Check API key settings."}")
+         }
     }
 
-    private fun streamFromDesktop(
-        serverUrl: String,
-        message: String,
-        base64Image: String?
-    ): Flow<String> = flow {
-        val client = OkHttpClient.Builder()
-            .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
-            .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
-            .build()
-
-        val jsonPayload = JSONObject().apply {
-            put("message", message)
-            put("user_id", "android_client")
-            val attachmentsArray = JSONArray()
-            if (base64Image != null) {
-                attachmentsArray.put(base64Image)
-            }
-            put("attachments", attachmentsArray)
-        }
-
-        val mediaType = "application/json; charset=utf-8".toMediaTypeOrNull()
-        val requestBody = jsonPayload.toString().toRequestBody(mediaType)
-
-        val requestUrl = if (serverUrl.endsWith("/")) "${serverUrl}api/chat" else "$serverUrl/api/chat"
-        val request = Request.Builder()
-            .url(requestUrl)
-            .post(requestBody)
-            .build()
-
-        try {
-            val response = client.newCall(request).execute()
-            if (response.isSuccessful) {
-                val bodyString = response.body?.string() ?: ""
-                val responseJson = JSONObject(bodyString)
-                val replyText = responseJson.optString("response", "")
-
-                // Sync desktop's emotion back to the phone to render state on mobile avatar
-                val desktopEmotion = responseJson.optString("emotion", "neutral")
-                val state = when (desktopEmotion) {
-                    "happy" -> EmotionState(dopamine = 0.8f, serotonin = 0.8f, cortisol = 0.1f, adrenaline = 0.4f)
-                    "flustered" -> EmotionState(dopamine = 0.9f, serotonin = 0.6f, cortisol = 0.3f, adrenaline = 0.7f)
-                    "devoted" -> EmotionState(dopamine = 0.7f, serotonin = 0.9f, cortisol = 0.1f, adrenaline = 0.3f)
-                    "calm" -> EmotionState(dopamine = 0.5f, serotonin = 0.8f, cortisol = 0.1f, adrenaline = 0.2f)
-                    "sad" -> EmotionState(dopamine = 0.2f, serotonin = 0.3f, cortisol = 0.6f, adrenaline = 0.2f)
-                    "worried" -> EmotionState(dopamine = 0.3f, serotonin = 0.4f, cortisol = 0.8f, adrenaline = 0.5f)
-                    "jealous" -> EmotionState(dopamine = 0.4f, serotonin = 0.5f, cortisol = 0.4f, adrenaline = 0.6f)
-                    else -> EmotionState()
-                }
-                _currentEmotion.value = state
-                saveEmotionLog(state)
-
-                // Simulate smooth typing flow token-by-token
-                for (char in replyText) {
-                    emit(char.toString())
-                    kotlinx.coroutines.delay(12L) // 12ms typing simulation per character
-                }
-            } else {
-                emit("Error: Server returned code ${response.code}")
-            }
-        } catch (e: Exception) {
-            emit("Error: Could not connect to Aiko Desktop at $serverUrl. Make sure they are on the same Wi-Fi!")
-        }
+    /**
+     * Triggers speech vocalization for the given text.
+     */
+    suspend fun speakText(text: String) {
+        vocalizer.speak(text)
     }
 
     /**
@@ -241,9 +487,9 @@ class ChatRepository @Inject constructor(
         fullReply: String
     ) {
         val isDesktopConnected = aikoPrefs.desktopConnectedFlow.first()
+        val (cleanText, tag) = emotionEngine.parseResponseEmotion(fullReply)
+
         if (isDesktopConnected) {
-            // For desktop sync: just log the clean message in database so it displays in chat history
-            val (cleanText, tag) = emotionEngine.parseResponseEmotion(fullReply)
             messageDao.insertMessage(
                 MessageEntity(
                     conversationId = conversationId,
@@ -255,16 +501,18 @@ class ChatRepository @Inject constructor(
             return
         }
 
-        // 1. Parse emotion code
-        val (cleanText, tag) = emotionEngine.parseResponseEmotion(fullReply)
+        // Auto-vocalize response in Local Fallback mode if voice output is enabled
+        if (aikoPrefs.voiceEnabledFlow.first()) {
+            repositoryScope.launch {
+                vocalizer.speak(cleanText)
+            }
+        }
 
-        // 2. Calculate chemistry response
         val current = _currentEmotion.value
         val finalEmotion = emotionEngine.applyTagImpact(tag, current)
         _currentEmotion.value = finalEmotion
         saveEmotionLog(finalEmotion)
 
-        // 3. Save Aiko response in database
         messageDao.insertMessage(
             MessageEntity(
                 conversationId = conversationId,
@@ -274,12 +522,11 @@ class ChatRepository @Inject constructor(
             )
         )
 
-        // 4. Update xp bond status
+        // XP/Level mapping
         val oldBond = bondDao.getBond() ?: BondEntity()
-        val xpGain = 10 + (finalEmotion.dopamine * 5).toInt() // Dopamine boosts XP!
+        val xpGain = 10 + (finalEmotion.dopamine * 5).toInt()
         var newXp = oldBond.xp + xpGain
         var newLevel = oldBond.level
-        
         val xpNeeded = 100 * newLevel
         if (newXp >= xpNeeded) {
             newLevel += 1
@@ -304,7 +551,7 @@ class ChatRepository @Inject constructor(
             )
         )
 
-        // 5. Check memory consolidation (run every 5 messages asynchronously)
+        // Memory consolidation triggers
         if ((oldBond.totalMessages + 2) % 5 == 0) {
             repositoryScope.launch {
                 try {

@@ -7,7 +7,6 @@ import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.mcp_bridge import MCPBridge, mcp_bridge, _is_allowed
 

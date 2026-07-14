@@ -19,7 +19,7 @@ from core.api.broadcast import broadcast_event
 from core.api.schemas import (
     ChatRequest, SettingsUpdate, SessionRename, SessionPin,
     SessionDelete, HistoryQuery, LatexRenderRequest,
-    RelationshipResponse, HealthResponse, StatusResponse, SessionCreate
+    HealthResponse, StatusResponse, SessionCreate
 )
 from core.persona import detect_emotion
 from core.structured_logger import system_logger
@@ -64,6 +64,21 @@ async def sync_star_office(state: str, detail: str = ""):
     return False
 
 
+def get_local_ip() -> str:
+    import socket
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        try:
+            return socket.gethostbyname(socket.gethostname())
+        except Exception:
+            return "127.0.0.1"
+
+
 async def handle_status(req):
     try:
         rag_available = False
@@ -85,20 +100,21 @@ async def handle_status(req):
                 rag_count = getattr(hub.rag, "_cached_count", 0)
 
         metrics = {
-            "cpu": psutil.cpu_percent(),
-            "ram": psutil.virtual_memory().percent,
+            "cpu": 0.0,
+            "ram": 0.0,
             "rag": rag_count
         }
         response = StatusResponse(
             status="online",
             hub_name="Aiko Neural Hub v2",
             metrics=metrics,
-            rag_available=rag_available
+            rag_available=rag_available,
+            local_ip=get_local_ip()
         )
         return web.json_response(response.dict())
     except (AttributeError, TypeError) as e:
         logger.error(f"Status endpoint config error: {e}")
-        return web.json_response({"status": "online", "hub_name": "Aiko Neural Hub v2", "metrics": {}, "rag_available": False})
+        return web.json_response({"status": "online", "hub_name": "Aiko Neural Hub v2", "metrics": {}, "rag_available": False, "local_ip": "127.0.0.1"})
 
 
 async def handle_health(req):
@@ -245,6 +261,37 @@ async def handle_history(req):
         return web.json_response({"error": f"Failed to load history: {e}"}, status=500)
 
 
+def _sanitize_input(text: str) -> tuple[str, bool, str]:
+    """
+    Sanitize and validate user input before it reaches the brain.
+    
+    Returns:
+        (sanitized_text, is_safe, rejection_reason)
+    """
+    from core.security import policy_engine
+    from core.structured_logger import system_logger
+
+    # Strip null bytes and control characters
+    cleaned = text.replace('\x00', '').strip()
+    cleaned = ''.join(c for c in cleaned if c == '\n' or ord(c) >= 32)
+    
+    # Length cap
+    if len(cleaned) > 4000:
+        system_logger.warning(f"Input rejected: length {len(cleaned)} exceeds 4000 chars")
+        return cleaned[:4000], False, "Input exceeds maximum length of 4000 characters."
+    
+    # Injection detection
+    is_blocked, confidence = policy_engine.detect_injection(cleaned)
+    if is_blocked:
+        system_logger.warning(
+            f"SECURITY: Blocked injection attempt (confidence={confidence:.2f}): "
+            f"'{cleaned[:80]}...'"
+        )
+        return cleaned, False, "Message rejected by security policy."
+    
+    return cleaned, True, ""
+
+
 async def handle_chat_api(req):
     """Synchronous API for Bots (Discord/Telegram)."""
     try:
@@ -257,15 +304,32 @@ async def handle_chat_api(req):
     except KeyError as e:
         return web.json_response({"error": f"Missing field: {e}"}, status=400)
 
+    # === SECURITY GATE ===
+    from core.structured_logger import system_logger
+    sanitized_message, is_safe, rejection_reason = _sanitize_input(validated.message or "")
+    if not is_safe:
+        system_logger.warning(
+            f"SECURITY_REJECT: user={validated.user_id} reason={rejection_reason}"
+        )
+        return web.json_response(
+            {
+                "error": "Message rejected by security policy.",
+                "code": "SECURITY_VIOLATION",
+                "detail": rejection_reason,
+            },
+            status=400,
+        )
+    # === END SECURITY GATE ===
+
     try:
-        if not validated.message and not validated.attachments:
+        if not sanitized_message and not validated.attachments:
             return web.json_response({"error": "Empty message"}, status=400)
 
         await broadcast_event("state", {"thinking": True, "source": "api"})
-        await sync_star_office("researching", f"Thinking about: {validated.message[:20]}...")
+        await sync_star_office("researching", f"Thinking about: {sanitized_message[:20]}...")
 
         chat_res = await hub.brain.chat(
-            validated.message,
+            sanitized_message,
             user_id=validated.user_id,
             initial_images=validated.attachments
         )
@@ -478,40 +542,6 @@ async def handle_project_structure(req):
         return web.json_response({"error": f"Data processing error: {e}"}, status=500)
 
 
-async def handle_relationship(req):
-    try:
-        uid = req.query.get("id", hub.user_id)
-        stats = hub.memory.get_stats(uid)
-        
-        level_str = "Neural Link Active"
-        profile_path = BASE / "data" / "master_profile.json"
-        if profile_path.exists():
-            try:
-                with open(profile_path, "r", encoding="utf-8") as f:
-                    master_data = json.load(f)
-                    rel = master_data.get("relationship", {})
-                    status = rel.get("status")
-                    if status:
-                        level_str = str(status)
-            except Exception as e:
-                logger.warning(f"Failed to read master_profile.json: {e}")
-                
-        response = RelationshipResponse(
-            affection=stats.get("affection", 30),
-            level=level_str,
-            trust=85
-        )
-        return web.json_response(response.dict())
-    except (KeyError, TypeError) as e:
-        logger.error(f"Relationship endpoint key error: {e}")
-        return web.json_response({"error": f"User stats not found: {e}"}, status=404)
-    except AttributeError as e:
-        logger.error(f"Relationship endpoint memory error: {e}")
-        return web.json_response({"error": "Memory not initialized"}, status=503)
-    except (OSError, json.JSONDecodeError) as e:
-        logger.error(f"Relationship endpoint I/O error: {e}")
-        return web.json_response({"error": f"Failed to load relationship: {e}"}, status=500)
-
 
 async def handle_latex_render(req):
     try:
@@ -557,3 +587,131 @@ async def handle_latex_image(req):
     except (OSError, PermissionError) as e:
         logger.error(f"Latex image I/O error: {e}")
         return web.HTTPNotFound()
+
+
+async def handle_export_memories(req):
+    """Export RAG memories incrementally since a given timestamp."""
+    try:
+        since_val = req.query.get("since", "0")
+        try:
+            since = float(since_val)
+        except ValueError:
+            return web.json_response({"error": "Invalid 'since' timestamp format"}, status=400)
+
+        memories = []
+        if hub.rag and hub.rag.is_available() and hasattr(hub.rag, "collection") and hub.rag.collection:
+            try:
+                results = hub.rag.collection.get()
+                if results and "documents" in results and results["documents"]:
+                    docs = results["documents"]
+                    metas = results["metadatas"] or [{}] * len(docs)
+                    ids = results["ids"]
+                    for doc, meta, mem_id in zip(docs, metas, ids):
+                        ts = meta.get("timestamp", 0.0) if meta else 0.0
+                        if ts >= since:
+                            memories.append({
+                                "id": mem_id,
+                                "content": doc,
+                                "category": meta.get("category", "general") if meta else "general",
+                                "confidence": float(meta.get("confidence", 1.0)) if meta else 1.0,
+                                "timestamp": int(ts * 1000)
+                            })
+            except Exception as db_err:
+                logger.error(f"Error querying memories for export: {db_err}")
+                return web.json_response({"error": f"Database query failed: {db_err}"}, status=500)
+        return web.json_response({"memories": memories})
+    except Exception as e:
+        logger.error(f"Unhandled error in export memories: {e}")
+        return web.json_response({"error": str(e)}, status=500)
+
+
+async def handle_webrtc_offer(req):
+    """Handle WebRTC SDP offer from mobile client."""
+    from aiortc import RTCPeerConnection, RTCSessionDescription
+    try:
+        params = await req.json()
+        offer = RTCSessionDescription(sdp=params["sdp"], type=params["type"])
+
+        pc = RTCPeerConnection()
+        
+        # Keep pc referenced globally to avoid garbage collection
+        if not hasattr(hub, "_webrtc_pcs"):
+            hub._webrtc_pcs = set()
+        hub._webrtc_pcs.add(pc)
+
+        @pc.on("datachannel")
+        def on_datachannel(channel):
+            @channel.on("message")
+            async def on_message(message):
+                try:
+                    data = json.loads(message)
+                    m_type = data.get("type")
+                    
+                    if m_type == "chat":
+                        async def webrtc_sentence_callback(sentence, emotion="neutral", suppress_audio=False):
+                            try:
+                                channel.send(json.dumps({
+                                    "type": "chat_token",
+                                    "token": sentence,
+                                    "text": sentence,
+                                    "emotion": emotion
+                                }))
+                            except Exception as ex:
+                                logger.error(f"Failed to send WebRTC chat token: {ex}")
+                                
+                        original_callback = hub.brain.on_sentence
+                        
+                        def _bridge(s, emotion="neutral", suppress_audio=False):
+                            try:
+                                loop = asyncio.get_running_loop()
+                                loop.create_task(webrtc_sentence_callback(s, emotion, suppress_audio))
+                            except Exception as ex:
+                                logger.error(f"WebRTC callback loop error: {ex}")
+                                
+                        hub.brain.on_sentence = _bridge
+                        
+                        try:
+                            chat_res = await hub.brain.chat(data.get("text", ""), user_id=hub.user_id)
+                            reply = chat_res[0]
+                            active_emotion = chat_res[1]
+                            
+                            channel.send(json.dumps({
+                                "type": "chat_end",
+                                "role": "assistant",
+                                "text": reply,
+                                "content": reply,
+                                "emotion": active_emotion
+                            }))
+                        except Exception as ex:
+                            logger.error(f"WebRTC brain chat error: {ex}")
+                            channel.send(json.dumps({
+                                "type": "error",
+                                "message": str(ex)
+                            }))
+                        finally:
+                            hub.brain.on_sentence = original_callback
+                            
+                    elif m_type == "ping":
+                        channel.send(json.dumps({"type": "pong"}))
+                        
+                except Exception as ex:
+                    logger.error(f"WebRTC data message parse error: {ex}")
+
+        @pc.on("connectionstatechange")
+        async def on_connectionstatechange():
+            if pc.connectionState in ["failed", "closed"]:
+                await pc.close()
+                if hasattr(hub, "_webrtc_pcs"):
+                    hub._webrtc_pcs.discard(pc)
+
+        await pc.setRemoteDescription(offer)
+        answer = await pc.createAnswer()
+        await pc.setLocalDescription(answer)
+
+        return web.json_response({
+            "sdp": pc.localDescription.sdp,
+            "type": pc.localDescription.type
+        })
+    except Exception as e:
+        logger.error(f"WebRTC offer handling failed: {e}")
+        return web.json_response({"error": str(e)}, status=500)

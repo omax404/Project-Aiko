@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Live2DAvatar } from './components/Live2DAvatar';
-import { useNeuralStore } from './store/useNeuralStore';
+import { useNeuralStore, getHubUrl } from './store/useNeuralStore';
 import { Home, X, MessageCircle, Send, Volume2, VolumeX } from 'lucide-react';
 import { Window } from '@tauri-apps/api/window';
 import ReactMarkdown from 'react-markdown';
@@ -45,7 +45,7 @@ export default function MascotApp() {
 
   // Connect to Neural Hub and set default click-through
   useEffect(() => {
-    try { connect('http://127.0.0.1:8000'); } catch (_) {}
+    try { connect(getHubUrl()); } catch (_) {}
     fetchBridgeStatus();
     setIgnoreCursor(true); // Clicks on transparent areas fall through by default
   }, []);
@@ -143,6 +143,8 @@ export default function MascotApp() {
           height={MASCOT_H}
           scale={0.7}
           amplitude={amplitude}
+          offsetX={35}
+          offsetY={45}
         />
 
         {/* Thinking indicator — orbiting dots */}
@@ -241,27 +243,34 @@ export default function MascotApp() {
             onMouseEnter={() => setIgnoreCursor(false)}
             onMouseLeave={() => setIgnoreCursor(true)}
           >
-            {/* Chat header */}
             <div className="mascot-chat-header">
               <div className="mascot-chat-status">
                 <div className={`mascot-dot ${isThinking ? 'thinking' : 'online'}`} />
                 <span>Aiko</span>
               </div>
-              <button
-                onClick={() => setChatOpen(false)}
-                className="mascot-chat-close"
-                title="Close chat"
-              >
-                <X size={14} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleReturnToHub}
+                  className="mascot-chat-action"
+                  title="Return to Main Hub"
+                  style={{ background: 'transparent', border: 'none', color: 'var(--t4)', cursor: 'pointer', padding: '4px' }}
+                >
+                  <Home size={14} />
+                </button>
+                <button
+                  onClick={() => setChatOpen(false)}
+                  className="mascot-chat-close"
+                  title="Close chat"
+                >
+                  <X size={14} />
+                </button>
+              </div>
             </div>
 
             {/* Messages area */}
             <div className="mascot-chat-messages custom-scrollbar">
-              {messages.slice(-6).map((msg, i) => {
-                const displayContent = msg.content.length > 200
-                  ? msg.content.slice(0, 197) + '...'
-                  : msg.content;
+              {messages.slice(-10).map((msg, i) => {
+                const displayContent = msg.content.replace(/<emotion>.*?<\/emotion>/gi, '').trim();
                 return (
                   <div key={i} className={`mascot-msg ${msg.role}`}>
                     {msg.role === 'assistant' ? (
@@ -272,7 +281,7 @@ export default function MascotApp() {
                             if (!src) return null;
                             const isSticker = src.includes('/stickers/');
                             if (isSticker) {
-                              const hubUrl = 'http://127.0.0.1:8000';
+                              const hubUrl = getHubUrl();
                               const absoluteSrc = src.startsWith('http') ? src : `${hubUrl}${src}`;
                               return (
                                 <img
@@ -305,7 +314,7 @@ export default function MascotApp() {
                         if (!src) return null;
                         const isSticker = src.includes('/stickers/');
                         if (isSticker) {
-                          const hubUrl = 'http://127.0.0.1:8000';
+                          const hubUrl = getHubUrl();
                           const absoluteSrc = src.startsWith('http') ? src : `${hubUrl}${src}`;
                           return (
                             <img

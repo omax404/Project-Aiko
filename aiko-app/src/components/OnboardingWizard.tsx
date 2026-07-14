@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNeuralStore } from '../store/useNeuralStore';
+import { useNeuralStore, getHubUrl } from '../store/useNeuralStore';
 import { Play, Key, User, HardDrive, Cloud, AlertCircle } from 'lucide-react';
 
 export function OnboardingWizard() {
@@ -13,9 +13,7 @@ export function OnboardingWizard() {
   const updateApiConfig = useNeuralStore((s) => s.updateApiConfig);
   // Assume hubUrl is known or we post to /api/settings if we can.
   // Actually, since this is a React component, we can use the backend proxy or rely on `updateApiConfig` 
-  const hubUrl = (typeof window !== 'undefined' && !!(window as any).__TAURI__) 
-      ? 'http://127.0.0.1:8000' 
-      : (typeof window !== 'undefined' ? window.location.origin : 'http://127.0.0.1:8000');
+  const hubUrl = getHubUrl();
 
   const handleComplete = async () => {
     if (!username) { setError("I need to know what to call you!"); return; }

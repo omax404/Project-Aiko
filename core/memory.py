@@ -1,24 +1,23 @@
 """
 AIKO MEMORY MANAGER
-Handles short-term conversation history and affection levels.
+Handles short-term conversation history.
 """
 
 import json
 import os
 import time
-from typing import List, Dict
+from typing import List, Dict, Tuple, Optional
 from core.security import memory_cipher
 
 # Configuration
 MEMORY_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "shared_memory.json")
 MAX_HISTORY = 20
-DEFAULT_AFFECTION = 30  # Start at 'Acquaintance' level
 
 
 class MemoryManager:
-    """Manages conversation history and user affection levels."""
+    """Manages conversation history."""
     
-    def __init__(self):
+    def __init__(self) -> None:
         # Ensure data directory exists
         os.makedirs(os.path.dirname(MEMORY_FILE), exist_ok=True)
         self._cache = None
@@ -33,7 +32,7 @@ class MemoryManager:
             
         if not os.path.exists(MEMORY_FILE):
             self._cache = {
-                "global": {"history": [], "affection": 0}
+                "global": {"history": []}
             }
             return self._cache
             
@@ -54,13 +53,12 @@ class MemoryManager:
             for uid, content in list(data.items()):
                 if isinstance(content, list):
                     data[uid] = {
-                        "history": content,
-                        "affection": 100 if uid == "master" else DEFAULT_AFFECTION
+                        "history": content
                     }
                     migrated = True
                     
             if migrated:
-                print("[Memory] Migrated database to new Affection Schema.")
+                print("[Memory] Migrated database to new Schema.")
                 self.save_memory(data)
                 
             self._cache = data
@@ -68,10 +66,10 @@ class MemoryManager:
             
         except Exception as e:
             print(f"[Memory] Load error: {e}")
-            self._cache = {"global": {"history": [], "affection": 0}}
+            self._cache = {"global": {"history": []}}
             return self._cache
             
-    def save_memory(self, data: Dict[str, Dict] = None):
+    def save_memory(self, data: Dict[str, Dict] = None) -> None:
         """Mark memory as needing save. Actual disk write is batched."""
         if data is not None:
             self._cache = data
@@ -84,7 +82,7 @@ class MemoryManager:
         if now - self._last_flush >= self._flush_interval:
             self.flush()
     
-    def flush(self):
+    def flush(self) -> None:
         """Actually write to disk (called periodically or on shutdown)."""
         if not self._dirty or self._cache is None:
             return
@@ -99,7 +97,7 @@ class MemoryManager:
         except Exception as e:
             print(f"[Memory] Save error: {e}")
             
-    def get_user_data(self, user_id: str) -> tuple:
+    def get_user_data(self, user_id: str) -> Tuple[Dict[str, Dict], str]:
         """Helper to get user object, initializing if missing."""
         mem = self.load_memory()
         uid = str(user_id)
@@ -107,13 +105,12 @@ class MemoryManager:
         if uid not in mem or not isinstance(mem[uid], dict) or "history" not in mem[uid]:
             # Reset or initialize structure
             mem[uid] = {
-                "history": [],
-                "affection": DEFAULT_AFFECTION
+                "history": []
             }
             
         return mem, uid
         
-    def add_message(self, user_id: str, role: str, content: str, session_id: str = None):
+    def add_message(self, user_id: str, role: str, content: str, session_id: str = None) -> None:
         """Add a message to the shared history."""
         target_id = session_id if session_id else user_id
         mem, uid = self.get_user_data(target_id)
@@ -140,7 +137,7 @@ class MemoryManager:
         # Return only role/content for LLM
         return [{"role": m["role"], "content": m["content"]} for m in history]
 
-    def truncate_history(self, user_id: str, index: int):
+    def truncate_history(self, user_id: str, index: int) -> None:
         """Trim history to first `index` entries (used for edit-branching)."""
         mem, uid = self.get_user_data(user_id)
         index = max(0, min(index, len(mem[uid]["history"])))
@@ -148,20 +145,8 @@ class MemoryManager:
         self.save_memory(mem)
         
     def get_stats(self, user_id: str) -> Dict:
-        """Get user stats (affection, etc)."""
-        mem, uid = self.get_user_data(user_id)
-        return {"affection": mem[uid].get("affection", DEFAULT_AFFECTION)}
-        
-    def update_affection(self, user_id: str, delta: int) -> int:
-        """Change affection level. Returns new level."""
-        mem, uid = self.get_user_data(user_id)
-        
-        current = mem[uid].get("affection", DEFAULT_AFFECTION)
-        new_val = max(0, min(100, current + delta))  # Clamp 0-100
-        
-        mem[uid]["affection"] = new_val
-        self.save_memory(mem)
-        return new_val
+        """Get user stats."""
+        return {}
         
     def clear_memory(self, user_id: str = None) -> bool:
         """Clear memory for a specific user or all users."""
@@ -170,11 +155,10 @@ class MemoryManager:
             uid = str(user_id)
             if uid in mem:
                 mem[uid]["history"] = []
-                mem[uid]["affection"] = DEFAULT_AFFECTION
                 self.save_memory(mem)
                 return True
         else:
-            self._cache = {"global": {"history": [], "affection": 0}}
+            self._cache = {"global": {"history": []}}
             self.save_memory()
             return True
         return False

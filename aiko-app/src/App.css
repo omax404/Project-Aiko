@@ -63,6 +63,10 @@
   --border-accent: var(--b2);
   --text-main: var(--t1);
   --text-dim: var(--t2);
+
+  --shadow-red-glow: 0 0 20px rgba(239, 68, 68, 0.6);
+  --shadow-purple-glow: 0 0 40px rgba(168, 85, 247, 0.6);
+  --shadow-accent-glow: 0 0 15px var(--acc-glow);
 }
 
 @theme {
@@ -92,6 +96,10 @@
   --font-pixelify: 'Pixelify Sans', cursive;
   --font-dm: 'DM Sans', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
+
+  --shadow-red-glow: var(--shadow-red-glow);
+  --shadow-purple-glow: var(--shadow-purple-glow);
+  --shadow-accent-glow: var(--shadow-accent-glow);
 }
 
 /* Custom wizard effects */

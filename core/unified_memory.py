@@ -316,7 +316,7 @@ class UnifiedMemoryManager:
         self.history_file = self.data_dir / "conversation_history.json"
         self._load_history()
 
-        # Affection/personality per user
+        # User profiles
         self.user_profiles: Dict[str, Dict] = {}
         self.profiles_file = self.data_dir / "user_profiles.json"
         self._load_profiles()
@@ -370,7 +370,6 @@ class UnifiedMemoryManager:
                     continue
                 if isinstance(content, dict):
                     history = content.get("history", [])
-                    affection = content.get("affection", 30)
                     pinned = content.get("pinned", False)
                     name = content.get("name")
                     
@@ -386,7 +385,6 @@ class UnifiedMemoryManager:
                     self.history[uid] = new_history
                     
                     profile = self.get_profile(uid)
-                    profile["affection"] = affection
                     profile["pinned"] = pinned
                     if name:
                         profile["name"] = name
@@ -478,6 +476,7 @@ class UnifiedMemoryManager:
         # Memory Compression & Archiving (Keep local history efficient)
         if len(self.history[user_id]) > 40:
             self._compress_history(user_id)
+        self.save()
 
     def _compress_history(self, user_id: str):
         """Turn old conversation segments into a single semantic anchor."""
@@ -529,8 +528,7 @@ class UnifiedMemoryManager:
         
         compat_dict = {
             uid: {
-                "history": self.history[uid],
-                "affection": self.get_profile(uid).get("affection", 30)
+                "history": self.history[uid]
             }
         }
         return compat_dict, uid
@@ -562,9 +560,8 @@ class UnifiedMemoryManager:
         return True
 
     def get_stats(self, user_id: str) -> Dict:
-        """Get user stats (affection, etc)."""
-        profile = self.get_profile(user_id)
-        return {"affection": profile.get("affection", 30)}
+        """Get user stats."""
+        return {}
 
     def get_recent_sessions(self) -> List[Dict]:
         """Get list of all chat sessions sorted by recency."""
@@ -573,7 +570,12 @@ class UnifiedMemoryManager:
             if uid == "global": continue
             profile = self.get_profile(uid)
             last_msg = history[-1] if history else None
-            preview = last_msg["content"][:60].replace("\n", " ") + "..." if last_msg else "Empty Storage Node"
+            if last_msg:
+                import re
+                cleaned_content = re.sub(r'<emotion>.*?</emotion>', '', last_msg["content"], flags=re.IGNORECASE).strip()
+                preview = cleaned_content[:60].replace("\n", " ") + ("..." if len(cleaned_content) > 60 else "") if cleaned_content else "Empty Storage Node"
+            else:
+                preview = "Empty Storage Node"
             timestamp = last_msg["timestamp"] if last_msg else 0
             
             sessions.append({
@@ -626,34 +628,13 @@ class UnifiedMemoryManager:
     def get_profile(self, user_id: str) -> Dict:
         """Get or create user profile."""
         if user_id not in self.user_profiles:
-            initial_affection = 30
-            if user_id in ("user", "master"):
-                try:
-                    profile_path = self.data_dir / "master_profile.json"
-                    if profile_path.exists():
-                        with open(profile_path, "r", encoding="utf-8") as f:
-                            master_data = json.load(f)
-                            score = master_data.get("relationship", {}).get("score")
-                            if score is not None:
-                                initial_affection = int(float(score) * 10)
-                except Exception as e:
-                    logger.warning(f"Failed to read master_profile.json in get_profile: {e}")
-
             self.user_profiles[user_id] = {
-                'affection': initial_affection,
                 'interests': [],
                 'preferences': {},
                 'first_seen': time.time(),
                 'message_count': 0
             }
         return self.user_profiles[user_id]
-
-    def update_affection(self, user_id: str, delta: int) -> int:
-        """Update affection level."""
-        profile = self.get_profile(user_id)
-        profile['affection'] = max(0, min(100, profile['affection'] + delta))
-        self._maybe_save()
-        return profile['affection']
 
     def update_preference(self, user_id: str, key: str, value: Any):
         """Update user preference."""

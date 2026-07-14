@@ -1,6 +1,5 @@
 package com.aiko.app.domain
 
-import com.aiko.app.data.local.EmotionLogEntity
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.max
@@ -85,10 +84,11 @@ class EmotionEngine @Inject constructor() {
      * Returns a pair of the parsed response (without the tag) and the matching dominant tag.
      */
     fun parseResponseEmotion(response: String): Pair<String, String> {
-        val regex = "\\[EMO:(\\w+)\\]".toRegex()
-        val match = regex.find(response)
-        val cleanText = response.replace(regex, "").trim()
-        val tag = match?.groupValues?.get(1)?.lowercase() ?: "calm"
+        val legacyRegex = "\\[EMO:(\\w+)\\]".toRegex(RegexOption.IGNORE_CASE)
+        val markupRegex = "<emotion>\\s*(\\w+)\\s*</emotion>".toRegex(RegexOption.IGNORE_CASE)
+        val tag = (markupRegex.find(response) ?: legacyRegex.find(response))?.groupValues?.get(1)?.lowercase() ?: "calm"
+        // Never persist protocol metadata into a user-visible message.
+        val cleanText = response.replace(legacyRegex, "").replace(markupRegex, "").trim()
         return Pair(cleanText, tag)
     }
 
@@ -137,6 +137,11 @@ class EmotionEngine @Inject constructor() {
                 c = max(0.0f, c - 0.10f)
                 a = max(0.0f, a - 0.10f)
             }
+            "proud" -> {
+                d = min(1.0f, d + 0.20f)
+                s = min(1.0f, s + 0.15f)
+                a = min(1.0f, a + 0.10f)
+            }
         }
 
         return EmotionState(d, s, c, a)
@@ -150,6 +155,7 @@ class EmotionEngine @Inject constructor() {
             state.cortisol > 0.6f -> if (state.adrenaline > 0.5f) "jealous" else "worried"
             state.dopamine > 0.75f && state.adrenaline > 0.6f -> "flustered"
             state.dopamine > 0.7f -> "happy"
+            state.serotonin > 0.75f && state.adrenaline > 0.4f -> "proud"
             state.serotonin > 0.7f && state.dopamine > 0.5f -> "devoted"
             state.adrenaline > 0.6f -> "excited"
             state.cortisol > 0.4f -> "sad"

@@ -138,8 +138,6 @@ export function Sidebar({ onOpenSettings }: { onOpenSettings: () => void }) {
     deleteSession,
     pinSession,
     renameSession,
-    relationship,
-    fetchRelationship,
     setEmotion: _setEmotion,
     showAnimatedAssets
   } = useNeuralStore();
@@ -150,7 +148,6 @@ export function Sidebar({ onOpenSettings }: { onOpenSettings: () => void }) {
   const unpinnedSessions = filteredSessions.filter(s => !s.pinned);
 
   useEffect(() => {
-    fetchRelationship();
     loadSessions();
   }, []);
 
@@ -179,7 +176,7 @@ export function Sidebar({ onOpenSettings }: { onOpenSettings: () => void }) {
         }}
       />
       
-      {/* Profile & Affection */}
+      {/* Profile */}
       <div className="flex flex-col gap-4 px-1 py-4">
         <div className="flex items-center gap-3">
           <GothicButton icon="rose" size="md" active className="pointer-events-none" />
@@ -189,20 +186,6 @@ export function Sidebar({ onOpenSettings }: { onOpenSettings: () => void }) {
               {showAnimatedAssets ? <NeuralPulse /> : <div className="w-1.5 h-1.5 rounded-full bg-[var(--acc)]/50" />}
               <p className="text-[9px] text-[var(--acc)]/80 font-mono font-bold">Synchronized</p>
             </div>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <div className="flex justify-between items-center px-0.5">
-             <span className="text-[9px] font-bold text-[var(--t3)] uppercase tracking-wider">Affection Level</span>
-             <span className="text-[9px] font-mono font-bold text-[var(--acc)]">{relationship.affection}%</span>
-          </div>
-          <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
-            <motion.div 
-              initial={{ width: 0 }}
-              animate={{ width: `${relationship.affection}%` }}
-              className="h-full bg-[var(--acc)]" 
-            />
           </div>
         </div>
       </div>

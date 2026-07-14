@@ -12,10 +12,6 @@ from pathlib import Path
 from aiohttp import web
 from aiohttp.web_middlewares import middleware
 
-import sys
-project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
 
 from core.config_manager import config
 from core.chat_engine import AikoBrain
@@ -26,8 +22,9 @@ from core.api.routes import (
     handle_status, handle_health, handle_sessions, handle_rename_session,
     handle_pin_session, handle_delete_session, handle_history, handle_chat_api,
     handle_purge, handle_update_settings, handle_reload_settings, handle_get_settings,
-    handle_upload, handle_project_structure, handle_relationship, handle_latex_render,
-    handle_latex_image, handle_create_session
+    handle_upload, handle_project_structure, handle_latex_render,
+    handle_latex_image, handle_create_session, handle_export_memories,
+    handle_webrtc_offer
 )
 from core.api.websocket import handle_ws
 from core.api.background import start_background_tasks, cleanup_background_tasks
@@ -199,9 +196,10 @@ def build_hub_app() -> web.Application:
     app.router.add_get('/api/history', handle_history)
     app.router.add_post('/api/upload', handle_upload)
     app.router.add_get('/api/project', handle_project_structure)
-    app.router.add_get('/api/relationship', handle_relationship)
     app.router.add_post('/api/latex/render', handle_latex_render)
     app.router.add_get('/api/latex/image/{filename}', handle_latex_image)
+    app.router.add_get('/api/memory/export', handle_export_memories)
+    app.router.add_post('/api/webrtc/offer', handle_webrtc_offer)
     
     # TTS static audio
     app.router.add_static('/api/tts/audio', BASE / 'data' / 'voices', name='tts_audio')
@@ -215,4 +213,5 @@ def build_hub_app() -> web.Application:
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(name)s: %(message)s')
     app = build_hub_app()
-    web.run_app(app, host='0.0.0.0', port=8000)
+    port = int(os.environ.get("AIKO_PORT", 8000))
+    web.run_app(app, host='0.0.0.0', port=port)

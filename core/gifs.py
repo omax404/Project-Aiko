@@ -1,6 +1,6 @@
 """
 AIKO'S EMOTIONAL GIF LIBRARY v2.0
-Expanded emotional range with Smart Detection, Priority System, and Relationship Gating.
+Expanded emotional range with Smart Detection and Priority System.
 Makes Aiko feel truly alive by responding to contextual keywords intelligently.
 """
 
@@ -12,9 +12,9 @@ import logging
 
 logger = logging.getLogger("GIFEngine")
 
-# Public fallback API keys
-TENOR_PUBLIC_KEY = "LIVDSRZULEQX"
-GIPHY_PUBLIC_KEY = "dc6zaTOxFJmzC"
+# Public fallback API keys (empty by default, users can override via environment)
+TENOR_PUBLIC_KEY = ""
+GIPHY_PUBLIC_KEY = ""
 
 # ═══════════════════════════════════════════════════════════════
 #                    EXPANDED GIF LIBRARY
@@ -167,22 +167,7 @@ EMOTION_PRIORITY = [
     'tired', 'bored', 'thinking', 'confused', 'wave'
 ]
 
-# Relationship-gated emotions (require affection level)
-RELATIONSHIP_GATED = {
-    'love': 50,      # Need 50+ affection for love GIFs
-    'kiss': 70,      # Need 70+ affection for kiss GIFs
-    'yandere': 60,   # Need 60+ affection for yandere mode
-    'blush': 30,     # Low threshold for blush
-}
-
-
-# ═══════════════════════════════════════════════════════════════
-#                    SMART DETECTION LOGIC v2.0
-# ═══════════════════════════════════════════════════════════════
-
-
-
-def get_emotion_category(message_text: str, affection_level: int = 100) -> str | None:
+def get_emotion_category(message_text: str) -> str | None:
     """
     Returns the emotion category name instead of a GIF.
     Useful for setting VTS expressions or other emotion-based logic.
@@ -196,11 +181,6 @@ def get_emotion_category(message_text: str, affection_level: int = 100) -> str |
     for category in EMOTION_PRIORITY:
         if category not in EMOTION_TRIGGERS:
             continue
-            
-        # Check relationship gate
-        if category in RELATIONSHIP_GATED:
-            if affection_level < RELATIONSHIP_GATED[category]:
-                continue
         
         keywords = EMOTION_TRIGGERS[category]
         for word in keywords:
@@ -250,15 +230,18 @@ async def search_gif(query: str, provider: str = None) -> str | None:
     tenor_key = os.getenv("TENOR_API_KEY", TENOR_PUBLIC_KEY)
     giphy_key = os.getenv("GIPHY_API_KEY", GIPHY_PUBLIC_KEY)
 
-    # List of search tasks to attempt
+    # List of search tasks to attempt (only if keys are configured)
     providers_to_try = []
-    if provider == "giphy":
+    if provider == "giphy" and giphy_key:
         providers_to_try = [("giphy", giphy_key)]
-    elif provider == "tenor":
+    elif provider == "tenor" and tenor_key:
         providers_to_try = [("tenor", tenor_key)]
     else:
         # Default: try Tenor first, then Giphy
-        providers_to_try = [("tenor", tenor_key), ("giphy", giphy_key)]
+        if tenor_key:
+            providers_to_try.append(("tenor", tenor_key))
+        if giphy_key:
+            providers_to_try.append(("giphy", giphy_key))
 
     async with aiohttp.ClientSession() as session:
         for name, key in providers_to_try:

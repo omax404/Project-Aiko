@@ -126,4 +126,17 @@ dependencies {
 
     // Kotlinx Serialization JSON
     implementation(libs.kotlinx.serialization.json)
+
+    // CameraX
+    val cameraxVersion = "1.3.4"
+    implementation("androidx.camera:camera-core:$cameraxVersion")
+    implementation("androidx.camera:camera-camera2:$cameraxVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
+    implementation("androidx.camera:camera-view:$cameraxVersion")
+
+    // ML Kit Barcode Scanning for QR linking
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
+
+    // WebRTC client dependency for P2P connection (Modern community fork)
+    implementation("io.getstream:stream-webrtc-android:1.3.9")
 }

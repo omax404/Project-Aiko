@@ -134,7 +134,22 @@ def check_python_works(py_path: str) -> bool:
 if not check_python_works(PYTHON):
     PYTHON = sys.executable
 
-NEURAL_HUB_URL = "http://127.0.0.1:8000"
+def find_available_port(start_port=8000, max_attempts=50):
+    import socket
+    for port in range(start_port, start_port + max_attempts):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.bind(("127.0.0.1", port))
+                return port
+            except OSError:
+                continue
+    return start_port
+
+ACTIVE_PORT = find_available_port(8000)
+NEURAL_HUB_URL = f"http://127.0.0.1:{ACTIVE_PORT}"
+os.environ["AIKO_PORT"] = str(ACTIVE_PORT)
+os.environ["VITE_AIKO_PORT"] = str(ACTIVE_PORT)
+
 HUB_TIMEOUT    = 180  # seconds
 
 # Pre-built Tauri release binary locations

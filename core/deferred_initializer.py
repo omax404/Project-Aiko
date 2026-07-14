@@ -10,8 +10,6 @@ import logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(message)s")
 logger = logging.getLogger("DeferredInitializer")
 
-# Add project root to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from core.rag_memory import get_mempalace_rag
 from core.config_manager import config

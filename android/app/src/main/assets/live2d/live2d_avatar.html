@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: transparent;
+        }
+        #canvas {
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            display: block;
+        }
+    </style>
+    <script src="./pixi.min.js"></script>
+    <script src="./live2dcubismcore.min.js"></script>
+    <script src="./cubism4.min.js"></script>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <script>
+        // Global error handlers — report unhandled errors to Android bridge
+        window.onerror = function(message, source, lineno, colno, error) {
+            var errMsg = message + ' at ' + source + ':' + lineno;
+            console.error('[Global Error] ' + errMsg);
+            if (window.AikoBridge) {
+                try { AikoBridge.onModelFailed(errMsg); } catch(e) {}
+            }
+        };
+
+        window.onunhandledrejection = function(event) {
+            var errMsg = event.reason ? (event.reason.message || String(event.reason)) : 'Unknown rejection';
+            console.error('[Unhandled Rejection] ' + errMsg);
+            if (window.AikoBridge) {
+                try { AikoBridge.onModelFailed(errMsg); } catch(e) {}
+            }
+        };
+
+        // Global state updated via Android JS Interface
+        let currentEmotion = "neutral";
+        let currentChemicals = { dopamine: 0.5, serotonin: 0.5, cortisol: 0.0, adrenaline: 0.0, oxytocin: 0.3, melatonin: 0.1 };
+        let isTalking = false;
+        let talkAmplitude = 0;
+
+        // Configuration intensity modifiers (can be overridden)
+        let intensityConfig = {
+            jitter: 0.4,
+            tear: 1.0,
+            lean: 1.0,
+            blush: 1.0,
+            pout: 1.0,
+            boba: 1.0,
+            oxytocin: 1.0,
+            melatonin: 1.0
+        };
+
+        // Exposed callback for Android WebView evaluateJavascript
+        window.updateState = function(emotion, dopamine, serotonin, cortisol, adrenaline, talking, amplitude) {
+            currentEmotion = emotion || "neutral";
+            currentChemicals = {
+                dopamine: dopamine !== undefined ? dopamine : 0.5,
+                serotonin: serotonin !== undefined ? serotonin : 0.5,
+                cortisol: cortisol !== undefined ? cortisol : 0.0,
+                adrenaline: adrenaline !== undefined ? adrenaline : 0.0,
+                oxytocin: 0.3,
+                melatonin: 0.1
+            };
+            isTalking = !!talking;
+            talkAmplitude = amplitude !== undefined ? amplitude : 0;
+            
+            // Set mouth open Y directly to trigger talking/lip-sync instantly
+            if (window.live2dModel) {
+                try {
+                    if (isTalking) {
+                        window.live2dModel.motion("idle");
+                    }
+                } catch(e) {}
+            }
+        };
+
+        // Initialize PIXI Application
+        const canvas = document.getElementById("canvas");
+        const app = new PIXI.Application({
+            view: canvas,
+            backgroundAlpha: 0,
+            autoStart: true,
+            antialias: true,
+            resizeTo: window
+        });
+
+        // Register ticker for pixi-live2d-display
+        const { Live2DModel } = PIXI.live2d;
+        Live2DModel.registerTicker(PIXI.Ticker);
+
+        let live2dModel = null;
+        let animationState = {
+            time: 0,
+            blinkTimer: 0,
+            nextBlink: 2 + Math.random() * 4,
+            tearPhase: 0,
+            jitterPhase: 0
+        };
+
+        async function init() {
+            try {
+                // Load Live2D model from bundled assets
+                live2dModel = await Live2DModel.from("./vivian/vivian.model3.json", {
+                    idleMotionGroup: 'idle'
+                });
+                window.live2dModel = live2dModel;
+
+                // Center and scale model
+                const resize = () => {
+                    const width = window.innerWidth;
+                    const height = window.innerHeight;
+                    const modelW = live2dModel.internalModel.originalWidth;
+                    const modelH = live2dModel.internalModel.originalHeight;
+                    const scaleX = (width * 0.95) / modelW;
+                    const scaleY = (height * 0.95) / modelH;
+                    const scale = Math.min(scaleX, scaleY);
+                    
+                    live2dModel.scale.set(scale);
+                    live2dModel.anchor.set(0.5, 0.5);
+                    live2dModel.position.set(width / 2, height / 2);
+                };
+
+                resize();
+                window.addEventListener("resize", resize);
+                app.stage.addChild(live2dModel);
+
+                // Signal successful model load to Android bridge
+                if (window.AikoBridge) {
+                    try { AikoBridge.onModelLoaded(true); } catch(e) {}
+                }
+
+                // Animation loop in ticker
+                app.ticker.add(() => {
+                    if (!live2dModel) return;
+                    const delta = app.ticker.elapsedMS / 1000;
+                    const time = app.ticker.lastTime / 1000;
+                    animationState.time += delta;
+
+                    const core = live2dModel.internalModel?.coreModel;
+                    if (!core) return;
+
+                    const chem = currentChemicals;
+                    const { dopamine, serotonin, cortisol, adrenaline, oxytocin = 0.3, melatonin = 0.1 } = chem;
+                    const curEmotion = currentEmotion;
+
+                    try {
+                        // 1. Somatic Breathing & Leaning
+                        const breathFreq = 1.5 + (adrenaline * 2.0) + (cortisol * 1.0);
+                        const somaticBreath = (Math.sin(animationState.time * breathFreq) * 0.5 + 0.5) * 0.02;
+                        core.setParameterValueById('ParamBodyAngleY', somaticBreath * 2);
+
+                        const forwardLean = Math.max(0, (dopamine - 0.4) * 1.2) * intensityConfig.lean;
+                        core.setParameterValueById('Paramqq', forwardLean);
+
+                        // 2. High-Frequency Panic/Nervous Jitter
+                        if (cortisol > 0.6 || adrenaline > 0.7) {
+                            animationState.jitterPhase += delta * 25;
+                            const jitter = Math.sin(animationState.jitterPhase) * 0.15 * Math.max(cortisol, adrenaline) * intensityConfig.jitter;
+                            core.setParameterValueById('Param141', 0.5 + jitter);
+                            core.setParameterValueById('Param142', 0.5 + Math.cos(animationState.jitterPhase * 0.8) * 0.1 * intensityConfig.jitter);
+                            core.setParameterValueById('Param132', Math.min(1.0, Math.max(cortisol, adrenaline) * intensityConfig.jitter));
+                        } else {
+                            core.setParameterValueById('Param141', 0);
+                            core.setParameterValueById('Param142', 0);
+                            core.setParameterValueById('Param132', 0);
+                        }
+
+                        // 3. Crying physics
+                        if (cortisol > 0.5 && dopamine < 0.45) {
+                            animationState.tearPhase += delta * (0.8 + cortisol * 1.2) * intensityConfig.tear;
+                            const tearPulse = (Math.sin(animationState.tearPhase) * 0.5 + 0.5) * cortisol * intensityConfig.tear;
+                            core.setParameterValueById('Param144', Math.min(1.0, cortisol * intensityConfig.tear));
+                            core.setParameterValueById('Param145', Math.min(1.0, tearPulse));
+                            core.setParameterValueById('Param146', Math.min(1.0, (Math.cos(animationState.tearPhase * 1.3) * 0.5 + 0.5) * cortisol * intensityConfig.tear));
+                        } else {
+                            core.setParameterValueById('Param144', 0);
+                            core.setParameterValueById('Param145', 0);
+                            core.setParameterValueById('Param146', 0);
+                        }
+
+                        // 4. Boba wobble
+                        if (curEmotion === 'boba') {
+                            core.setParameterValueById('Param117', Math.sin(time * 10) * 15 * intensityConfig.boba);
+                            core.setParameterValueById('Param119', Math.cos(time * 8) * 10 * intensityConfig.boba);
+                        } else {
+                            core.setParameterValueById('Param117', Math.sin(time * 2) * 2.0 * intensityConfig.boba);
+                            core.setParameterValueById('Param119', Math.cos(time * 1.5) * 1.5 * intensityConfig.boba);
+                        }
+
+                        // 5. Cheek-Puffs & Annoyance
+                        if (curEmotion === 'pout' || (cortisol > 0.4 && serotonin < 0.4)) {
+                            const poutVal = Math.min(1.0, cortisol * 1.2) * intensityConfig.pout;
+                            core.setParameterValueById('Param15', poutVal);
+                            core.setParameterValueById('Param16', poutVal * 0.7);
+                        } else {
+                            core.setParameterValueById('Param15', 0);
+                            core.setParameterValueById('Param16', 0);
+                        }
+
+                        // 6. Natural Cheek Blushing
+                        let currentBlush = 0;
+                        if (curEmotion === 'shy' || curEmotion === 'romantic' || dopamine > 0.8) {
+                            currentBlush = Math.min(1.0, (0.4 + dopamine * 0.4 + adrenaline * 0.2) * intensityConfig.blush);
+                        }
+                        core.setParameterValueById('ParamCheek', currentBlush + Math.sin(time * 1.5) * 0.1 * intensityConfig.blush);
+                        core.setParameterValueById('Param149', currentBlush);
+
+                        // 7. Tongue sticking out
+                        if (curEmotion === 'tongue') {
+                            core.setParameterValueById('Param22', 1.0);
+                        } else {
+                            core.setParameterValueById('Param22', 0);
+                        }
+
+                        // 8. Custom Lip-sync & Mouth Shapes
+                        if (isTalking && talkAmplitude > 0.05) {
+                            const mouthOpen = Math.min(talkAmplitude, 1.0);
+                            core.setParameterValueById('ParamMouthOpenY', mouthOpen);
+                            const mouthForm = (dopamine - 0.5) * 2.0 + Math.sin(time * 12) * 0.15;
+                            core.setParameterValueById('ParamMouthForm', Math.max(-1.0, Math.min(1.0, mouthForm)));
+                        } else {
+                            if (dopamine > 0.6) {
+                                core.setParameterValueById('ParamMouthForm', (dopamine - 0.5) * 1.5);
+                            } else if (cortisol > 0.5) {
+                                core.setParameterValueById('ParamMouthForm', -0.5);
+                            } else {
+                                core.setParameterValueById('ParamMouthForm', 0);
+                            }
+                            core.setParameterValueById('ParamMouthOpenY', 0);
+                        }
+
+                        // 9. Blinking & Gaze Expressions
+                        const eyeSmile = Math.min(1.0, dopamine * 0.85);
+                        core.setParameterValueById('ParamEyeLSmile', eyeSmile);
+                        core.setParameterValueById('ParamEyeRSmile', eyeSmile);
+
+                        const relaxedGaze = 1.0 - (serotonin * 0.25);
+                        let targetEyeOpen = relaxedGaze;
+
+                        if (adrenaline > 0.65) {
+                            targetEyeOpen = Math.min(1.4, 1.0 + (adrenaline - 0.65) * 0.6);
+                        }
+
+                        if (melatonin > 0.3) {
+                            const sleepyMaxOpen = Math.max(0.3, 1.0 - (melatonin * 0.5 * intensityConfig.melatonin));
+                            targetEyeOpen = Math.min(sleepyMaxOpen, targetEyeOpen);
+                        }
+
+                        // Run blinking animation
+                        animationState.blinkTimer += delta;
+                        if (melatonin > 0.3 && Math.random() < 0.002 * melatonin * intensityConfig.melatonin) {
+                            animationState.blinkTimer = animationState.nextBlink - 0.05;
+                        }
+
+                        if (animationState.blinkTimer >= animationState.nextBlink) {
+                            const blinkDuration = 0.15;
+                            const blinkProgress = (animationState.blinkTimer - animationState.nextBlink) / blinkDuration;
+                            if (blinkProgress < 1) {
+                                const blinkCurve = Math.sin(blinkProgress * Math.PI);
+                                const eyeClose = targetEyeOpen * (1 - (blinkCurve * 0.95));
+                                core.setParameterValueById('ParamEyeLOpen', eyeClose);
+                                core.setParameterValueById('ParamEyeROpen', eyeClose);
+                            } else {
+                                animationState.blinkTimer = 0;
+                                animationState.nextBlink = 2 + Math.random() * 4;
+                            }
+                        } else {
+                            core.setParameterValueById('ParamEyeLOpen', targetEyeOpen);
+                            core.setParameterValueById('ParamEyeROpen', targetEyeOpen);
+                        }
+
+                        // Furrow brow
+                        const browY = -1.0 * cortisol;
+                        const browAngle = -0.5 * cortisol;
+                        core.setParameterValueById('ParamBrowLY', browY);
+                        core.setParameterValueById('ParamBrowRY', browY);
+                        core.setParameterValueById('ParamBrowLAngle', browAngle);
+                        core.setParameterValueById('ParamBrowRAngle', browAngle);
+
+                        // 10. Oxytocin Head-tilt
+                        if (oxytocin > 0.4) {
+                            const oxyTilt = Math.sin(time * 1.2) * 4.0 * oxytocin * intensityConfig.oxytocin;
+                            core.setParameterValueById('ParamAngleZ', oxyTilt);
+                            
+                            const extraBlush = Math.min(0.6, (oxytocin - 0.4) * 0.8 * intensityConfig.oxytocin);
+                            core.setParameterValueById('ParamCheek', Math.min(1.0, core.getParameterValueById('ParamCheek') + extraBlush));
+                            core.setParameterValueById('Param149', Math.min(1.0, core.getParameterValueById('Param149') + extraBlush));
+                            
+                            const oxyEyeSmile = Math.min(1.0, oxytocin * 0.5 * intensityConfig.oxytocin);
+                            core.setParameterValueById('ParamEyeLSmile', Math.min(1.0, core.getParameterValueById('ParamEyeLSmile') + oxyEyeSmile));
+                            core.setParameterValueById('ParamEyeRSmile', Math.min(1.0, core.getParameterValueById('ParamEyeRSmile') + oxyEyeSmile));
+                        }
+
+                    } catch(e) {
+                        // Ignore unsupported model parameter errors
+                    }
+                });
+
+                // Start idle motion loop
+                try { live2dModel.motion('idle'); } catch(_) {}
+
+                // Report load success to Android container
+                if (window.AikoBridge) {
+                    try { window.AikoBridge.onModelLoaded(true); } catch(e) {}
+                }
+
+            } catch (err) {
+                console.error("Live2D initialization failed:", err);
+                if (window.AikoBridge) {
+                    try { window.AikoBridge.onModelLoaded(false); } catch(e) {}
+                }
+            }
+        }
+
+        // Global Error Listeners to notify Android container of crashes/OOMs
+        window.addEventListener('error', function(e) {
+            console.error("Global JS error:", e.message);
+            if (window.AikoBridge) {
+                try { window.AikoBridge.onModelError(e.message); } catch(err) {}
+            }
+        });
+        window.addEventListener('unhandledrejection', function(e) {
+            console.error("Unhandled promise rejection:", e.reason);
+            if (window.AikoBridge) {
+                try { window.AikoBridge.onModelError(String(e.reason)); } catch(err) {}
+            }
+        });
+
+        init();
+    </script>
+</body>
+</html>
