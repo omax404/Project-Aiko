@@ -22,7 +22,17 @@ load_dotenv(BASE_DIR / ".env")
 logger = logging.getLogger("AikoTelegramV2")
 logging.basicConfig(level=logging.INFO)
 
+import json
+
 TOKEN = os.getenv("TELEGRAM_TOKEN")
+if not TOKEN:
+    try:
+        user_settings_path = BASE_DIR / "user_settings.json"
+        if user_settings_path.exists():
+            settings = json.loads(user_settings_path.read_text(encoding="utf-8"))
+            TOKEN = settings.get("plugins", {}).get("telegram_token", "")
+    except Exception:
+        pass
 raw_master_id = os.getenv("MASTER_ID", "0").strip()
 try:
     MASTER_ID = int(raw_master_id) if raw_master_id.isdigit() else 0
