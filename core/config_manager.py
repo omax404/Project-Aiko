@@ -44,10 +44,10 @@ class ConfigManager:
             "API_KEY": os.getenv("API_KEY", ""),
             "DEEPSEEK_API_KEY": os.getenv("DEEPSEEK_API_KEY", ""),
             "GEMINI_API_KEY": os.getenv("GEMINI_API_KEY", ""),
-            "LLM_URL": os.getenv("LLM_URL", "http://127.0.0.1:11434/api/chat"),
-            "LLM_BASE_URL": os.getenv("LLM_BASE_URL", "http://127.0.0.1:11434/v1"),
-            "MODEL_NAME": os.getenv("MODEL_NAME", "gemma3:4b"),
-            "PROVIDER": os.getenv("PROVIDER", "Ollama"),
+            "LLM_URL": os.getenv("LLM_URL", ""),
+            "LLM_BASE_URL": os.getenv("LLM_BASE_URL", ""),
+            "MODEL_NAME": os.getenv("MODEL_NAME", "gemma4:31b-cloud"),
+            "PROVIDER": os.getenv("PROVIDER", "cloud"),
             "IMAGE_GEN_KEY": os.getenv("IMAGE_GEN_KEY", ""),
             "IMAGE_GEN_MODEL": os.getenv("IMAGE_GEN_MODEL", "gpt-3.5-turbo"),
             "TTS_KEY": os.getenv("TTS_KEY", ""),
@@ -87,29 +87,52 @@ class ConfigManager:
                         url = llm_info.get("url", "")
                         model = llm_info.get("model", "")
                         api_key = llm_info.get("api_key", "")
+                        explicit_provider = llm_info.get("provider", "")
                         
-                        if url:
-                            normalized_url = normalize_llm_url(url)
-                            self._config["LLM_URL"] = normalized_url
-                            
-                            # Infer Provider based on URL
-                            if any(x in normalized_url for x in ["11434", "localhost:11434", "127.0.0.1:11434"]) or "ollama" in normalized_url.lower():
+                        # Apply provider defaults if explicitly set
+                        if explicit_provider:
+                            prov_lower = explicit_provider.lower()
+                            if prov_lower == "ollama":
                                 self._config["PROVIDER"] = "Ollama"
-                            elif "api.openai.com" in normalized_url:
-                                self._config["PROVIDER"] = "OpenAI"
-                            elif "openrouter.ai" in normalized_url:
-                                self._config["PROVIDER"] = "OpenRouter"
-                            elif "generativelanguage.googleapis.com" in normalized_url:
-                                self._config["PROVIDER"] = "Gemini"
-                            elif "api.deepseek.com" in normalized_url:
-                                self._config["PROVIDER"] = "DeepSeek"
-                            elif "api.anthropic.com" in normalized_url:
-                                self._config["PROVIDER"] = "Anthropic"
+                                self._config["LLM_URL"] = "http://127.0.0.1:11434/api/chat"
+                                self._config["LLM_BASE_URL"] = "http://127.0.0.1:11434/v1"
+                                self._config["MODEL_NAME"] = model or "gemma3:4b"
+                            elif prov_lower == "lmstudio":
+                                self._config["PROVIDER"] = "lmstudio"
+                                self._config["LLM_URL"] = "http://127.0.0.1:1234/v1/chat/completions"
+                                self._config["LLM_BASE_URL"] = "http://127.0.0.1:1234/v1"
+                                self._config["MODEL_NAME"] = model or ""
+                            elif prov_lower == "cloud":
+                                self._config["PROVIDER"] = "cloud"
+                                self._config["LLM_URL"] = url or ""
+                                self._config["LLM_BASE_URL"] = ""
+                                self._config["MODEL_NAME"] = model or "gemma4:31b-cloud"
+
+                        if url is not None:
+                            if url.strip() == "":
+                                self._config["LLM_URL"] = ""
                             else:
-                                if api_key:
-                                    self._config["PROVIDER"] = "Custom"
-                                else:
+                                normalized_url = normalize_llm_url(url)
+                                self._config["LLM_URL"] = normalized_url
+                            
+                            # Infer Provider based on URL if not explicitly set
+                            if not explicit_provider:
+                                if any(x in normalized_url for x in ["11434", "localhost:11434", "127.0.0.1:11434"]) or "ollama" in normalized_url.lower():
                                     self._config["PROVIDER"] = "Ollama"
+                                elif any(x in normalized_url for x in ["1234", "localhost:1234", "127.0.0.1:1234"]):
+                                    self._config["PROVIDER"] = "lmstudio"
+                                elif "api.openai.com" in normalized_url:
+                                    self._config["PROVIDER"] = "OpenAI"
+                                elif "openrouter.ai" in normalized_url:
+                                    self._config["PROVIDER"] = "OpenRouter"
+                                elif "generativelanguage.googleapis.com" in normalized_url:
+                                    self._config["PROVIDER"] = "Gemini"
+                                elif "api.deepseek.com" in normalized_url:
+                                    self._config["PROVIDER"] = "DeepSeek"
+                                elif "api.anthropic.com" in normalized_url:
+                                    self._config["PROVIDER"] = "Anthropic"
+                                else:
+                                    self._config["PROVIDER"] = "cloud"
                                     
                         if model:
                             self._config["MODEL_NAME"] = model
@@ -122,6 +145,11 @@ class ConfigManager:
                             elif provider == "DeepSeek":
                                 self._config["DEEPSEEK_API_KEY"] = api_key
                     
+                    if "plugins" in user_data:
+                        plugins_info = user_data["plugins"]
+                        for plugin_name, is_enabled in plugins_info.items():
+                            self._config[f"PLUGINS_{plugin_name.upper()}"] = is_enabled
+
                     if "tts" in user_data:
                         if "enabled" in user_data["tts"]: self._config["TTS_ENABLED"] = user_data["tts"]["enabled"]
                         if "voice" in user_data["tts"]: self._config["TTS_VOICE"] = user_data["tts"]["voice"]

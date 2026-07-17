@@ -276,18 +276,16 @@ fun AbstractPosterCanvas(modifier: Modifier = Modifier) {
             center = androidx.compose.ui.geometry.Offset(width * 1.1f, height * 1.1f)
         )
         
-        // Decorative lines
-        drawLine(
-            color = textPrimary,
-            start = androidx.compose.ui.geometry.Offset(width * 0.1f, height * 0.3f),
-            end = androidx.compose.ui.geometry.Offset(width * 0.9f, height * 0.3f),
-            strokeWidth = 3f
-        )
-        drawLine(
-            color = textPrimary,
-            start = androidx.compose.ui.geometry.Offset(width * 0.1f, height * 0.32f),
-            end = androidx.compose.ui.geometry.Offset(width * 0.5f, height * 0.32f),
-            strokeWidth = 1.5f
+        // Soft vignette overlay for depth around avatar area
+        drawRect(
+            brush = androidx.compose.ui.graphics.Brush.radialGradient(
+                colors = listOf(
+                    androidx.compose.ui.graphics.Color.Transparent,
+                    surfaceDark.copy(alpha = 0.15f)
+                ),
+                center = androidx.compose.ui.geometry.Offset(width * 0.5f, height * 0.45f),
+                radius = width * 0.9f
+            )
         )
     }
 }

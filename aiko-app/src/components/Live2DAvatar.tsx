@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNeuralStore } from '../store/useNeuralStore';
 import { useShallow } from 'zustand/react/shallow';
+import { useLive2DExpression } from '../animation/useLive2DExpression';
 
 interface Live2DAvatarProps {
   modelUrl: string;
@@ -38,59 +39,14 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
 }) => {
   const {
     chemicals: storeChemicals,
-    jitterIntensity = 0.4,
-    tearIntensity = 1.0,
-    leanIntensity = 1.0,
-    blushIntensity = 1.0,
-    poutIntensity = 1.0,
-    bobaIntensity = 1.0,
-    oxytocinIntensity = 1.0,
-    melatoninIntensity = 1.0
+    streamingContent,
+    messages
   } = useNeuralStore(useShallow((state) => ({
     chemicals: state.chemicals,
-    jitterIntensity: state.jitterIntensity,
-    tearIntensity: state.tearIntensity,
-    leanIntensity: state.leanIntensity,
-    blushIntensity: state.blushIntensity,
-    poutIntensity: state.poutIntensity,
-    bobaIntensity: state.bobaIntensity,
-    oxytocinIntensity: state.oxytocinIntensity,
-    melatoninIntensity: state.melatoninIntensity
+    streamingContent: state.streamingContent,
+    messages: state.messages
   })));
   const currentChemicals = chemicals || storeChemicals;
-
-  const scalersRef = useRef({
-    jitterIntensity,
-    tearIntensity,
-    leanIntensity,
-    blushIntensity,
-    poutIntensity,
-    bobaIntensity,
-    oxytocinIntensity,
-    melatoninIntensity
-  });
-
-  useEffect(() => {
-    scalersRef.current = {
-      jitterIntensity,
-      tearIntensity,
-      leanIntensity,
-      blushIntensity,
-      poutIntensity,
-      bobaIntensity,
-      oxytocinIntensity,
-      melatoninIntensity
-    };
-  }, [
-    jitterIntensity,
-    tearIntensity,
-    leanIntensity,
-    blushIntensity,
-    poutIntensity,
-    bobaIntensity,
-    oxytocinIntensity,
-    melatoninIntensity
-  ]);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const appRef = useRef<any>(null);
@@ -98,55 +54,93 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
 
-  // Animation state refs for the ticker loop
-  const animationState = useRef({
-    time: 0,
-    blinkTimer: 0,
-    nextBlink: 2 + Math.random() * 4,
-    talkPhase: 0,
-    isTalking: false,
+  // Hook driving autonomous expression physics, blink, saccade, breathing, boba, and vowel lip sync loops
+  const { triggerDiscreteExpression } = useLive2DExpression(modelRef, currentChemicals, {
+    loaded,
+    isTalking,
+    mouthAmplitude: amplitude,
+    spokenText: isThinking ? '' : (streamingContent || (messages.length > 0 ? messages[messages.length - 1].content : ''))
   });
 
-  // Keep track of props/store in refs to avoid re-running initialization effect
-  const chemicalsRef = useRef(currentChemicals);
-  useEffect(() => { chemicalsRef.current = currentChemicals; }, [currentChemicals]);
-
-  const smoothedChemicals = useRef({
-    dopamine: 0.5,
-    serotonin: 0.5,
-    cortisol: 0.0,
-    adrenaline: 0.0,
-    oxytocin: 0.3,
-    melatonin: 0.1,
-    // Add smoothed animation parameters
-    angleX: 0,
-    angleY: 0,
-    angleZ: 0,
-    bodyAngleX: 0,
-    bodyAngleY: 0,
-    eyeBallX: 0,
-    eyeBallY: 0,
-    blush: 0,
-    pout: 0
-  });
-
-  const amplitudeRef = useRef(amplitude);
-  useEffect(() => { amplitudeRef.current = amplitude; }, [amplitude]);
-
-  const emotionRef = useRef(emotion);
-  useEffect(() => { emotionRef.current = emotion; }, [emotion]);
+  const lastParsedTextRef = useRef('');
 
   useEffect(() => {
-    animationState.current.isTalking = !!isTalking;
-  }, [isTalking]);
+    const latestText = isThinking 
+      ? '' 
+      : (streamingContent || (messages.length > 0 ? messages[messages.length - 1].content : ''));
+      
+    if (!latestText || latestText === lastParsedTextRef.current) return;
+    
+    // Scan for new [gesture:xxx] or [mood:xxx] tags
+    const tagRegex = /\[(gesture|mood):([a-zA-Z0-9_\-]+)\]/g;
+    let match;
+    const model = modelRef.current;
+    if (!model) return;
+    
+    const newContent = latestText.slice(lastParsedTextRef.current.length);
+    lastParsedTextRef.current = latestText;
+    
+    while ((match = tagRegex.exec(newContent)) !== null) {
+      const type = match[1];
+      const name = match[2];
+      
+      console.log(`[Live2D Autonomy] Parsed action tag: [${type}:${name}]`);
+      try {
+        if (type === 'gesture') {
+          if (name === 'wave' || name === 'nod' || name === 'point' || name === 'bow') {
+            model.motion('Scene1');
+          } else {
+            model.motion(name);
+          }
+        } else if (type === 'mood') {
+          if (name === 'excited' || name === 'happy') {
+            model.expression('害羞');
+          } else if (name === 'sad' || name === 'crying') {
+            model.expression('哭');
+          } else {
+            model.expression(name);
+          }
+        }
+      } catch (err) {
+        console.warn(`[Live2D Autonomy] Failed to play tag [${type}:${name}]:`, err);
+      }
+    }
+
+    // === AIKO WILL: Semantic Gesture & Sentiment Mapping via transient springs ===
+    const lowerText = newContent.toLowerCase();
+    
+    // Question triggers -> Curious head tilt
+    if (lowerText.includes('?') || /\b(why|how|what|who|where|curious|wonder)\b/.test(lowerText)) {
+      triggerDiscreteExpression('curious_tilt', { headTiltZ: -0.22, headTiltY: -0.1 }, 1600);
+    }
+    // Surprise / Excitement triggers -> Perk up
+    else if (lowerText.includes('!') || /\b(wow|amazing|awesome|cool|oh|surprised|gasp)\b/.test(lowerText)) {
+      triggerDiscreteExpression('perk_up', { headTiltY: 0.18, eyeOpenness: 0.15 }, 1100);
+    }
+    // Agreement triggers -> Nod agree
+    else if (/\b(yes|yeah|agree|nod|indeed|exactly|correct|sure|alright)\b/.test(lowerText)) {
+      triggerDiscreteExpression('nod', { headTiltY: -0.18 }, 900);
+    }
+    // Disagreement triggers -> Shake head
+    else if (/\b(no|never|disagree|don't|not|impossible|stop|nope)\b/.test(lowerText)) {
+      triggerDiscreteExpression('shake', { headTiltX: -0.25 }, 900);
+    }
+    // Affection triggers -> Shy look away
+    else if (/\b(love|cute|blush|hug|heart|shy|embarrassed|hehe|hihi)\b/.test(lowerText)) {
+      triggerDiscreteExpression('shy_look', { headTiltX: 0.18, headTiltZ: 0.12 }, 1800);
+    }
+  }, [streamingContent, messages, isThinking]);
+
+  useEffect(() => {
+    if (isThinking) {
+      // Look up and away randomly to process information (cognitive lookup)
+      triggerDiscreteExpression('thinking', { headTiltX: 0.35, headTiltY: 0.25, browTension: 0.2 }, 3000);
+    }
+  }, [isThinking]);
 
   useEffect(() => {
     if (!canvasRef.current) return;
     let destroyed = false;
-
-    let handleMouseMove: ((e: MouseEvent) => void) | null = null;
-    let handleMouseLeave: (() => void) | null = null;
-    let mouseTimeout: ReturnType<typeof setTimeout> | null = null;
 
     const init = async () => {
       try {
@@ -186,6 +180,14 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
         modelRef.current = model;
         model.autoUpdate = false;
 
+        // === AUTONOMY: Disable mouse-driven interaction ===
+        try {
+          (model as any).autoInteract = false;
+          if (model.internalModel?.motionManager) {
+            (model.internalModel.motionManager as any).autoIdle = false;
+          }
+        } catch (_) {}
+
         // Improved scaling logic to fill more space
         const calculateScale = () => {
           const modelW = model.internalModel.originalWidth;
@@ -205,338 +207,8 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
 
         app.stage.addChild(model);
 
-        // Track dynamic animation phases (e.g. tear flows)
-        let tearPhase = 0;
-        let jitterPhase = 0;
-
-        // Mouse tracking for cursor follow
-        let mouseActive = false;
-        const mousePos = { x: width / 2, y: height / 2 };
-
-        handleMouseMove = (e: MouseEvent) => {
-          mouseActive = true;
-          mousePos.x = e.clientX;
-          mousePos.y = e.clientY;
-
-          if (mouseTimeout) clearTimeout(mouseTimeout);
-          mouseTimeout = setTimeout(() => {
-            mouseActive = false;
-          }, 3000);
-        };
-
-        handleMouseLeave = () => {
-          mouseActive = false;
-          if (mouseTimeout) clearTimeout(mouseTimeout);
-        };
-
-        window.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('mouseleave', handleMouseLeave);
-
-        // Core unified animation loop
-        app.ticker.add(() => {
-          if (!modelRef.current) return;
-          const delta = app.ticker.elapsedMS / 1000;
-          
-          // Manually update the model first so motions, expression transitions,
-          // and physics run before we add our custom overrides.
-          try {
-            modelRef.current.update(app.ticker.elapsedMS);
-          } catch (_) {}
-
-          const time = app.ticker.lastTime / 1000;
-          const state = animationState.current;
-          state.time += delta;
-          
-          const core = modelRef.current.internalModel?.coreModel;
-          if (!core) return;
-
-          const chem = chemicalsRef.current;
-          const targetChem = chem || { dopamine: 0.5, serotonin: 0.5, cortisol: 0, adrenaline: 0, oxytocin: 0.3, melatonin: 0.1 };
-          const curEmotion = emotionRef.current;
-
-          const {
-            jitterIntensity,
-            tearIntensity,
-            leanIntensity,
-            blushIntensity,
-            poutIntensity,
-            bobaIntensity,
-            oxytocinIntensity,
-            melatoninIntensity
-          } = scalersRef.current;
-
-          // 1. Smoothly interpolate (lerp) neuromodulator values to prevent popping/snapping
-          const smooth = smoothedChemicals.current;
-          const lerp = (current: number, target: number, speed: number) => {
-            const f = 1 - Math.exp(-speed * delta);
-            return current + (target - current) * f;
-          };
-
-          // Use approx. 4.0 speed for natural ~250ms smoothing half-life
-          const smoothSpeed = 4.0;
-          smooth.dopamine = lerp(smooth.dopamine, targetChem.dopamine, smoothSpeed);
-          smooth.serotonin = lerp(smooth.serotonin, targetChem.serotonin, smoothSpeed);
-          smooth.cortisol = lerp(smooth.cortisol, targetChem.cortisol, smoothSpeed);
-          smooth.adrenaline = lerp(smooth.adrenaline, targetChem.adrenaline, smoothSpeed);
-          smooth.oxytocin = lerp(smooth.oxytocin, targetChem.oxytocin ?? 0.3, smoothSpeed);
-          smooth.melatonin = lerp(smooth.melatonin, targetChem.melatonin ?? 0.1, smoothSpeed);
-
-          const dopamine = smooth.dopamine;
-          const serotonin = smooth.serotonin;
-          const cortisol = smooth.cortisol;
-          const adrenaline = smooth.adrenaline;
-          const oxytocin = smooth.oxytocin;
-          const melatonin = smooth.melatonin;
-
-          try {
-            const currentIsTalking = state.isTalking;
-            const currentAmplitude = amplitudeRef.current;
-            
-            // 2. Head/body movement (either mouse cursor tracking or slow organic wandering)
-            let targetAngleX = 0;
-            let targetAngleY = 0;
-            let targetBodyAngleX = 0;
-
-            let targetEyeX = 0;
-            let targetEyeY = 0;
-
-            if (mouseActive) {
-                const centerX = width / 2;
-                const centerY = height / 2;
-                const dx = (mousePos.x - centerX) / (width / 2);
-                const dy = (mousePos.y - centerY) / (height / 2);
-
-                // Live2D Angle ranges: X (-30 to 30), Y (-30 to 30)
-                targetAngleX = Math.max(-30, Math.min(30, dx * 30.0));
-                targetAngleY = Math.max(-30, Math.min(30, -dy * 30.0)); // Invert Y
-                targetBodyAngleX = targetAngleX * 0.5;
-
-                // Eyeball ranges: X (-1 to 1), Y (-1 to 1)
-                targetEyeX = Math.max(-1.0, Math.min(1.0, dx * 1.2));
-                targetEyeY = Math.max(-1.0, Math.min(1.0, -dy * 1.2));
-            } else {
-                const wanderSpeed = 0.5;
-                targetAngleX = Math.sin(state.time * wanderSpeed) * 5.0 * (1.0 - melatonin);
-                targetAngleY = Math.cos(state.time * wanderSpeed * 0.73) * 3.0 * (1.0 - melatonin);
-                targetBodyAngleX = targetAngleX * 0.45;
-
-                targetEyeX = 0;
-                targetEyeY = 0;
-            }
-
-            smooth.angleX = lerp(smooth.angleX, targetAngleX, 3.0);
-            smooth.angleY = lerp(smooth.angleY, targetAngleY, 3.0);
-            smooth.bodyAngleX = lerp(smooth.bodyAngleX, targetBodyAngleX, 3.0);
-
-            core.setParameterValueById('ParamAngleX', smooth.angleX);
-            core.setParameterValueById('ParamAngleY', smooth.angleY);
-            core.setParameterValueById('ParamBodyAngleX', smooth.bodyAngleX);
-
-            // 3. Saccades & Restlessness micro-motion (low-amplitude noise function)
-            const arousal = Math.max(cortisol, adrenaline);
-            const microFreq = 1.0 + (arousal * 3.5); // 1Hz to 4.5Hz
-            const microAmp = (0.05 + (arousal * 0.15)) * (1.0 - melatonin * 0.6);
-
-            // Pseudo-random noise function (multi-frequency wave generator)
-            const noise = (t: number) => Math.sin(t) * 0.65 + Math.cos(t * 1.83) * 0.25 + Math.sin(t * 3.42) * 0.10;
-
-            const microTilt = noise(state.time * microFreq) * 2.0 * microAmp;
-            const gazeMicroX = noise(state.time * microFreq * 0.85 + 1.0) * 0.22 * microAmp;
-            const gazeMicroY = noise(state.time * microFreq * 0.95 + 2.0) * 0.15 * microAmp;
-
-            smooth.eyeBallX = lerp(smooth.eyeBallX, targetEyeX + gazeMicroX, 5.0);
-            smooth.eyeBallY = lerp(smooth.eyeBallY, targetEyeY + gazeMicroY, 5.0);
-            core.setParameterValueById('ParamEyeBallX', smooth.eyeBallX);
-            core.setParameterValueById('ParamEyeBallY', smooth.eyeBallY);
-
-            // 4. Somatic Breathing & Physical Leaning (Respond to Adrenaline)
-            const breathFreq = 1.5 + (adrenaline * 2.0) + (cortisol * 1.0);
-            const somaticBreath = (Math.sin(state.time * breathFreq) * 0.5 + 0.5) * 0.02;
-            core.setParameterValueById('ParamBodyAngleY', somaticBreath * 2);
-            
-            // Forward Leaning (Paramqq) triggers when dopamine is high
-            const targetForwardLean = Math.max(0, (dopamine - 0.4) * 1.2) * leanIntensity;
-            smooth.bodyAngleY = lerp(smooth.bodyAngleY, targetForwardLean, 3.0);
-            core.setParameterValueById('Paramqq', smooth.bodyAngleY);
-
-            // 5. High-Frequency Panic/Nervous Jitter (Cortisol & Adrenaline)
-            if (cortisol > 0.6 || adrenaline > 0.7) {
-                jitterPhase += delta * 25;
-                const jitter = Math.sin(jitterPhase) * 0.15 * Math.max(cortisol, adrenaline) * jitterIntensity;
-                core.setParameterValueById('Param141', 0.5 + jitter); // 慌张1
-                core.setParameterValueById('Param142', 0.5 + Math.cos(jitterPhase * 0.8) * 0.1 * jitterIntensity); // 慌张2
-                core.setParameterValueById('Param132', Math.min(1.0, Math.max(cortisol, adrenaline) * jitterIntensity)); // 慌張 state
-            } else {
-                core.setParameterValueById('Param141', 0);
-                core.setParameterValueById('Param142', 0);
-                core.setParameterValueById('Param132', 0);
-            }
-
-            // 6. Crying physics (High Cortisol + Low Dopamine)
-            if (cortisol > 0.5 && dopamine < 0.45) {
-                tearPhase += delta * (0.8 + cortisol * 1.2) * tearIntensity;
-                const tearPulse = (Math.sin(tearPhase) * 0.5 + 0.5) * cortisol * tearIntensity;
-                core.setParameterValueById('Param144', Math.min(1.0, cortisol * tearIntensity)); // 哭 state
-                core.setParameterValueById('Param145', Math.min(1.0, tearPulse)); // 哭1
-                core.setParameterValueById('Param146', Math.min(1.0, (Math.cos(tearPhase * 1.3) * 0.5 + 0.5) * cortisol * tearIntensity)); // 哭2
-            } else {
-                core.setParameterValueById('Param144', 0);
-                core.setParameterValueById('Param145', 0);
-                core.setParameterValueById('Param146', 0);
-            }
-
-            // 7. Boba wobble (Dynamic breast wobble/giggle reacting to speech and excitement)
-            // Base wobble frequency and amplitude scale organically with adrenaline (excitement)
-            let wFreq = 2.0 + (adrenaline * 3.0); 
-            let wAmp = 2.0 * bobaIntensity * (1.0 + adrenaline * 1.5);
-            
-            let currentParam117 = 0;
-            let currentParam119 = 0;
-
-            if (curEmotion === 'boba') {
-                // Maximum manual playfulness override (she is intentionally giggling/bouncing)
-                currentParam117 += Math.sin(time * 10) * 15 * bobaIntensity;
-                currentParam119 += Math.cos(time * 8) * 10 * bobaIntensity;
-            }
-
-            if (currentIsTalking && currentAmplitude > 5) {
-                // High-frequency giggle vibrations (18Hz) triggered by voice amplitude
-                const speechVibe = Math.sin(time * 18) * (currentAmplitude / 25) * bobaIntensity;
-                const speechVibeY = Math.cos(time * 15) * (currentAmplitude / 30) * bobaIntensity;
-                currentParam117 += Math.sin(time * wFreq) * wAmp + speechVibe * 3.0;
-                currentParam119 += Math.cos(time * (wFreq * 0.8)) * wAmp + speechVibeY * 2.0;
-            } else if (curEmotion !== 'boba') {
-                // Gentle idle breathing sway (only if not explicitly bouncing)
-                currentParam117 += Math.sin(time * wFreq) * wAmp;
-                currentParam119 += Math.cos(time * (wFreq * 0.95)) * (wAmp * 0.75);
-            }
-
-            const base117 = core.getParameterValueById ? (core.getParameterValueById('Param117') || 0) : 0;
-            const base119 = core.getParameterValueById ? (core.getParameterValueById('Param119') || 0) : 0;
-            core.setParameterValueById('Param117', base117 + currentParam117);
-            core.setParameterValueById('Param119', base119 + currentParam119);
-
-            // 8. Cheek-Puffs & Annoyance (Cortisol + low Serotonin)
-            let targetPout = 0.0;
-            if (curEmotion === 'pout' || (cortisol > 0.4 && serotonin < 0.4)) {
-                targetPout = Math.min(1.0, cortisol * 1.2) * poutIntensity;
-            }
-            smooth.pout = lerp(smooth.pout, targetPout, 3.0);
-            core.setParameterValueById('Param15', smooth.pout); // 撅嘴
-            core.setParameterValueById('Param16', smooth.pout * 0.7); // 鼓脸
-
-            // 9. Natural Cheek Blushing (Shy / Romantic / Excited)
-            let targetBlush = 0.0;
-            if (curEmotion === 'shy' || curEmotion === 'romantic' || dopamine > 0.8) {
-                targetBlush = Math.min(1.0, (0.4 + dopamine * 0.4 + adrenaline * 0.2) * blushIntensity);
-            }
-            smooth.blush = lerp(smooth.blush, targetBlush, 2.0); // slower blush response is more realistic
-            core.setParameterValueById('ParamCheek', smooth.blush + Math.sin(time * 1.5) * 0.1 * blushIntensity);
-            core.setParameterValueById('Param149', smooth.blush); // 害羞 overlay
-
-            // 10. Tongue sticking out
-            if (curEmotion === 'tongue') {
-                core.setParameterValueById('Param22', 1.0); // 吐舌
-            } else {
-                core.setParameterValueById('Param22', 0);
-            }
-
-            if (currentIsTalking && currentAmplitude > 5) {
-                const mouthOpen = Math.min((currentAmplitude / 65), 1.0); 
-                core.setParameterValueById('ParamMouthOpenY', mouthOpen);
-                
-                // Form mouth shape: smile slightly while talking if happy/dopamine is high
-                const mouthForm = (dopamine - 0.5) * 2.0 + Math.sin(time * 12) * 0.15;
-                core.setParameterValueById('ParamMouthForm', Math.max(-1.0, Math.min(1.0, mouthForm))); 
-            } else {
-                // Keep default chemical smiling mouth when silent
-                if (dopamine > 0.6) {
-                    core.setParameterValueById('ParamMouthForm', (dopamine - 0.5) * 1.5);
-                } else if (cortisol > 0.5) {
-                    core.setParameterValueById('ParamMouthForm', -0.5); // Frown slightly
-                } else {
-                    core.setParameterValueById('ParamMouthForm', 0);
-                }
-                
-                // Close mouth when not talking
-                core.setParameterValueById('ParamMouthOpenY', 0);
-            }
-
-            // 12. Blinking & Gaze Expressions
-            // Dopamine: Smiling Eyes
-            const eyeSmile = Math.min(1.0, dopamine * 0.85);
-            core.setParameterValueById('ParamEyeLSmile', eyeSmile);
-            core.setParameterValueById('ParamEyeRSmile', eyeSmile);
-
-            // Serotonin: Relaxed, warm half-lidded eyes
-            const relaxedGaze = 1.0 - (serotonin * 0.25);
-            let targetEyeOpen = relaxedGaze;
-
-            // Adrenaline: Wide, alert eyes
-            if (adrenaline > 0.65) {
-                targetEyeOpen = Math.min(1.4, 1.0 + (adrenaline - 0.65) * 0.6);
-            }
-
-            // Sleepiness (Melatonin)
-            if (melatonin > 0.3) {
-                const sleepyMaxOpen = Math.max(0.3, 1.0 - (melatonin * 0.5 * melatoninIntensity));
-                targetEyeOpen = Math.min(sleepyMaxOpen, targetEyeOpen);
-            }
-
-            // Run blinking animation
-            state.blinkTimer += delta;
-            if (melatonin > 0.3 && Math.random() < 0.002 * melatonin * melatoninIntensity) {
-                // Trigger a heavy blink early
-                state.blinkTimer = state.nextBlink - 0.05;
-            }
-
-            if (state.blinkTimer >= state.nextBlink) {
-                const blinkDuration = 0.15;
-                const blinkProgress = (state.blinkTimer - state.nextBlink) / blinkDuration;
-                if (blinkProgress < 1) {
-                    const blinkCurve = Math.sin(blinkProgress * Math.PI);
-                    const eyeClose = targetEyeOpen * (1 - (blinkCurve * 0.95));
-                    core.setParameterValueById('ParamEyeLOpen', eyeClose);
-                    core.setParameterValueById('ParamEyeROpen', eyeClose);
-                } else {
-                    state.blinkTimer = 0;
-                    state.nextBlink = 2 + Math.random() * 4;
-                }
-            } else {
-                core.setParameterValueById('ParamEyeLOpen', targetEyeOpen);
-                core.setParameterValueById('ParamEyeROpen', targetEyeOpen);
-            }
-
-            // Cortisol: Brow furrowing (Stress & worry)
-            const browY = -1.0 * cortisol;
-            const browAngle = -0.5 * cortisol;
-            core.setParameterValueById('ParamBrowLY', browY);
-            core.setParameterValueById('ParamBrowRY', browY);
-            core.setParameterValueById('ParamBrowLAngle', browAngle);
-            core.setParameterValueById('ParamBrowRAngle', browAngle);
-
-            // 13. Oxytocin (Loving bonding head-tilt & soft blush overlay)
-            let targetAngleZ = 0.0;
-            if (oxytocin > 0.4) {
-                targetAngleZ = Math.sin(time * 1.2) * 4.0 * oxytocin * oxytocinIntensity;
-            }
-            smooth.angleZ = lerp(smooth.angleZ, targetAngleZ, 4.0);
-            core.setParameterValueById('ParamAngleZ', smooth.angleZ + microTilt);
-
-            if (oxytocin > 0.4) {
-                const extraBlush = Math.min(0.6, (oxytocin - 0.4) * 0.8 * oxytocinIntensity);
-                core.setParameterValueById('ParamCheek', Math.min(1.0, core.getParameterValueById('ParamCheek') + extraBlush));
-                core.setParameterValueById('Param149', Math.min(1.0, core.getParameterValueById('Param149') + extraBlush));
-                
-                const oxyEyeSmile = Math.min(1.0, oxytocin * 0.5 * oxytocinIntensity);
-                core.setParameterValueById('ParamEyeLSmile', Math.min(1.0, core.getParameterValueById('ParamEyeLSmile') + oxyEyeSmile));
-                core.setParameterValueById('ParamEyeRSmile', Math.min(1.0, core.getParameterValueById('ParamEyeRSmile') + oxyEyeSmile));
-            }
-
-          } catch (e) {
-            // Handle parameters not available in older cubism models
-          }
-        });
+        // Parameter updates and animation binding are handled in requestAnimationFrame via the hook!
+        // The autonomous expression loop runs inside useLive2DExpression hook at 60fps!
 
         // Start idle motion
         try { model.motion('idle'); } catch (_) {}
@@ -554,9 +226,6 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
 
     return () => {
       destroyed = true;
-      if (handleMouseMove) window.removeEventListener('mousemove', handleMouseMove);
-      if (handleMouseLeave) document.removeEventListener('mouseleave', handleMouseLeave);
-      if (mouseTimeout) clearTimeout(mouseTimeout);
       try {
         appRef.current?.destroy(false, { children: true, texture: true, baseTexture: true });
       } catch (_) {}
@@ -616,20 +285,34 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
   };
 
   // React to thinking state and emotion → swap expressions
+  const lastPlayedState = useRef<{ isThinking: boolean; emotion: string }>({ isThinking: false, emotion: '' });
+
   useEffect(() => {
     if (!modelRef.current) return;
+    const model = modelRef.current;
+
+    // Check if the state actually changed to prevent duplicate triggers
+    if (
+      lastPlayedState.current.isThinking === !!isThinking &&
+      lastPlayedState.current.emotion === emotion
+    ) {
+      return;
+    }
+
+    lastPlayedState.current = { isThinking: !!isThinking, emotion };
+
     try {
       if (isThinking) {
-        modelRef.current.motion('Scene1');
+        model.motion('Scene1');
       } else {
         const exprName = EMOTION_MAP[emotion] || 'idle';
         if (exprName === 'idle') {
           // Clear previous expression and run idle motion
-          const expMgr = modelRef.current.internalModel?.motionManager?.expressionManager;
+          const expMgr = model.internalModel?.motionManager?.expressionManager;
           if (expMgr) expMgr.restoreExpression();
-          modelRef.current.motion('idle');
+          model.motion('idle');
         } else {
-          modelRef.current.expression(exprName);
+          model.expression(exprName);
         }
       }
     } catch (_) {}

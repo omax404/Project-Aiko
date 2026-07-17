@@ -57,7 +57,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, o
     llm: { url: 'http://127.0.0.1:11434/api/chat', model: 'qwen3.5:397b-cloud' },
     tts: { enabled: true, voice: 'vivian', speed: 0.9 },
     persona: { custom_prompt: 'You are a highly capable AI agent designed to assist with anything the user needs. Always be polite, concise, and helpful.' },
-    plugins: { discord_bot: false, discord_token: '', telegram_bot: false, telegram_token: '', hermes_agent: true },
+    plugins: { discord_bot: false, discord_token: '', telegram_bot: false, telegram_token: '', twitch_bot: false, twitch_token: '', twitch_channel: '', twitch_username: '', hermes_agent: true },
     vision: { provider: 'transformers', model: 'openbmb/MiniCPM-V-4.6', grid_overlay: true },
     appearance: {
       theme_color: '#C9A8D9',
@@ -504,6 +504,47 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, o
                             placeholder="123456:ABC..."
                             aria-label="Telegram Bot Token"
                           />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <Checkbox label="Twitch Bot (Satellite)" checked={settings.plugins.twitch_bot} onChange={v => setSettings({...settings, plugins: {...settings.plugins, twitch_bot: v}})} />
+                      {settings.plugins.twitch_bot && (
+                        <div className="ml-7 flex flex-col gap-3">
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-[11px] font-medium text-[#9a8f7e]">Twitch OAuth Token</label>
+                            <input 
+                              type="password"
+                              className="w-full bg-[var(--bg-base)] border border-white/[0.06] rounded-lg px-3 py-1.5 text-[12px] text-[#f0ebe3] focus:border-[var(--accent)]/50 focus:outline-none font-mono"
+                              value={settings.plugins.twitch_token || ''}
+                              onChange={e => setSettings({...settings, plugins: {...settings.plugins, twitch_token: e.target.value}})}
+                              placeholder="oauth:xxxx..."
+                              aria-label="Twitch OAuth Token"
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-[11px] font-medium text-[#9a8f7e]">Twitch Username</label>
+                            <input 
+                              type="text"
+                              className="w-full bg-[var(--bg-base)] border border-white/[0.06] rounded-lg px-3 py-1.5 text-[12px] text-[#f0ebe3] focus:border-[var(--accent)]/50 focus:outline-none font-mono"
+                              value={settings.plugins.twitch_username || ''}
+                              onChange={e => setSettings({...settings, plugins: {...settings.plugins, twitch_username: e.target.value}})}
+                              placeholder="aiko_bot"
+                              aria-label="Twitch Username"
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-[11px] font-medium text-[#9a8f7e]">Twitch Target Channel</label>
+                            <input 
+                              type="text"
+                              className="w-full bg-[var(--bg-base)] border border-white/[0.06] rounded-lg px-3 py-1.5 text-[12px] text-[#f0ebe3] focus:border-[var(--accent)]/50 focus:outline-none font-mono"
+                              value={settings.plugins.twitch_channel || ''}
+                              onChange={e => setSettings({...settings, plugins: {...settings.plugins, twitch_channel: e.target.value}})}
+                              placeholder="streamer_channel"
+                              aria-label="Twitch Target Channel"
+                            />
+                          </div>
                         </div>
                       )}
                     </div>

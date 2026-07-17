@@ -3,6 +3,8 @@ package com.aiko.app.data.repository
 import android.content.Context
 import android.util.Log
 import com.aiko.app.data.local.AikoPrefs
+import com.aiko.app.data.local.AikoDatabase
+import androidx.room.withTransaction
 import com.aiko.app.data.local.BondDao
 import com.aiko.app.data.local.BondEntity
 import com.aiko.app.data.local.EmotionLogDao
@@ -53,7 +55,8 @@ class ChatRepository @Inject constructor(
     private val emotionEngine: EmotionEngine,
     private val memoryExtractor: MemoryExtractor,
     private val geminiService: GeminiService,
-    private val vocalizer: AikoVocalizer
+    private val vocalizer: AikoVocalizer,
+    private val aikoDatabase: AikoDatabase
 ) {
     private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -62,6 +65,11 @@ class ChatRepository @Inject constructor(
 
     private val _currentAmplitude = MutableStateFlow(0f)
     val currentAmplitude: StateFlow<Float> = _currentAmplitude.asStateFlow()
+
+    // Shared streaming states for UI coordination
+    val streamingText = MutableStateFlow("")
+    val isThinking = MutableStateFlow(false)
+    val proactiveMessage = MutableStateFlow<String?>(null)
 
     // WebSocket state variables
     private var webSocket: okhttp3.WebSocket? = null
@@ -224,6 +232,22 @@ class ChatRepository @Inject constructor(
                                     updateEmotionState(emotion)
                                 }
                                 activeChatChannel?.close()
+
+                                val isProactive = json.optBoolean("proactive", false)
+                                val proactiveText = json.optString("text").ifEmpty { json.optString("content") }
+                                if (isProactive && proactiveText.isNotEmpty()) {
+                                    repositoryScope.launch {
+                                        messageDao.insertMessage(
+                                            MessageEntity(
+                                                conversationId = "default",
+                                                role = "aiko",
+                                                content = proactiveText,
+                                                emotionTag = if (emotion.isNotEmpty() && emotion != "null") emotion else null
+                                            )
+                                        )
+                                        proactiveMessage.value = proactiveText
+                                    }
+                                }
                             }
                         }
                     } catch (e: Exception) {
@@ -290,19 +314,34 @@ class ChatRepository @Inject constructor(
                         updateEmotionState(emotion)
                     }
                     activeChatChannel?.close()
+
+                    val isProactive = payload.optBoolean("proactive", false)
+                    val proactiveText = payload.optString("text").ifEmpty { payload.optString("content") }
+                    if (isProactive && proactiveText.isNotEmpty()) {
+                        repositoryScope.launch {
+                            messageDao.insertMessage(
+                                MessageEntity(
+                                    conversationId = "default",
+                                    role = "aiko",
+                                    content = proactiveText,
+                                    emotionTag = if (emotion.isNotEmpty() && emotion != "null") emotion else null
+                                )
+                            )
+                            proactiveMessage.value = proactiveText
+                        }
+                    }
                 }
                 "biological_sync" -> {
                     val chemicals = payload.optJSONObject("chemicals")
                     if (chemicals != null) {
-                        val dopamine = chemicals.optDouble("dopamine", 50.0).toFloat()
-                        val serotonin = chemicals.optDouble("serotonin", 50.0).toFloat()
-                        val cortisol = chemicals.optDouble("cortisol", 50.0).toFloat()
-                        val adrenaline = chemicals.optDouble("adrenaline", 50.0).toFloat()
+                        // Server sends values in 0.0–1.0 range (NOT 0–100)
                         val state = EmotionState(
-                            dopamine = dopamine / 100f,
-                            serotonin = serotonin / 100f,
-                            cortisol = cortisol / 100f,
-                            adrenaline = adrenaline / 100f
+                            dopamine = chemicals.optDouble("dopamine", 0.5).toFloat().coerceIn(0f, 1f),
+                            serotonin = chemicals.optDouble("serotonin", 0.5).toFloat().coerceIn(0f, 1f),
+                            cortisol = chemicals.optDouble("cortisol", 0.2).toFloat().coerceIn(0f, 1f),
+                            adrenaline = chemicals.optDouble("adrenaline", 0.1).toFloat().coerceIn(0f, 1f),
+                            oxytocin = chemicals.optDouble("oxytocin", 0.3).toFloat().coerceIn(0f, 1f),
+                            melatonin = chemicals.optDouble("melatonin", 0.1).toFloat().coerceIn(0f, 1f)
                         )
                         _currentEmotion.value = state
                         repositoryScope.launch {
@@ -493,6 +532,29 @@ class ChatRepository @Inject constructor(
     }
 
     /**
+     * Sends a raw JSON string to the active link channel.
+     */
+    fun sendRawMessage(msg: String): Boolean {
+        val isRtcConnected = webRtcClient?.connectionState?.value == org.webrtc.PeerConnection.PeerConnectionState.CONNECTED
+        if (isRtcConnected) {
+            val sent = webRtcClient?.sendMessage(msg) ?: false
+            if (sent) {
+                Log.i("ChatRepository", "Raw message sent over WebRTC")
+                return true
+            }
+        }
+        val ws = webSocket
+        if (ws != null) {
+            val sent = ws.send(msg)
+            if (sent) {
+                Log.i("ChatRepository", "Raw message sent over WebSocket")
+                return true
+            }
+        }
+        return false
+    }
+
+    /**
      * Triggers speech vocalization for the given text.
      */
     suspend fun speakText(text: String) {
@@ -509,7 +571,31 @@ class ChatRepository @Inject constructor(
         val isDesktopConnected = aikoPrefs.desktopConnectedFlow.first()
         val (cleanText, tag) = emotionEngine.parseResponseEmotion(fullReply)
 
-        if (isDesktopConnected) {
+        aikoDatabase.withTransaction {
+            if (isDesktopConnected) {
+                messageDao.insertMessage(
+                    MessageEntity(
+                        conversationId = conversationId,
+                        role = "aiko",
+                        content = cleanText,
+                        emotionTag = tag
+                    )
+                )
+                return@withTransaction
+            }
+
+            // Auto-vocalize response in Local Fallback mode if voice output is enabled
+            if (aikoPrefs.voiceEnabledFlow.first()) {
+                repositoryScope.launch {
+                    vocalizer.speak(cleanText)
+                }
+            }
+
+            val current = _currentEmotion.value
+            val finalEmotion = emotionEngine.applyTagImpact(tag, current)
+            _currentEmotion.value = finalEmotion
+            saveEmotionLog(finalEmotion)
+
             messageDao.insertMessage(
                 MessageEntity(
                     conversationId = conversationId,
@@ -518,60 +604,39 @@ class ChatRepository @Inject constructor(
                     emotionTag = tag
                 )
             )
-            return
-        }
 
-        // Auto-vocalize response in Local Fallback mode if voice output is enabled
-        if (aikoPrefs.voiceEnabledFlow.first()) {
-            repositoryScope.launch {
-                vocalizer.speak(cleanText)
+            // XP/Level mapping
+            val oldBond = bondDao.getBond() ?: BondEntity()
+            val xpGain = 10 + (finalEmotion.dopamine * 5).toInt()
+            var newXp = oldBond.xp + xpGain
+            var newLevel = oldBond.level
+            val xpNeeded = 100 * newLevel
+            if (newXp >= xpNeeded) {
+                newLevel += 1
+                newXp -= xpNeeded
             }
+
+            val relationshipTitle = when (newLevel) {
+                in 1..3 -> "Stranger"
+                in 4..7 -> "Companion"
+                in 8..12 -> "Devoted Friend"
+                in 13..17 -> "Soulbound"
+                else -> "Eternal Partner"
+            }
+
+            bondDao.insertOrUpdateBond(
+                oldBond.copy(
+                    level = newLevel,
+                    xp = newXp,
+                    totalMessages = oldBond.totalMessages + 2,
+                    lastInteraction = System.currentTimeMillis(),
+                    relationshipTitle = relationshipTitle
+                )
+            )
         }
 
-        val current = _currentEmotion.value
-        val finalEmotion = emotionEngine.applyTagImpact(tag, current)
-        _currentEmotion.value = finalEmotion
-        saveEmotionLog(finalEmotion)
-
-        messageDao.insertMessage(
-            MessageEntity(
-                conversationId = conversationId,
-                role = "aiko",
-                content = cleanText,
-                emotionTag = tag
-            )
-        )
-
-        // XP/Level mapping
+        // Memory consolidation triggers (outside transaction to avoid holding DB lock for long operations)
         val oldBond = bondDao.getBond() ?: BondEntity()
-        val xpGain = 10 + (finalEmotion.dopamine * 5).toInt()
-        var newXp = oldBond.xp + xpGain
-        var newLevel = oldBond.level
-        val xpNeeded = 100 * newLevel
-        if (newXp >= xpNeeded) {
-            newLevel += 1
-            newXp -= xpNeeded
-        }
-
-        val relationshipTitle = when (newLevel) {
-            in 1..3 -> "Stranger"
-            in 4..7 -> "Companion"
-            in 8..12 -> "Devoted Friend"
-            in 13..17 -> "Soulbound"
-            else -> "Eternal Partner"
-        }
-
-        bondDao.insertOrUpdateBond(
-            oldBond.copy(
-                level = newLevel,
-                xp = newXp,
-                totalMessages = oldBond.totalMessages + 2,
-                lastInteraction = System.currentTimeMillis(),
-                relationshipTitle = relationshipTitle
-            )
-        )
-
-        // Memory consolidation triggers
         if ((oldBond.totalMessages + 2) % 5 == 0) {
             repositoryScope.launch {
                 try {

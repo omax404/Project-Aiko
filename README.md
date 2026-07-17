@@ -1,4 +1,3 @@
-
 <img width="3114" height="1344" alt="Gemini_Generated_Image_srqtdjsrqtdjsrqt" src="https://github.com/user-attachments/assets/f202624b-8c22-43e0-939e-c2ddbaeba304" />
 
 
@@ -20,7 +19,7 @@
 
 <br/>
 
-*Self-hosted, you-owned AI companion with emotional depth, long-term memory, and real agency.*
+*Self-hosted, user-owned AI companion with emotional depth, long-term memory, and real agency.*
 *She doesn't just chat — she thinks, feels, remembers, sees, speaks, and acts.*
 
 </div>
@@ -33,15 +32,15 @@
 
 1. Download Aiko to your computer.
 2. Double-click `LAUNCH_AIKO.bat`.
-3. Wait for her to wake up — she sets everything up automatically.
+3. Wait for her to wake up — the application boots up automatically through virtualenv.
 
 Once the dashboard appears, click the **gear icon** in the top right to customize her:
-- **Persona** — write custom personality instructions
-- **AI Model** — switch between Ollama, Gemini, OpenAI, Anthropic, or any custom endpoint
-- **Voice** — enable/disable speech or change her voice profile
-- **Plugins** — toggle Discord, Telegram, or PC Bridge integrations
+- **Persona** — write custom personality instructions or moods.
+- **AI Model** — switch between Ollama, Gemini, OpenAI, Anthropic, or any custom endpoint.
+- **Voice** — enable/disable speech or change her voice profile.
+- **Plugins** — toggle Discord, Telegram, Twitch, or PC Bridge integrations.
 
-Hit **Save & Apply** — changes take effect instantly, no restart needed.
+Hit **Save & Apply** — changes take effect instantly.
 
 ### For Developers
 
@@ -52,7 +51,7 @@ pip install -r requirements.txt
 python launch.py
 ```
 
-This automatically starts Ollama, binds the Neural Hub to port 8000, connects the Discord/Telegram satellites, and launches the desktop overlay.
+This automatically starts Ollama, binds the Neural Hub to port 8000, connects the Discord/Telegram/Twitch satellites, and launches the desktop overlay.
 
 **To modify the desktop UI:**
 ```bash
@@ -61,11 +60,6 @@ npm install
 npm run tauri dev     # development
 npm run tauri build   # production build
 ```
-
-**Voice cloning setup (optional):**
-1. Accept terms at [huggingface.co/kyutai/pocket-tts](https://huggingface.co/kyutai/pocket-tts)
-2. `pip install huggingface_hub`
-3. `python -m huggingface_hub.commands.user login`
 
 ---
 
@@ -76,7 +70,7 @@ npm run tauri build   # production build
 | **Emotions** | Static personality prompt | Neuromodulator system (dopamine, serotonin, cortisol, adrenaline) across 22+ emotion states |
 | **Memory** | Chat history buffer | Unified Memory — episodic recall, semantic RAG, consolidation cycles, MemPalace |
 | **Voice** | Cloud API (e.g. ElevenLabs) | Local Pocket-TTS with voice cloning and chunked synthesis |
-| **Vision** | None | MiniCPM-V 4.6 local multimodal, Gemma-4 cloud fallback |
+| **Vision** | None | Local multimodal analysis (`moondream:latest` or MiniCPM-V) |
 | **Agency** | Responds when asked | Proactive agent loop — decides when to speak, what to observe, what to remember |
 | **Tools & Safety** | None | ReAct agent with MCP file system, PC control, Spotify, Obsidian, and Zero-Trust HITL authorization gate |
 | **Games** | None or basic | Autonomous Minecraft & Factorio bridges |
@@ -88,13 +82,13 @@ npm run tauri build   # production build
 
 ### 🧠 Brain
 - ReAct agent loop with multi-step reasoning and tool execution
-- Streaming inference across Ollama, OpenRouter, Gemini, OpenAI, Anthropic
+- Streaming inference across Ollama (`gemma4:31b-cloud`), OpenRouter, Gemini, OpenAI, Anthropic
 - Dual-pass generation — factual draft, then personality overlay
 - Autonomous proactive loop; context-aware rolling conversation buffers
 
 ### 👁️ Vision
-- **MiniCPM-V 4.6** (local) — fast multimodal understanding, SigLIP2 + Qwen3.5 token compression
-- **Gemma-4 31B-cloud** (fallback) — robust vision reasoning via Ollama
+- **Local Multimodal Scan** — fast visual understanding using local `moondream:latest` model via Ollama
+- **MiniCPM-V 4.6** (optional local) — SigLIP2 + Qwen3.5 token compression
 - Discord image processing, screen capture and analysis
 - Supports `.jpg`, `.png`, `.webp`, `.gif`, `.bmp`, `.avif`
 
@@ -148,21 +142,30 @@ npm run tauri build   # production build
 
 ---
 
-## Platforms
+## Platforms & Bridges
 
 | Platform | Status |
 |---|---|
 | Discord Bot (self-healing) | ✅ |
 | Telegram Bot | ✅ |
+| Twitch Bot (standard IRC) | ✅ |
 | Tauri Desktop App (Live2D overlay) | ✅ |
 | REST API (port 8000) | ✅ |
 
-### Desktop Overlay (Tauri)
-- **Global hotkey** — `Ctrl + Alt + A` to toggle visibility
-- **Pixel-perfect click-through** — transparent zones with no ghost-hitbox interference
-- **Dynamic hover zones** — cursor focus restores instantly on mouse enter
-- **Live2D avatar** — animations driven by her live emotional state
-- **Unified dashboard** — chat history, system stats, project intelligence
+### 💜 Twitch Bot Integration
+Link Aiko directly to your Twitch channel stream chat! Configurable in the plugins tab or `.env`. 
+* Employs standard asyncio-based socket connections for zero-dependency speed.
+* Listens to messages mentioning your bot username or starting with `aiko`.
+* Connects chat queries directly to the Neural Hub and returns live formatted responses to stream chat.
+
+### 💻 Desktop Overlay (Tauri)
+* **Global hotkey** — `Ctrl + Alt + A` to toggle visibility
+* **Pixel-perfect click-through** — transparent zones with no ghost-hitbox interference
+* **Dynamic hover zones** — cursor focus restores instantly on mouse enter
+* **Live2D avatar** — animations driven by her live emotional state
+* **Unified dashboard** — chat history, system stats, project intelligence
+* **Start Screen Upgrades** — Full screen looping ambient video, centered transparent gothic logo text, silk progress shimmer effect, and Cormorant Garamond typography.
+* **Upgraded Avatar Physics** — Harmonic dual-layer breast parameters (`Param117-120`) for highly realistic body giggle animation.
 
 ---
 
@@ -179,7 +182,7 @@ flowchart TD
     end
 
     subgraph Senses["Senses"]
-        Vision["Vision<br/>MiniCPM-V / Gemma-4"]
+        Vision["Vision<br/>MiniCPM-V / Moondream"]
         Hearing["Hearing<br/>Moonshine STT"]
         Voice["Voice<br/>Pocket-TTS"]
     end
@@ -187,6 +190,7 @@ flowchart TD
     subgraph Satellites["Satellites"]
         Discord["Discord Bot"]
         Telegram["Telegram Bot"]
+        Twitch["Twitch Bot"]
         Desktop["Tauri Desktop<br/>Live2D Overlay"]
     end
 
@@ -200,6 +204,7 @@ flowchart TD
 
     Discord -->|messages + images| Neural
     Telegram -->|messages| Neural
+    Twitch -->|messages| Neural
     Desktop -->|WebSocket| Neural
 
     Brain --> Memory
@@ -230,13 +235,10 @@ Aiko supports any OpenAI-compatible API. Tested configurations:
 
 | Provider | Example Model | Type |
 |---|---|---|
-| **Ollama** (default) | `gemma4:31b-cloud` | Local |
+| **Ollama** (default) | `gemma4:31b-cloud` | Local / Proxy |
 | **OpenRouter** | `google/gemma-3-27b-it:free` | Cloud (free tier) |
 | **Gemini** | `gemini-2.0-flash` | Cloud |
 | **OpenAI** | `gpt-4o` | Cloud |
-| **Anthropic** | `claude-sonnet-4-20250514` | Cloud |
-| **DeepSeek** | `deepseek-chat` | Cloud |
-| **Groq** | `llama-3.3-70b` | Cloud (fast) |
 | **Any OpenAI-compatible** | — | Via `API_BASE` override |
 
 ---
@@ -269,6 +271,8 @@ Project-Aiko/
 ├── docs/                  # Architecture & setup guides
 ├── stickers/              # Lavender sticker base assets
 ├── launch.py              # Unified cross-platform launcher
+├── requirements.txt       # Python dependencies
+├── twitch_bot.py          # Asynchronous Twitch satellite client
 └── requirements.txt       # Python dependencies
 ```
 
@@ -281,16 +285,6 @@ Project-Aiko/
 | `LAUNCH_AIKO.bat` crashes immediately | Check "Add Python to PATH" was selected during install. Use Python 3.10–3.12 (3.13 is too new for some dependencies). |
 | `Failed to build wheel` / `cl.exe not found` | Install the [Visual C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) — "Desktop development with C++" workload. |
 | Aiko wakes up but can't "think" | Make sure Ollama is running in the background. If using a cloud provider, check your API key under **Settings**. |
-
----
-
-## Roadmap — Road to v1.0
-
-- **VRM Support** — full 3D avatar with hand/eye tracking
-- **Mobile App** — Native Android GLES rendering & WebRTC state synchronization (v1.0 complete!)
-- **Voice Cloning v2** — real-time emotional voice modulation
-- **Plugin Marketplace** — community-driven modular capabilities
-- **Long-Term Evolution** — self-learning memory that grows with you
 
 ---
 

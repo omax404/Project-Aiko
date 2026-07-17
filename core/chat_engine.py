@@ -419,18 +419,29 @@ Use MCP tools whenever Master asks about his PC state, files, wants you to read/
                 "max_tokens": 2000
             }
 
-        if PROVIDER == "Ollama":
-            url = config.get("LLM_URL", "http://127.0.0.1:11434/api/chat")
-            content, status = await stream_ollama(
-                url=url, model=MODEL, messages=messages, images=images,
-                api_key=API_KEY, modifiers=modifiers, emit_callback=self._emit_sentence
-            )
-        else:
-            primary_url = config.get("LLM_URL", "http://127.0.0.1:11434/api")
-            content, status = await stream_openai(
-                url=primary_url, model=MODEL, messages=messages, images=images,
-                api_key=API_KEY, modifiers=modifiers, emit_callback=self._emit_sentence
-            )
+        try:
+            if PROVIDER == "Ollama":
+                url = config.get("LLM_URL", "http://127.0.0.1:11434/api/chat")
+                if not url:
+                    url = "http://127.0.0.1:11434/api/chat"
+                content, status = await stream_ollama(
+                    url=url, model=MODEL, messages=messages, images=images,
+                    api_key=API_KEY, modifiers=modifiers, emit_callback=self._emit_sentence
+                )
+            else:
+                primary_url = config.get("LLM_URL", "")
+                if not primary_url:
+                    if PROVIDER.lower() == "cloud":
+                        return "Master, since you configured Aiko to use a Cloud provider, please enter your cloud endpoint URL (e.g., OpenRouter or custom Ollama cloud) in Settings (user_settings.json). (⁠ꈍ⁠ᴗ⁠ꈍ⁠)"
+                    primary_url = "http://127.0.0.1:11434/v1/chat/completions"
+                
+                content, status = await stream_openai(
+                    url=primary_url, model=MODEL, messages=messages, images=images,
+                    api_key=API_KEY, modifiers=modifiers, emit_callback=self._emit_sentence
+                )
+        except Exception as conn_err:
+            logger.error(f"[Brain] LLM connection failed: {conn_err}")
+            return f"Ehh? I couldn't connect to your LLM provider '{PROVIDER}', Master. Please check if your LLM server/cloud URL is active and reachable. (Error: {str(conn_err)}) (⁠ꈍ⁠ᴗ⁠ꈍ⁠)"
 
         if content:
             return content

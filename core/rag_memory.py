@@ -271,6 +271,30 @@ class RAGMemorySystem:
             meta["timestamp"] = time.time()
             self.collection.add(documents=[text], metadatas=[meta], ids=[mem_id])
             self.search_memory.cache_clear()
+            
+            # --- Cap Collection Size (Pruning oldest memories if items > 500) ---
+            try:
+                count = self.collection.count()
+                if count > 500:
+                    old_items = self.collection.get(limit=100, include=["metadatas"])
+                    if old_items and old_items["ids"]:
+                        items_with_ts = []
+                        for idx, item_id in enumerate(old_items["ids"]):
+                            m = old_items["metadatas"][idx] or {}
+                            ts = m.get("timestamp", 0.0)
+                            items_with_ts.append((item_id, ts))
+                        
+                        # Sort by timestamp ascending
+                        items_with_ts.sort(key=lambda x: x[1])
+                        
+                        # Delete the oldest 50 items
+                        ids_to_delete = [x[0] for x in items_with_ts[:50]]
+                        if ids_to_delete:
+                            self.collection.delete(ids=ids_to_delete)
+                            logger.info(f"[RAG] Pruned {len(ids_to_delete)} oldest memories to cap size (current count: {count}).")
+            except Exception as prune_err:
+                logger.warning(f"[RAG] Capping check failed: {prune_err}")
+                
         except Exception as e:
             logger.error(f"[RAG] Add Error: {e}")
             

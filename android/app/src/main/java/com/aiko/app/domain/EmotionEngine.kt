@@ -9,7 +9,9 @@ data class EmotionState(
     val dopamine: Float = 0.5f,    // 0f-1f — pleasure, reward
     val serotonin: Float = 0.5f,   // 0f-1f — mood, stability
     val cortisol: Float = 0.2f,    // 0f-1f — stress, fear
-    val adrenaline: Float = 0.3f   // 0f-1f — excitement, urgency
+    val adrenaline: Float = 0.3f,  // 0f-1f — excitement, urgency
+    val oxytocin: Float = 0.3f,    // 0f-1f — trust, bonding, empathy
+    val melatonin: Float = 0.1f    // 0f-1f — drowsiness, tiredness
 )
 
 @Singleton
@@ -76,7 +78,7 @@ class EmotionEngine @Inject constructor() {
         c = c * 0.95f + 0.2f * 0.05f
         a = a * 0.95f + 0.3f * 0.05f
 
-        return EmotionState(d, s, c, a)
+        return EmotionState(dopamine = d, serotonin = s, cortisol = c, adrenaline = a)
     }
 
     /**
@@ -144,7 +146,7 @@ class EmotionEngine @Inject constructor() {
             }
         }
 
-        return EmotionState(d, s, c, a)
+        return EmotionState(dopamine = d, serotonin = s, cortisol = c, adrenaline = a)
     }
 
     /**

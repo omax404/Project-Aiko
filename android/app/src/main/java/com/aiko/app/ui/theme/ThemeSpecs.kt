@@ -12,6 +12,28 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.googlefonts.GoogleFont
+import androidx.compose.ui.text.googlefonts.Font
+import com.aiko.app.R
+
+val fontProvider = GoogleFont.Provider(
+    providerAuthority = "com.google.android.gms.fonts",
+    providerPackage = "com.google.android.gms",
+    certificates = R.array.com_google_android_gms_fonts_certs
+)
+
+val CormorantGaramond = FontFamily(
+    Font(googleFont = GoogleFont("Cormorant Garamond"), fontProvider = fontProvider)
+)
+val DMSans = FontFamily(
+    Font(googleFont = GoogleFont("DM Sans"), fontProvider = fontProvider)
+)
+val Inter = FontFamily(
+    Font(googleFont = GoogleFont("Inter"), fontProvider = fontProvider)
+)
+val JetBrainsMono = FontFamily(
+    Font(googleFont = GoogleFont("JetBrains Mono"), fontProvider = fontProvider)
+)
 
 /**
  * Dynamic color palette that can be customized at runtime via user preferences.
@@ -22,10 +44,24 @@ data class AikoDynamicColors(
     val Background: Color = Color(0xFF1C1320),
     val Surface: Color = Color(0xFF2A1B30),
     val Accent: Color = Color(0xFFC9A8D9),
-    val TextPrimary: Color = Color(0xFFEDE7F0),
-    val TextSecondary: Color = Color(0xFF9C8AA8),
-    val Error: Color = Color(0xFFE07A80),
+    val TextPrimary: Color = Color(0xFFf0ebe3),
+    val TextSecondary: Color = Color(0xFF9a8f7e),
+    val Error: Color = Color(0xFFf87171),
     val AccentSoft: Color = Accent.copy(alpha = 0.15f),
+    val Card: Color = Color(0xFF35223D),
+    val InputBg: Color = Color(0xFF241829),
+    val Border: Color = Color(0x0FFFFFFF),
+    val SuccessGreen: Color = Color(0xFF4ade80),
+    val ErrorRed: Color = Color(0xFFf87171),
+    
+    // Neurochemical Bar Colors (Matching Tailwind classes)
+    val DopamineBar: Color = Color(0xFFEAB308),
+    val SerotoninBar: Color = Color(0xFF22C55E),
+    val CortisolBar: Color = Color(0xFFEF4444),
+    val AdrenalineBar: Color = Color(0xFF3B82F6),
+    val OxytocinBar: Color = Color(0xFFEC4899),
+    val MelatoninBar: Color = Color(0xFF8B5CF6),
+
     // Compatibility aliases
     val BackgroundLight: Color = Background,
     val SurfaceDark: Color = Surface,
@@ -56,6 +92,20 @@ object AikoColors {
     val TextSecondary: Color @Composable get() = LocalAikoColors.current.TextSecondary
     val Error: Color @Composable get() = LocalAikoColors.current.Error
     val AccentSoft: Color @Composable get() = LocalAikoColors.current.AccentSoft
+    val Card: Color @Composable get() = LocalAikoColors.current.Card
+    val InputBg: Color @Composable get() = LocalAikoColors.current.InputBg
+    val Border: Color @Composable get() = LocalAikoColors.current.Border
+    val SuccessGreen: Color @Composable get() = LocalAikoColors.current.SuccessGreen
+    val ErrorRed: Color @Composable get() = LocalAikoColors.current.ErrorRed
+
+    // Chemical bar getters
+    val DopamineBar: Color @Composable get() = LocalAikoColors.current.DopamineBar
+    val SerotoninBar: Color @Composable get() = LocalAikoColors.current.SerotoninBar
+    val CortisolBar: Color @Composable get() = LocalAikoColors.current.CortisolBar
+    val AdrenalineBar: Color @Composable get() = LocalAikoColors.current.AdrenalineBar
+    val OxytocinBar: Color @Composable get() = LocalAikoColors.current.OxytocinBar
+    val MelatoninBar: Color @Composable get() = LocalAikoColors.current.MelatoninBar
+
     val BackgroundLight: Color @Composable get() = LocalAikoColors.current.BackgroundLight
     val SurfaceDark: Color @Composable get() = LocalAikoColors.current.SurfaceDark
     val PrimaryRed: Color @Composable get() = LocalAikoColors.current.PrimaryRed
@@ -73,42 +123,46 @@ object AikoColors {
 
 /** Font family selection for the app, stored as a preference key string. */
 object AikoFonts {
-    val SansSerif = FontFamily.SansSerif
-    val Serif = FontFamily.Serif
-    val Monospace = FontFamily.Monospace
+    val SansSerif = Inter
+    val Serif = CormorantGaramond
+    val Monospace = JetBrainsMono
     val Cursive = FontFamily.Cursive
 
     fun fromKey(key: String): FontFamily = when (key) {
-        "system_serif" -> Serif
-        "monospace" -> Monospace
+        "system_serif", "cormorant" -> Serif
+        "monospace", "jetbrains" -> Monospace
+        "dm_sans" -> DMSans
+        "inter" -> Inter
         "cursive" -> Cursive
         else -> SansSerif
     }
 
     fun labelFor(key: String): String = when (key) {
-        "system_serif" -> "Serif"
-        "monospace" -> "Monospace"
+        "system_serif", "cormorant" -> "Cormorant Garamond"
+        "monospace", "jetbrains" -> "JetBrains Mono"
+        "dm_sans" -> "DM Sans"
+        "inter" -> "Inter"
         "cursive" -> "Handwritten"
-        else -> "Sans Serif"
+        else -> "Inter"
     }
 
-    val allKeys = listOf("system_sans", "system_serif", "monospace", "cursive")
+    val allKeys = listOf("inter", "dm_sans", "cormorant", "jetbrains", "cursive")
 }
 
-val LocalAikoFontFamily = staticCompositionLocalOf<FontFamily> { FontFamily.SansSerif }
+val LocalAikoFontFamily = staticCompositionLocalOf<FontFamily> { Inter }
 val LocalAikoTextScale = staticCompositionLocalOf { 1.0f }
 
 /** Builds a Material3 Typography with the given font families and text scale. */
 fun buildAikoTypography(
-    headingFamily: FontFamily = FontFamily.Serif,
-    bodyFamily: FontFamily = FontFamily.SansSerif,
+    headingFamily: FontFamily = CormorantGaramond,
+    bodyFamily: FontFamily = Inter,
     scale: Float = 1.0f
 ): Typography = Typography(
-    headlineLarge = TextStyle(fontFamily = headingFamily, fontWeight = FontWeight.SemiBold, fontSize = (34 * scale).sp, lineHeight = (40 * scale).sp, color = Color(0xFFEDE7F0)),
-    titleLarge = TextStyle(fontFamily = headingFamily, fontWeight = FontWeight.Medium, fontSize = (22 * scale).sp, lineHeight = (28 * scale).sp, color = Color(0xFFEDE7F0)),
-    bodyLarge = TextStyle(fontFamily = bodyFamily, fontWeight = FontWeight.Normal, fontSize = (16 * scale).sp, lineHeight = (23 * scale).sp, color = Color(0xFFEDE7F0)),
-    bodyMedium = TextStyle(fontFamily = bodyFamily, fontWeight = FontWeight.Normal, fontSize = (14 * scale).sp, lineHeight = (20 * scale).sp, color = Color(0xFF9C8AA8)),
-    labelMedium = TextStyle(fontFamily = bodyFamily, fontWeight = FontWeight.Medium, fontSize = (12 * scale).sp, lineHeight = (16 * scale).sp, letterSpacing = 0.4.sp, color = Color(0xFF9C8AA8))
+    headlineLarge = TextStyle(fontFamily = headingFamily, fontWeight = FontWeight.SemiBold, fontSize = (34 * scale).sp, lineHeight = (40 * scale).sp, color = Color(0xFFf0ebe3)),
+    titleLarge = TextStyle(fontFamily = headingFamily, fontWeight = FontWeight.Medium, fontSize = (22 * scale).sp, lineHeight = (28 * scale).sp, color = Color(0xFFf0ebe3)),
+    bodyLarge = TextStyle(fontFamily = bodyFamily, fontWeight = FontWeight.Normal, fontSize = (16 * scale).sp, lineHeight = (23 * scale).sp, color = Color(0xFFf0ebe3)),
+    bodyMedium = TextStyle(fontFamily = bodyFamily, fontWeight = FontWeight.Normal, fontSize = (14 * scale).sp, lineHeight = (20 * scale).sp, color = Color(0xFF9a8f7e)),
+    labelMedium = TextStyle(fontFamily = bodyFamily, fontWeight = FontWeight.Medium, fontSize = (12 * scale).sp, lineHeight = (16 * scale).sp, letterSpacing = 0.4.sp, color = Color(0xFF9a8f7e))
 )
 
 /**
@@ -136,7 +190,7 @@ fun parseHexColor(hex: String, fallback: Color = Color(0xFFC9A8D9)): Color {
 @Composable
 fun AikoTheme(
     accentColorHex: String = "#C9A8D9",
-    fontKey: String = "system_sans",
+    fontKey: String = "inter",
     textScale: Float = 1.0f,
     content: @Composable () -> Unit
 ) {
@@ -155,7 +209,7 @@ fun AikoTheme(
     )
 
     val bodyFamily = AikoFonts.fromKey(fontKey)
-    val headingFamily = if (fontKey == "system_sans") FontFamily.Serif else bodyFamily
+    val headingFamily = if (fontKey == "inter" || fontKey == "system_sans") CormorantGaramond else bodyFamily
     val typography = buildAikoTypography(headingFamily, bodyFamily, textScale)
 
     val colorScheme = darkColorScheme(

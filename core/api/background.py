@@ -169,10 +169,16 @@ async def start_background_tasks(app):
     background_tasks.add(t3)
     t3.add_done_callback(background_tasks.discard)
     
-    # Message queue processing
-    t4 = asyncio.create_task(process_queue_messages())
-    background_tasks.add(t4)
-    t4.add_done_callback(background_tasks.discard)
+    # Message queue processing (only if discord or telegram bots are enabled in configuration)
+    from core.config_manager import config as aiko_config
+    discord_enabled = aiko_config.get("PLUGINS_DISCORD_BOT", True)
+    telegram_enabled = aiko_config.get("PLUGINS_TELEGRAM_BOT", True)
+    if discord_enabled or telegram_enabled:
+        t4 = asyncio.create_task(process_queue_messages())
+        background_tasks.add(t4)
+        t4.add_done_callback(background_tasks.discard)
+    else:
+        logger.info("[Hub] Message queue processing task skipped (both Discord and Telegram bot plugins are disabled).")
     
     # Biological broadcast (if emotion engine available)
     if hub.emotion_engine:

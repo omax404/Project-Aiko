@@ -71,6 +71,12 @@ class AikoBridge(
         Log.e("AikoBridge", "Model failed: $errorMessage")
         onLoaded(false)
     }
+
+    @JavascriptInterface
+    fun onModelError(errorMessage: String) {
+        Log.e("AikoBridge", "Model error occurred: $errorMessage")
+        onLoaded(false)
+    }
 }
 
 @Composable
@@ -116,28 +122,33 @@ fun AikoAvatar(
         label = "scale"
     )
 
+    val sizeModifier = if (size != Dp.Unspecified) Modifier.size(size) else Modifier.fillMaxSize()
+    val innerModifier = if (size != Dp.Unspecified) Modifier.size(size - 24.dp) else Modifier.fillMaxSize()
+
     Box(
-        modifier = modifier.size(size),
+        modifier = modifier.then(sizeModifier),
         contentAlignment = Alignment.Center
     ) {
         // 1. Double Glowing Ambient Rings (Glass depth)
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .scale(pulseScale)
-                .blur(radius = 16.dp)
-                .clip(CircleShape)
-                .background(animatedGlowColor.copy(alpha = 0.15f))
-                .border(2.dp, animatedGlowColor.copy(alpha = 0.3f), CircleShape)
-        )
+        if (size != Dp.Unspecified) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .scale(pulseScale)
+                    .blur(radius = 16.dp)
+                    .clip(CircleShape)
+                    .background(animatedGlowColor.copy(alpha = 0.15f))
+                    .border(2.dp, animatedGlowColor.copy(alpha = 0.3f), CircleShape)
+            )
 
-        Box(
-            modifier = Modifier
-                .size(size - 16.dp)
-                .blur(radius = 8.dp)
-                .clip(CircleShape)
-                .background(animatedGlowColor.copy(alpha = 0.10f))
-        )
+            Box(
+                modifier = Modifier
+                    .size(size - 16.dp)
+                    .blur(radius = 8.dp)
+                    .clip(CircleShape)
+                    .background(animatedGlowColor.copy(alpha = 0.10f))
+            )
+        }
 
         if (avatarMode == "WebView") {
             // Track model load state: null = loading, true = success, false = failed
@@ -233,8 +244,7 @@ fun AikoAvatar(
                     // Model is still loading — show WebView (it may succeed) plus a loading indicator
                     AndroidView(
                         factory = { webView },
-                        modifier = Modifier
-                            .size(size - 24.dp)
+                        modifier = innerModifier
                     )
                     // Overlay a subtle loading indicator
                     Column(
@@ -258,15 +268,14 @@ fun AikoAvatar(
                     // Model loaded successfully — show full WebView without circular clip
                     AndroidView(
                         factory = { webView },
-                        modifier = Modifier
-                            .size(size - 24.dp)
+                        modifier = innerModifier
                     )
                 }
                 false -> {
                     // Model failed to load (OOM etc.) — show beautiful fallback
                     AikoPersona(
                         emotionTag = dominantEmotion,
-                        modifier = Modifier.size(size - 24.dp)
+                        modifier = innerModifier
                     )
                 }
             }
@@ -292,13 +301,13 @@ fun AikoAvatar(
 
             AndroidView(
                 factory = { glSurfaceView },
-                modifier = Modifier.size(size - 24.dp)
+                modifier = innerModifier
             )
         } else {
             // HIGH-FIDELITY FALLBACK: Glowing Frosted Glass Refraction Sphere Core
             AikoPersona(
                 emotionTag = dominantEmotion,
-                modifier = Modifier.size(size - 24.dp)
+                modifier = innerModifier
             )
         }
     }

@@ -60,8 +60,7 @@ class ProactiveAgent:
             while True:
                 now = datetime.now()
 
-                # REM Sleep & Memory Consolidation (The "Dream" System)
-                # Triggers at 2 AM or if PC is idle for a long time at night
+                # REM Sleep & Memory Consolidation (The "Dream" System) - Always active overnight
                 if now.date() > self.last_consolidation and (now.hour == 2 or (not self.active and now.hour > 0 and now.hour < 5)):
                     logger.info("[Proactive] Entering REM Sleep... Consolidating memories.")
                     try:
@@ -82,20 +81,20 @@ class ProactiveAgent:
                     except (OSError, ValueError, RuntimeError) as e:
                         logger.error(f"[Proactive] REM Sleep cycle failed: {e}")
 
-                # Time-based greeting (once per session block)
-                await self._maybe_greet(now)
-
-                # Obsidian TODO Check (Once every 2 hours if active)
-                await self._check_obsidian_tasks(now)
-
-                # Spotify Track Change
-                await self._check_music()
-
-                # Inner Monologue (High Emotion / Idle Trigger)
-                await self._check_inner_monologue(now)
-
                 start_time = time.time()
                 if self.active:
+                    # Time-based greeting (once per session block)
+                    await self._maybe_greet(now)
+
+                    # Obsidian TODO Check (Once every 2 hours if active)
+                    await self._check_obsidian_tasks(now)
+
+                    # Spotify Track Change
+                    await self._check_music()
+
+                    # Inner Monologue (High Emotion / Idle Trigger)
+                    await self._check_inner_monologue(now)
+
                     await self.tick()
                     wait = self.interval if self.interval < 30 else random.randint(self.interval, self.interval * 2)
                 else:

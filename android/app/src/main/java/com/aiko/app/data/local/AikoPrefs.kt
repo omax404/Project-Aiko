@@ -87,7 +87,7 @@ class AikoPrefs @Inject constructor(
 
     val connectionModeFlow: Flow<String> = safeFlow(PreferencesKeys.CONNECTION_MODE, "Link to Desktop")
     val themeAccentColorFlow: Flow<String> = safeFlow(PreferencesKeys.THEME_ACCENT_COLOR, "#C9A8D9")
-    val avatarModeFlow: Flow<String> = safeFlow(PreferencesKeys.AVATAR_MODE, "Cubism")
+    val avatarModeFlow: Flow<String> = safeFlow(PreferencesKeys.AVATAR_MODE, "WebView")
     val lastSyncTimestampFlow: Flow<Long> = safeFlow(PreferencesKeys.LAST_SYNC_TIMESTAMP, 0L)
 
     val jitterIntensityFlow: Flow<Float> = safeFlow(PreferencesKeys.JITTER_INTENSITY, 0.4f)

@@ -1,6 +1,8 @@
 package com.aiko.app
 
 import android.os.Bundle
+import android.content.Intent
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -18,6 +20,7 @@ import com.aiko.app.data.repository.ChatRepository
 import com.aiko.app.domain.EmotionEngine
 import com.aiko.app.ui.screens.chat.ChatScreen
 import com.aiko.app.ui.screens.settings.SettingsScreen
+import com.aiko.app.ui.screens.home.HomeScreen
 import com.aiko.app.ui.theme.AikoColors
 import com.aiko.app.ui.theme.AikoTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -34,7 +37,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            var settingsOpen by rememberSaveable { mutableStateOf(false) }
+            var currentScreen by rememberSaveable { mutableStateOf("home") }
             val themeAccentColor by prefs.themeAccentColorFlow.collectAsState(initial = "#C9A8D9")
             val chatFont by prefs.chatFontFlow.collectAsState(initial = "system_sans")
             val chatTextSize by prefs.chatTextSizeFlow.collectAsState(initial = 1.0f)
@@ -48,13 +51,58 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = AikoColors.Background
                 ) {
-                    if (settingsOpen) {
-                        SettingsScreen(chatRepository, prefs, onBack = { settingsOpen = false })
-                    } else {
-                        ChatScreen(chatRepository, emotionEngine, prefs, onOpenSettings = { settingsOpen = true })
+                    when (currentScreen) {
+                        "settings" -> {
+                            SettingsScreen(chatRepository, prefs, onBack = { currentScreen = "home" })
+                        }
+                        "chat" -> {
+                            ChatScreen(
+                                chatRepository = chatRepository,
+                                emotionEngine = emotionEngine,
+                                aikoPrefs = prefs,
+                                onOpenSettings = { currentScreen = "settings" }
+                            )
+                            androidx.activity.compose.BackHandler {
+                                currentScreen = "home"
+                            }
+                        }
+                        else -> {
+                            HomeScreen(
+                                chatRepository = chatRepository,
+                                aikoPrefs = prefs,
+                                emotionEngine = emotionEngine,
+                                onOpenSettings = { currentScreen = "settings" },
+                                onSwipeUp = { currentScreen = "chat" }
+                            )
+                        }
                     }
                 }
             }
         }
+        
+        // Phase 5: Request push notifications permission on Android 13+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 101)
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        AikoConnectionService.isAppInForeground = true
+        try {
+            val intent = Intent(this, AikoConnectionService::class.java)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Failed to start AikoConnectionService: ${e.message}")
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        AikoConnectionService.isAppInForeground = false
     }
 }

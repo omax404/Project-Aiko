@@ -54,3 +54,8 @@ nul
 scratch/perchance_*.png
 scratch/test_*.py
 scratch/inspect_*.py
+
+.agents/
+
+*.salive
+.kotlin/

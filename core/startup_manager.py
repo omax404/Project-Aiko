@@ -104,18 +104,39 @@ class StartupManager:
             else:
                 logger.warning("[Startup] TELEGRAM_TOKEN not set — Telegram bot skipped. Add it to .env")
 
+        # ── Twitch Bot ───────────────────────────────────────────
+        if plugins.get("twitch_bot", True):
+            twitch_token = os.getenv("TWITCH_TOKEN", "") or plugins.get("twitch_token", "")
+            twitch_channel = os.getenv("TWITCH_CHANNEL", "") or plugins.get("twitch_channel", "")
+            twitch_user = os.getenv("TWITCH_USERNAME", "") or plugins.get("twitch_username", "")
+            if twitch_token and twitch_channel and twitch_user:
+                if not cls.is_process_running("twitch_bot.py"):
+                    logger.info("[Startup] Launching Twitch satellite bot...")
+                    bot_script = str(BASE / "twitch_bot.py")
+                    cls.launch_background([python_exe, bot_script], cwd=str(BASE))
+                    logger.info("[Startup] Twitch bot started.")
+                else:
+                    logger.info("[Startup] Twitch bot already running.")
+            else:
+                logger.warning("[Startup] Twitch credentials not set — Twitch bot skipped. Add TWITCH_TOKEN, TWITCH_CHANNEL, and TWITCH_USERNAME to .env or user_settings.json")
+
     @classmethod
     def launch_all(cls) -> None:
         """Executes the full start-up sequence."""
         logger.info("[Startup] Initiating Aiko Background Startup Sequence...")
 
-        # 1. Ollama Server
-        if not cls.is_process_running("ollama"):
-            logger.info("[Startup] Starting Ollama Serve...")
-            cls.launch_background("ollama serve")
-            time.sleep(2)
+        # 1. Ollama Server (Only started if Ollama is the active provider)
+        from core.config_manager import config as aiko_config
+        active_provider = aiko_config.get("PROVIDER", "cloud").lower()
+        if active_provider == "ollama":
+            if not cls.is_process_running("ollama"):
+                logger.info("[Startup] Starting Ollama Serve...")
+                cls.launch_background("ollama serve")
+                time.sleep(2)
+            else:
+                logger.info("[Startup] Ollama already running.")
         else:
-            logger.info("[Startup] Ollama already running.")
+            logger.info(f"[Startup] Skipped Ollama background launch (active provider is: {active_provider})")
 
         # 2. Discord desktop app (optional — separate from the bot)
         if not cls.is_process_running("Discord.exe"):

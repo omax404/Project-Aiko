@@ -96,20 +96,25 @@ export function DashboardStats({
                 { name: 'Serotonin', value: chemicals?.serotonin ?? 50, color: 'bg-green-500' },
                 { name: 'Cortisol', value: chemicals?.cortisol ?? 50, color: 'bg-red-500' },
                 { name: 'Adrenaline', value: chemicals?.adrenaline ?? 50, color: 'bg-blue-500' },
-              ].map((c) => (
-                <div key={c.name} className="flex flex-col gap-1">
-                  <div className="flex justify-between text-[10px] uppercase font-medium">
-                    <span className="text-[var(--t2)]">{c.name}</span>
-                    <span className="text-[var(--t1)] font-mono">{c.value}%</span>
+              ].map((c) => {
+                const numericValue = typeof c.value === 'number' ? c.value : parseFloat(c.value) || 0;
+                const roundedValue = numericValue.toFixed(1);
+                const progressWidth = Math.min(100, Math.max(0, numericValue));
+                return (
+                  <div key={c.name} className="flex flex-col gap-1">
+                    <div className="flex justify-between text-[10px] uppercase font-medium">
+                      <span className="text-[var(--t2)]">{c.name}</span>
+                      <span className="text-[var(--t1)] font-mono">{roundedValue}%</span>
+                    </div>
+                    <div className="w-full h-1 bg-white/[0.05] rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full ${c.color} transition-all duration-500`} 
+                        style={{ width: `${progressWidth}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="w-full h-1 bg-white/[0.05] rounded-full overflow-hidden">
-                    <div 
-                      className={`h-full ${c.color} transition-all duration-500`} 
-                      style={{ width: `${c.value}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 

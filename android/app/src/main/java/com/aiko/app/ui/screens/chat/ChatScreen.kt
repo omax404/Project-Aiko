@@ -77,12 +77,91 @@ import com.aiko.app.ui.theme.AikoTypography
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.io.ByteArrayOutputStream
+import coil3.compose.AsyncImage
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.font.FontStyle
 
 // Strips XML tags (think, emotion, thought, etc.) and system tool codes
 private val tagCleanerRegex = Regex("""<(think|emotion|thought|relevant_memory_context|current_visual_awareness)>.*?</\1>|<.*?>|\[(?:SCAN|MCP|TASK|BIO_REGISTER|GAME|OPEN|TYPE|CLICK|PRESS|WAIT|WALLPAPER|WEATHER|MUSIC|LETTER|VTS_BG|IMAGE|RECALL|LATEX|REFLECTIVE_STATE|GIF)[^\]]*?\]""", RegexOption.IGNORE_CASE)
 
 private fun cleanText(value: String): String {
     return value.replace(tagCleanerRegex, "").trim()
+}
+
+sealed class MessageContentSegment {
+    data class TextSegment(val text: String) : MessageContentSegment()
+    data class ImageSegment(val url: String, val alt: String) : MessageContentSegment()
+}
+
+private fun parseMessageContent(content: String, desktopUrl: String): List<MessageContentSegment> {
+    val segments = mutableListOf<MessageContentSegment>()
+    val regex = Regex("""!\[([^\]]*?)\]\(([^)]+?)\)""")
+    var lastIndex = 0
+    val trimmedDesktopUrl = desktopUrl.trimEnd('/')
+    
+    regex.findAll(content).forEach { matchResult ->
+        val textBefore = content.substring(lastIndex, matchResult.range.first)
+        if (textBefore.isNotEmpty()) {
+            segments.add(MessageContentSegment.TextSegment(textBefore))
+        }
+        val alt = matchResult.groupValues[1]
+        var url = matchResult.groupValues[2]
+        if (url.startsWith("/")) {
+            url = "$trimmedDesktopUrl$url"
+        }
+        segments.add(MessageContentSegment.ImageSegment(url, alt))
+        lastIndex = matchResult.range.last + 1
+    }
+    
+    if (lastIndex < content.length) {
+        val textAfter = content.substring(lastIndex)
+        if (textAfter.isNotEmpty()) {
+            segments.add(MessageContentSegment.TextSegment(textAfter))
+        }
+    }
+    
+    if (segments.isEmpty() && content.isNotEmpty()) {
+        segments.add(MessageContentSegment.TextSegment(content))
+    }
+    return segments
+}
+
+private fun parseMarkdownText(text: String, roleplayColor: Color): AnnotatedString {
+    val clean = cleanText(text)
+    return buildAnnotatedString {
+        var i = 0
+        val n = clean.length
+        while (i < n) {
+            if (i < n - 1 && clean[i] == '*' && clean[i + 1] == '*') {
+                val end = clean.indexOf("**", i + 2)
+                if (end != -1) {
+                    withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+                        append(clean.substring(i + 2, end))
+                    }
+                    i = end + 2
+                } else {
+                    append(clean[i])
+                    i++
+                }
+            } else if (clean[i] == '*') {
+                val end = clean.indexOf('*', i + 1)
+                if (end != -1) {
+                    withStyle(style = SpanStyle(fontStyle = FontStyle.Italic, color = roleplayColor)) {
+                        append(clean.substring(i + 1, end))
+                    }
+                    i = end + 1
+                } else {
+                    append(clean[i])
+                    i++
+                }
+            } else {
+                append(clean[i])
+                i++
+            }
+        }
+    }
 }
 
 @Composable
@@ -114,6 +193,7 @@ fun ChatScreen(
     val avatarMode by aikoPrefs.avatarModeFlow.collectAsState("WebView")
     val chatWallpaper by aikoPrefs.chatWallpaperFlow.collectAsState("default")
     val chatBubbleStyle by aikoPrefs.chatBubbleStyleFlow.collectAsState("default")
+    val desktopUrl by aikoPrefs.desktopUrlFlow.collectAsState("http://10.0.2.2:8000")
 
     val haptic = LocalHapticFeedback.current
 
@@ -121,8 +201,8 @@ fun ChatScreen(
     val listState = rememberLazyListState()
 
     var draft by rememberSaveable { mutableStateOf("") }
-    var streaming by remember { mutableStateOf("") }
-    var thinking by remember { mutableStateOf(false) }
+    val streaming by chatRepository.streamingText.collectAsState()
+    val thinking by chatRepository.isThinking.collectAsState()
     var drawerOpen by remember { mutableStateOf(false) }
     var moodOpen by remember { mutableStateOf(false) }
     var voiceListening by remember { mutableStateOf(false) }
@@ -134,10 +214,13 @@ fun ChatScreen(
     var showMemorySyncBanner by remember { mutableStateOf(false) }
     var syncSuccess by remember { mutableStateOf(false) }
 
-    // Scroll to bottom on new message
+    // Scroll to bottom on new message with safe delay to ensure layout complete
     LaunchedEffect(messages.size, streaming.length) {
-        val finalIndex = if (streaming.isNotEmpty()) messages.size else messages.lastIndex
-        if (finalIndex >= 0) listState.animateScrollToItem(finalIndex)
+        val targetIndex = if (streaming.isNotEmpty()) messages.size else messages.lastIndex
+        if (targetIndex >= 0) {
+            delay(100) // Let compose layout measure the new item
+            listState.scrollToItem(targetIndex)
+        }
     }
 
     // Camera permission launcher
@@ -244,7 +327,7 @@ fun ChatScreen(
                     contentPadding = PaddingValues(horizontal = 20.dp, vertical = 18.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(messages, key = { it.id }) { AnimatedMessageCard(it, chatBubbleStyle) }
+                    items(messages, key = { it.id }) { AnimatedMessageCard(it, chatBubbleStyle, chatRepository, desktopUrl) }
                     if (streaming.isNotEmpty()) {
                         item {
                             MessageCard(
@@ -254,7 +337,9 @@ fun ChatScreen(
                                     content = streaming,
                                     emotionTag = null
                                 ),
-                                bubbleStyle = chatBubbleStyle
+                                bubbleStyle = chatBubbleStyle,
+                                chatRepository = chatRepository,
+                                desktopUrl = desktopUrl
                             )
                         }
                     }
@@ -313,8 +398,8 @@ fun ChatScreen(
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     
                     draft = ""
-                    thinking = true
-                    streaming = ""
+                    chatRepository.isThinking.value = true
+                    chatRepository.streamingText.value = ""
                     
                     val imageToAttach = attachedImage
                     attachedImage = null
@@ -331,16 +416,16 @@ fun ChatScreen(
                         runCatching {
                             chatRepository.streamAikoResponse("default", prompt, base64Str).collect { token ->
                                 full += token
-                                streaming = cleanText(full)
+                                chatRepository.streamingText.value = cleanText(full)
                             }
                         }.onFailure { err ->
                             full = "Connection sync issues. Let's try linked network setup again."
-                            streaming = full
+                            chatRepository.streamingText.value = full
                         }
                         
                         chatRepository.finalizeAikoResponse("default", full)
-                        streaming = ""
-                        thinking = false
+                        chatRepository.streamingText.value = ""
+                        chatRepository.isThinking.value = false
                     }
                 }
             )
@@ -459,7 +544,7 @@ private fun EmptyChat(modifier: Modifier, onStart: () -> Unit) = Box(
 }
 
 @Composable
-private fun AnimatedMessageCard(message: MessageEntity, bubbleStyle: String) {
+private fun AnimatedMessageCard(message: MessageEntity, bubbleStyle: String, chatRepository: ChatRepository, desktopUrl: String) {
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         visible = true
@@ -472,7 +557,7 @@ private fun AnimatedMessageCard(message: MessageEntity, bubbleStyle: String) {
                     animationSpec = tween(400, easing = FastOutSlowInEasing)
                 )
     ) {
-        MessageCard(message = message, bubbleStyle = bubbleStyle)
+        MessageCard(message = message, bubbleStyle = bubbleStyle, chatRepository = chatRepository, desktopUrl = desktopUrl)
     }
 }
 
@@ -482,7 +567,7 @@ private fun formatTime(timestamp: Long): String {
 }
 
 @Composable
-private fun MessageCard(message: MessageEntity, bubbleStyle: String = "default") {
+private fun MessageCard(message: MessageEntity, bubbleStyle: String = "default", chatRepository: ChatRepository, desktopUrl: String) {
     val user = message.role == "user"
     var actions by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -541,7 +626,42 @@ private fun MessageCard(message: MessageEntity, bubbleStyle: String = "default")
                     Text("[Sticker: $stickerName]", style = AikoTypography.bodyLarge, modifier = Modifier.padding(16.dp))
                 }
             } else {
-                Text(cleanText(content), style = AikoTypography.bodyLarge, modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
+                val segments = remember(content, desktopUrl) { parseMessageContent(content, desktopUrl) }
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                    segments.forEachIndexed { index, segment ->
+                        when (segment) {
+                            is MessageContentSegment.TextSegment -> {
+                                val roleplayColor = if (user) Color.White.copy(alpha = 0.75f) else AikoColors.TextSecondary
+                                Text(
+                                    text = parseMarkdownText(segment.text, roleplayColor),
+                                    style = AikoTypography.bodyLarge.copy(
+                                        color = if (user) Color.White else AikoColors.TextPrimary
+                                    )
+                                )
+                            }
+                            is MessageContentSegment.ImageSegment -> {
+                                Box(
+                                    modifier = Modifier
+                                        .padding(vertical = 4.dp)
+                                        .fillMaxWidth()
+                                        .height(140.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Color.Black.copy(alpha = 0.05f))
+                                ) {
+                                    AsyncImage(
+                                        model = segment.url,
+                                        contentDescription = segment.alt,
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = androidx.compose.ui.layout.ContentScale.Fit
+                                    )
+                                }
+                            }
+                        }
+                        if (index < segments.lastIndex) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                        }
+                    }
+                }
             }
         }
         
