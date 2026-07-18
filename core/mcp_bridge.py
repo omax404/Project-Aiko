@@ -20,14 +20,14 @@ from datetime import datetime
 
 logger = logging.getLogger("MCPBridge")
 
-# ── Safety: restrict to these base directories by default ────────────────────
+# ── Safety: restrict file tools to the app sandbox only ─────────────────────
+# SECURITY: Do NOT add Path.home() or any broad directory.
+# Granting home() exposes .ssh/id_rsa, .aws/credentials, browser databases, etc.
+_APP_BASE = Path(__file__).parent.parent  # project root
 ALLOWED_ROOTS = [
-    Path.home(),
-    Path.home() / ".gemini",
-    Path.home() / "Desktop",
-    Path.home() / "Documents",
-    Path.home() / "Downloads",
-    Path.home() / "Pictures",
+    _APP_BASE / "data" / "sandbox",
+    _APP_BASE / "data" / "uploads",
+    _APP_BASE / "data" / "latex",
 ]
 
 def _is_allowed(path: Path) -> bool:
@@ -189,21 +189,19 @@ class MCPBridge:
             return f"[MCP ERROR] Cannot kill PID {pid}: {e}"
 
     async def run_command(self, cmd: str, timeout: int = 10) -> str:
-        """Run a shell command and return output. Sandboxed to safe commands."""
-        BLOCKED = ["rm -rf", "format", "del /f", "shutdown", "reg delete", "mklink", "netsh"]
-        if any(b in cmd.lower() for b in BLOCKED):
-            return f"[MCP BLOCKED] Command contains unsafe operation"
-        try:
-            result = subprocess.run(
-                cmd, shell=True, capture_output=True, text=True, timeout=timeout,
-                encoding="utf-8", errors="replace"
-            )
-            out = result.stdout.strip() or result.stderr.strip() or "(no output)"
-            return f"[CMD OUTPUT]\n{out[:2000]}"
-        except subprocess.TimeoutExpired:
-            return f"[MCP ERROR] Command timed out after {timeout}s"
-        except (OSError, PermissionError, ValueError, TypeError) as e:
-            return f"[MCP ERROR] Command failed: {e}"
+        """[DISABLED] Generic shell command execution.
+
+        This method was disabled during the security hardening pass (2025-07).
+        Reason: Exposing a generic command runner to the LLM creates a trivially
+        exploitable Remote Code Execution surface. The previous naive string
+        blacklist (e.g. blocking 'rm -rf') was bypassable via PowerShell aliases,
+        environment variables, or command chaining.
+
+        If specific OS integrations are needed, implement them as narrow,
+        purpose-built methods with explicit argument validation.
+        """
+        logger.warning(f"[MCP] run_command is DISABLED. Blocked cmd: {cmd[:80]}")
+        return "[MCP BLOCKED] Generic command execution is disabled for security reasons."
 
     async def get_clipboard(self) -> str:
         try:

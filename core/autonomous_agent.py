@@ -344,42 +344,23 @@ class AutonomousAgent:
             # Don't spam user with self-improvement thoughts unless asked
 
     async def _goal_code(self, goal: Goal):
-        """Write a useful utility script using SOP: coding_assistant."""
-        sop = await self._run_directive("coding_assistant")
-        task_desc = goal.context.get("task", "Write a Python script that lists the top 5 CPU-consuming processes.")
-        
-        code = await self._think(
-            f"SOP: {sop}\nTask: {task_desc}\n"
-            "Output ONLY the Python code block, no explanation."
-        )
-        if code:
-            import re
-            code_clean = re.sub(r'```python\n|```', '', code)
-            
-            scripts_dir = os.path.join(os.getcwd(), ".tmp", "autonomous_scripts")
-            os.makedirs(scripts_dir, exist_ok=True)
-            fname = f"auto_{int(time.time())}.py"
-            path  = os.path.join(scripts_dir, fname)
-            
-            with open(path, "w", encoding="utf-8") as f:
-                f.write(code_clean)
-                
-            # Deterministic execution via execution layer
-            orchestrator.emit_reasoning_step("CODE", f"Testing autonomous script: {fname}", 0.8)
-            import json
-            res_raw = await self._execute_script("run_autonomous_script", [path])
-            
-            if res_raw:
-                try:
-                    res = json.loads(res_raw)
-                    if "stdout" in res:
-                        self._say(
-                            f"Master, I wrote a tool to help with: {task_desc}. "
-                            f"I've saved it at `.tmp/autonomous_scripts/{fname}`. Value: {res['stdout'][:50]}... 🌸",
-                            "excited"
-                        )
-                except json.JSONDecodeError as jde:
-                    logger.warning(f"Failed to parse autonomous script output: {jde}")
+        """[DISABLED] Autonomous code generation and execution.
+
+        This goal was disabled during the security hardening pass (2025-07).
+        Reason: The feature writes LLM-generated Python to disk and executes it
+        via subprocess, creating a Remote Code Execution vector exploitable through
+        prompt injection (e.g. malicious text on a scanned screen).
+
+        Additionally, the required runner script (run_autonomous_script.py) was
+        never created, so the feature was broken from day one.
+
+        If re-enabled in the future, execution MUST happen inside an isolated
+        sandbox (e.g. a Docker container with no network and CPU limits).
+        """
+        logger.warning("[Autonomous] _goal_code is DISABLED for security reasons. Skipping.")
+        return
+
+
 
     async def _goal_observe(self, goal: Goal):
         """Watch the system using SOP: system_optimization."""

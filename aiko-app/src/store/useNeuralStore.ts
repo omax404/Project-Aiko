@@ -128,6 +128,21 @@ export const getHubUrl = (): string => {
 let hubUrl = getHubUrl();
 let isConnecting = false;
 let globalAudioCtx: AudioContext | null = null;
+let wsToken: string | null = null;
+
+/** Fetch the local JWT from the backend's loopback-only /token endpoint. */
+async function fetchLocalToken(): Promise<string | null> {
+  try {
+    const res = await fetch(`${hubUrl}/token`, { cache: 'no-store' });
+    if (res.ok) {
+      const json = await res.json();
+      return json.token as string;
+    }
+  } catch (e) {
+    console.warn('[Aiko] Could not fetch local auth token:', e);
+  }
+  return null;
+}
 
 function scheduleReconnect() {
   if (reconnectTimer) return;
@@ -140,22 +155,29 @@ function scheduleReconnect() {
   }, delay);
 }
 
-function connectSocket() {
+async function connectSocket() {
   if (reconnectTimer) {
     clearTimeout(reconnectTimer);
     reconnectTimer = null;
   }
-  const wsUrl = hubUrl.replace('http', 'ws') + '/ws';
+
+  // Fetch (or reuse) the local auth token before building the WS URL
+  if (!wsToken) {
+    wsToken = await fetchLocalToken();
+  }
+  const tokenParam = wsToken ? `?token=${encodeURIComponent(wsToken)}` : '';
+  const wsUrl = hubUrl.replace('http', 'ws') + '/ws' + tokenParam;
 
   if (socket) {
-    if (socket.url === wsUrl && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+    // Compare base URL only (strip ?token=... for comparison)
+    const baseUrl = socket.url.split('?')[0];
+    const targetBase = (hubUrl.replace('http', 'ws') + '/ws');
+    if (baseUrl === targetBase && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
       return;
     }
-    if (socket.url !== wsUrl) {
-      console.log(`[Aiko] Link URL changed from ${socket.url} to ${wsUrl}. Re-linking...`);
-      try {
-        socket.close();
-      } catch (_) {}
+    if (baseUrl !== targetBase) {
+      console.log(`[Aiko] Link URL changed. Re-linking...`);
+      try { socket.close(); } catch (_) {}
       socket = null;
     }
   }
@@ -193,10 +215,15 @@ function connectSocket() {
       }, 15000);
     };
 
-    socket.onclose = () => {
-      console.log('[Aiko] Neural Core Decoupled');
+    socket.onclose = (event) => {
+      console.log('[Aiko] Neural Core Decoupled', event.code);
       isConnecting = false;
       clearInterval(heartbeatInterval);
+      // If the server rejected with 401 (Unauthorized), clear the cached token
+      // so the next reconnect attempt fetches a fresh one.
+      if (event.code === 1008 || event.code === 4001) {
+        wsToken = null;
+      }
       useNeuralStore.setState({ bridgeStatus: { status: 'disconnected', latency: 0, lastSeen: new Date().toISOString() } });
       scheduleReconnect();
     };

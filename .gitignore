@@ -38,6 +38,8 @@ capture.png
 # Configuration & Live Secrets
 data/*
 !data/config.example.json
+!data/sandbox/.gitkeep
+# data/local_token.txt is excluded by data/* — never commit auth tokens
 user_settings.json
 !user_settings.example.json
 .env
@@ -56,6 +58,5 @@ scratch/test_*.py
 scratch/inspect_*.py
 
 .agents/
-
 *.salive
 .kotlin/

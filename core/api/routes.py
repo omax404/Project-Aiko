@@ -79,7 +79,30 @@ def get_local_ip() -> str:
             return "127.0.0.1"
 
 
+# Path where the startup token is stored
+_LOCAL_TOKEN_FILE = BASE / "data" / "local_token.txt"
+
+
+async def handle_local_token(req):
+    """Return the local app JWT to the desktop frontend.
+
+    SECURITY: Only loopback addresses are allowed. Remote clients receive 403.
+    This replaces the old subnet-bypass pattern with a proper local token handshake.
+    """
+    peer = req.remote or ""
+    if peer not in ("127.0.0.1", "::1", "localhost"):
+        logger.warning(f"[Auth] /token request from non-loopback IP rejected: {peer}")
+        return web.json_response({"error": "Forbidden"}, status=403)
+    try:
+        token = _LOCAL_TOKEN_FILE.read_text(encoding="utf-8").strip()
+        return web.json_response({"token": token})
+    except (OSError, IOError) as e:
+        logger.error(f"[Auth] Cannot read local token file: {e}")
+        return web.json_response({"error": "Token not ready"}, status=503)
+
+
 async def handle_status(req):
+
     try:
         rag_available = False
         rag_count = 0

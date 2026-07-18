@@ -24,7 +24,7 @@ from core.api.routes import (
     handle_purge, handle_update_settings, handle_reload_settings, handle_get_settings,
     handle_upload, handle_project_structure, handle_latex_render,
     handle_latex_image, handle_create_session, handle_export_memories,
-    handle_webrtc_offer
+    handle_webrtc_offer, handle_local_token
 )
 from core.api.websocket import handle_ws
 from core.api.background import start_background_tasks, cleanup_background_tasks
@@ -149,13 +149,19 @@ async def on_startup(app):
     if history:
         asyncio.create_task(memory_consolidator.consolidate(history))
     
-    # 19. Print welcome info
+    # 19. Generate local auth token and persist it for the desktop frontend
+    token_dir = BASE / "data"
+    token_dir.mkdir(parents=True, exist_ok=True)
+    local_token = generate_token("local_desktop", expires_hours=8760)  # 1 year
+    (token_dir / "local_token.txt").write_text(local_token, encoding="utf-8")
+    logger.info(" [Hub] Local auth token generated and saved to data/local_token.txt")
+
     logger.info("\n" + "="*40)
     logger.info("   Aiko Neural Hub v2.0 — Online")
     logger.info("   Access: http://localhost:8000")
     logger.info("   Dashboard: /")
     logger.info("   Status: /status")
-    logger.info("   WebSocket: /ws")
+    logger.info("   WebSocket: /ws?token=<local_token>")
     logger.info("="*40 + "\n")
     
     # 20. Start background tasks
@@ -179,6 +185,7 @@ def build_hub_app() -> web.Application:
     # Public API routes
     app.router.add_get('/status', handle_status)
     app.router.add_get('/health', handle_health)
+    app.router.add_get('/token', handle_local_token)  # loopback-only token endpoint
     app.router.add_get('/ws', handle_ws)
     
     # Protected API routes (require JWT Bearer token)

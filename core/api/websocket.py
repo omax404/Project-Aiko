@@ -40,6 +40,7 @@ from core.api.broadcast import broadcast_event, ws_clients
 from core.api.schemas import WSChatMessage
 from core.persona import detect_emotion
 from core.api.routes import sync_star_office
+from core.api.auth import verify_token
 
 logger = logging.getLogger("WebSocket")
 
@@ -239,10 +240,20 @@ async def _process_branch_ws(data: dict, ws: web.WebSocketResponse):
 
 async def handle_ws(req):
     """Real-time Streaming & UI Bridge."""
+    # --- WebSocket authentication ---
+    # Token must be supplied as a query parameter: ws://host/ws?token=<JWT>
+    # The JWT middleware cannot intercept WS upgrades via standard headers,
+    # so we validate the token here before accepting the connection.
+    token = req.rel_url.query.get("token", "")
+    payload = verify_token(token) if token else None
+    if not payload:
+        logger.warning(" [Hub] WS connection rejected — missing or invalid token.")
+        return web.Response(status=401, text="Unauthorized — valid token required")
+
     ws = web.WebSocketResponse()
     await ws.prepare(req)
     ws_clients.add(ws)
-    logger.info(f" [Hub] New WS Client connected. Total: {len(ws_clients)}")
+    logger.info(f" [Hub] New WS Client connected (user={payload.get('sub', '?')}). Total: {len(ws_clients)}")
     
     try:
         async for msg in ws:

@@ -55,7 +55,8 @@ def verify_token(token: str) -> dict:
         return None
 
 # Public paths that don't require authentication
-PUBLIC_PATHS = {"/status", "/health", "/ws", "/"}
+# NOTE: /ws is intentionally excluded — WebSocket auth is enforced at handshake level
+PUBLIC_PATHS = {"/status", "/health", "/"}
 
 @web.middleware
 async def jwt_middleware(request, handler):
@@ -70,34 +71,9 @@ async def jwt_middleware(request, handler):
     if path.startswith("/api/settings") and request.method == "GET":
         return await handler(request)
     
-    # Local intranet / loopback subnet bypass for seamless mobile synchronization
-    peer_ip = request.remote or ""
-    is_local = (
-        peer_ip in ("127.0.0.1", "::1", "localhost") or
-        peer_ip.startswith("192.168.") or
-        peer_ip.startswith("10.") or
-        peer_ip.startswith("172.16.") or
-        peer_ip.startswith("172.17.") or
-        peer_ip.startswith("172.18.") or
-        peer_ip.startswith("172.19.") or
-        peer_ip.startswith("172.20.") or
-        peer_ip.startswith("172.21.") or
-        peer_ip.startswith("172.22.") or
-        peer_ip.startswith("172.23.") or
-        peer_ip.startswith("172.24.") or
-        peer_ip.startswith("172.25.") or
-        peer_ip.startswith("172.26.") or
-        peer_ip.startswith("172.27.") or
-        peer_ip.startswith("172.28.") or
-        peer_ip.startswith("172.29.") or
-        peer_ip.startswith("172.30.") or
-        peer_ip.startswith("172.31.")
-    )
-    
-    if is_local:
-        request["user"] = {"sub": "local_peer", "iat": time.time(), "exp": time.time() + 3600}
-        return await handler(request)
-    
+    # SECURITY: Subnet/loopback bypass has been removed.
+    # All clients (local or remote) must present a valid Bearer token.
+    # If deployed behind a reverse proxy the proxy IP would otherwise bypass auth.
     auth = request.headers.get("Authorization", "")
     if not auth.startswith("Bearer "):
         return web.json_response({"error": "Unauthorized — Bearer token required"}, status=401)

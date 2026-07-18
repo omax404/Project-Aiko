@@ -268,13 +268,18 @@ class AgentExecutor:
                         observations.append(f"[Security Block: Unauthorized user cannot open PC applications.]")
                         continue
                     try:
+                        import subprocess
                         if os.name == 'nt':
-                            os.system(f'start "" "{target}"')
-                        else:
-                            os.system(f'open "{target}"' if os.name == 'posix' else f'xdg-open "{target}"')
+                            # Use a list — no shell interpreter, metacharacters are inert
+                            subprocess.Popen(["cmd.exe", "/c", "start", "", target], shell=False)
+                        elif os.name == 'posix':
+                            import sys
+                            opener = "open" if sys.platform == "darwin" else "xdg-open"
+                            subprocess.Popen([opener, target], shell=False)
                         observations.append(f"[System: Successfully requested OS to open '{target}']")
                     except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
                         observations.append(f"[System Error: Failed to open '{target}': {e}]")
+
 
                 # --- TYPE ---
                 elif action.tool_name == "TYPE":
