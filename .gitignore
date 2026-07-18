@@ -39,6 +39,7 @@ capture.png
 data/*
 !data/config.example.json
 !data/sandbox/.gitkeep
+!data/emotions.json
 # data/local_token.txt is excluded by data/* — never commit auth tokens
 user_settings.json
 !user_settings.example.json

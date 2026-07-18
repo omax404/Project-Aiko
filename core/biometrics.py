@@ -115,13 +115,22 @@ class BiometricScanner:
         """One-shot scan from camera to verify presence."""
         if not HAS_CV2: return False
         
-        cap = cv2.VideoCapture(camera_index)
-        ret, frame = cap.read()
-        cap.release()
+        import asyncio
+
+        def _capture():
+            cap = cv2.VideoCapture(camera_index)
+            try:
+                ret, frame = cap.read()
+                return ret, frame
+            finally:
+                cap.release()
+
+        ret, frame = await asyncio.to_thread(_capture)
         
-        if not ret: return False
+        if not ret or frame is None: return False
         is_master, conf, _ = self.scan_for_master(frame)
         return is_master
+
 
 # Singleton instance
 biometrics = BiometricScanner()

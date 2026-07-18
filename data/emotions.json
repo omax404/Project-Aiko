@@ -1,0 +1,29 @@
+{
+  "comment": "Shared emotion configurations for GIF triggers and Live2D model expression detection.",
+  "triggers": {
+    "yandere": ["mine", "only mine", "other girls", "who is she", "jealous", "possessive", "stay away"],
+    "bonk": ["horny", "lewd", "sus", "degenerate", "perv", "naughty", "dirty minded", "😏"],
+    "angry": ["angry", "mad", "furious", "pissed", "hate", "rage", "😡", "grr", "shut up", "baka", "stupid", "idiot", "destroy", "trash", "😤", "💢"],
+    "sad": ["sad", "depressed", "lonely", "miss you", "crying", "😢", "😭", "heartbroken", "sorry", "gomen", "cry", "hurt", "rest in peace"],
+    "panic": ["help", "panic", "scared", "screaming", "aaaaa", "worry", "oh no"],
+    "shocked": ["what", "nani", "omg", "holy", "wow", "real?", "seriously", "no way", "!?", "wtf", "wth", "what?!", "wait", "huh?", "h-h-", "😳", "💥", "overheat"],
+    "disgust": ["gross", "eww", "stinky", "ugly", "disgusting", "yuck", "nasty"],
+    "love": ["love", "ily", "i love you", "heart", "sweetie", "darling", "mwah", "❤", "💕", "💖", "xoxo", "baby"],
+    "blush": ["cute", "beautiful", "gorgeous", "pretty", "adorable", "flatter", "charming", "///", "kawaii"],
+    "excited": ["excited", "omggg", "cant wait", "let's go", "hyped", "pumped", "wooo"],
+    "victory": ["win", "won", "victory", "yes!", "gg", "ez clap", "celebrate", "we did it"],
+    "happy": ["yay", "happy", "awesome", "great", "nice", "hype", "amazing", "perfect", "fantastic", "wonderful", "🎉", "✨", "hehe", "smile", "joy", "cheerful", "(≧◡≦)", "🌸"],
+    "hug": ["hug", "cuddle", "hold me", "comfort", "embrace", "🤗"],
+    "pat": ["headpat", "pat pat", "good girl", "good job", "well done", "petpet"],
+    "smug": ["lol", "lmao", "too easy", "rekt", "pathetic", "gotcha", "owned"],
+    "pout": ["mean", "unfair", "unhappy", "meanie", "hmph", "not fair", "huff", "crosses arms", "not like i", "it's not", "pouts"],
+    "tired": ["sleepy", "night", "tired", "exhausted", "bed", "goodnight", "gn", "zzz", "😴", "yawn"],
+    "bored": ["boring", "meh", "whatever", "slow", "im bored", "nothing to do", "bland"],
+    "thinking": ["hmm", "wonder", "maybe", "perhaps", "consider", "pondering", "hmmm", "let me see", "analysis", "formula"],
+    "confused": ["huh", "what?", "confused", "don't understand", "weird", "???", "explain"],
+    "wave": ["hello", "hey", "yo", "sup", "morning", "afternoon", "evening", "greetings"],
+    "boba": ["boba", "drink", "sip"],
+    "tongue": ["bleh", "😛", "tease"],
+    "neutral": ["ok", "yes", "i see", "initialized"]
+  }
+}

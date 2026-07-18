@@ -155,11 +155,50 @@ function scheduleReconnect() {
   }, delay);
 }
 
+/** Probe local ports 8000–8010 to find where the Neural Hub backend is running. */
+async function findActiveHubUrl(): Promise<string> {
+  const defaultUrl = getHubUrl();
+  
+  // 1. Try configured default URL first
+  try {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), 600);
+    const res = await fetch(`${defaultUrl}/status`, { signal: controller.signal });
+    clearTimeout(id);
+    if (res.ok) return defaultUrl;
+  } catch (_) {}
+
+  // 2. Loop through ports 8000 to 8010
+  for (let port = 8000; port <= 8010; port++) {
+    const candidate = `http://127.0.0.1:${port}`;
+    if (candidate === defaultUrl) continue;
+    try {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), 400);
+      const res = await fetch(`${candidate}/status`, { signal: controller.signal });
+      clearTimeout(id);
+      if (res.ok) {
+        console.log(`[Aiko] Neural Hub automatically discovered on port ${port}`);
+        return candidate;
+      }
+    } catch (_) {}
+  }
+  return defaultUrl;
+}
+
 async function connectSocket() {
   if (reconnectTimer) {
     clearTimeout(reconnectTimer);
     reconnectTimer = null;
   }
+
+  // Update dynamic hubUrl port fallback before establishing link
+  try {
+    hubUrl = await findActiveHubUrl();
+  } catch (e) {
+    console.warn('[Aiko] Port discovery failed, using default:', e);
+  }
+
 
   // Fetch (or reuse) the local auth token before building the WS URL
   if (!wsToken) {

@@ -220,5 +220,34 @@ def build_hub_app() -> web.Application:
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(name)s: %(message)s')
     app = build_hub_app()
-    port = int(os.environ.get("AIKO_PORT", 8000))
+    
+    start_port = int(os.environ.get("AIKO_PORT", 8000))
+    import socket
+    port = start_port
+    
+    # Port scan to find first free port starting from start_port
+    for p in range(start_port, start_port + 50):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.bind(('127.0.0.1', p))
+                port = p
+                break
+            except OSError:
+                continue
+                
+    # Persist the selected port configuration to data/port.json
+    try:
+        port_file = BASE / "data" / "port.json"
+        port_file.parent.mkdir(parents=True, exist_ok=True)
+        # Write atomically
+        tmp_port_file = port_file.with_suffix(".tmp")
+        with open(tmp_port_file, "w", encoding="utf-8") as pf:
+            json.dump({"port": port}, pf)
+        import os
+        os.replace(tmp_port_file, port_file)
+    except Exception as e:
+        logger.warning(f"Could not persist active port to port.json: {e}")
+
+    logger.info(f" [Hub] Binding to port: {port}")
     web.run_app(app, host='0.0.0.0', port=port)
+

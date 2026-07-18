@@ -34,9 +34,18 @@ def _is_allowed(path: Path) -> bool:
     """Check if a path is within allowed roots."""
     try:
         path = path.resolve()
-        return any(str(path).startswith(str(r.resolve())) for r in ALLOWED_ROOTS)
+        for r in ALLOWED_ROOTS:
+            resolved_r = r.resolve()
+            try:
+                # relative_to will succeed if path is subpath of resolved_r
+                path.relative_to(resolved_r)
+                return True
+            except ValueError:
+                continue
+        return False
     except (OSError, PermissionError, RuntimeError):
         return False
+
 
 
 class MCPBridge:

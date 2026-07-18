@@ -112,17 +112,33 @@ If you are generating any code layouts, visual tables, canvas simulations, HTML/
 # ============================================================
 # EMOTION MAPPING - Links text keywords to Live2D emotions
 # ============================================================
-EMOTION_KEYWORDS = {
-    "happy": ["happy", "hehe", "yay", "smile", "joy", "cheerful", "(≧◡≦)", "✨", "🌸", "love"],
-    "sad": ["sad", "sorry", "gomen", "cry", "😭", "hurt", "lonely", "rest in peace"],
-    "angry": ["angry", "shut up", "baka", "stupid", "idiot", "destroy", "trash", "😤", "💢"],
-    "surprised": ["what?!", "wait", "really?", "huh?", "h-h-", "😳", "💥", "overheat"],
-    "pout": ["huff", "crosses arms", "not like i", "it's not", "pouts"],
-    "boba": ["boba", "drink", "sip"],
-    "tongue": ["bleh", "😛", "tease"],
-    "thoughtful": ["hmmm", "let me see", "thinking", "...", "analysis", "formula"],
-    "neutral": ["ok", "yes", "i see", "initialized"]
-}
+# Load shared triggers or use fallback mapping
+EMOTION_KEYWORDS = {}
+try:
+    from pathlib import Path
+    import json
+    _emotions_path = Path(__file__).parent.parent / "data" / "emotions.json"
+    if _emotions_path.exists():
+        with open(_emotions_path, "r", encoding="utf-8") as f:
+            _data = json.load(f)
+            # Map triggers directly
+            EMOTION_KEYWORDS = _data.get("triggers", {})
+except Exception as _ex:
+    pass
+
+if not EMOTION_KEYWORDS:
+    EMOTION_KEYWORDS = {
+        "happy": ["happy", "hehe", "yay", "smile", "joy", "cheerful", "(≧◡≦)", "✨", "🌸", "love"],
+        "sad": ["sad", "sorry", "gomen", "cry", "😭", "hurt", "lonely", "rest in peace"],
+        "angry": ["angry", "shut up", "baka", "stupid", "idiot", "destroy", "trash", "😤", "💢"],
+        "surprised": ["what?!", "wait", "really?", "huh?", "h-h-", "😳", "💥", "overheat"],
+        "pout": ["huff", "crosses arms", "not like i", "it's not", "pouts"],
+        "boba": ["boba", "drink", "sip"],
+        "tongue": ["bleh", "😛", "tease"],
+        "thoughtful": ["hmmm", "let me see", "thinking", "...", "analysis", "formula"],
+        "neutral": ["ok", "yes", "i see", "initialized"]
+    }
+
 
 MOOD_MODIFIERS = {
     "morning": "Be bright, cheerful, and energizing.",

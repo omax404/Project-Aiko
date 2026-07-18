@@ -412,29 +412,40 @@ class UnifiedMemoryManager:
 
     def save(self):
         """Persist all memory to disk."""
-        # Save conversations
-        self.history_file.write_text(
-            json.dumps(self.history, indent=2, ensure_ascii=False),
-            encoding='utf-8'
-        )
+        import os
 
-        # Save profiles
-        self.profiles_file.write_text(
-            json.dumps(self.user_profiles, indent=2, ensure_ascii=False),
-            encoding='utf-8'
-        )
+        def _write_atomic(file_path, data):
+            tmp_path = file_path.with_suffix(".tmp")
+            tmp_path.write_text(data, encoding='utf-8')
+            os.replace(tmp_path, file_path)
 
-        # Save reminders
-        self.reminders_file.write_text(
-            json.dumps(self.reminders, indent=2, ensure_ascii=False),
-            encoding='utf-8'
-        )
+        try:
+            # Save conversations
+            _write_atomic(
+                self.history_file,
+                json.dumps(self.history, indent=2, ensure_ascii=False)
+            )
+
+            # Save profiles
+            _write_atomic(
+                self.profiles_file,
+                json.dumps(self.user_profiles, indent=2, ensure_ascii=False)
+            )
+
+            # Save reminders
+            _write_atomic(
+                self.reminders_file,
+                json.dumps(self.reminders, indent=2, ensure_ascii=False)
+            )
+        except Exception as e:
+            logger.error(f"[Memory] Failed to save memory files atomically: {e}")
 
         # Flush thoughts and file links
         self.thought_stream._flush_buffer()
         self.file_graph.flush()
 
         logger.info("[Memory] Saved to disk")
+
 
     # === Conversation History ===
 

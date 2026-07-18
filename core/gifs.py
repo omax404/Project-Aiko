@@ -123,36 +123,51 @@ AIKO_GIFS = {
 #                    EMOTION TRIGGER KEYWORDS
 # ═══════════════════════════════════════════════════════════════
 
-EMOTION_TRIGGERS = {
-    # Intense emotions (checked first via priority)
-    'yandere': ['mine', 'only mine', 'other girls', 'who is she', 'jealous', 'possessive', 'stay away'],
-    'bonk': ['horny', 'lewd', 'sus', 'degenerate', 'perv', 'naughty', 'dirty minded', '😏'],
-    'angry': ['angry', 'mad', 'furious', 'pissed', 'hate', 'rage', '😡', 'grr'],
-    'sad': ['sad', 'depressed', 'lonely', 'miss you', 'crying', '😢', '😭', 'heartbroken'],
-    'panic': ['help', 'panic', 'scared', 'screaming', 'aaaaa', 'worry', 'oh no'],
-    'shocked': ['what', 'nani', 'omg', 'holy', 'wow', 'real?', 'seriously', 'no way', '!?', 'wtf', 'wth'],
-    'disgust': ['gross', 'eww', 'stinky', 'ugly', 'disgusting', 'yuck', 'nasty'],
-    
-    # Positive emotions (checked after intense)
-    'love': ['love', 'ily', 'i love you', 'heart', 'sweetie', 'darling', 'mwah', '❤', '💕', '💖', 'xoxo', 'baby'],
-    'blush': ['cute', 'beautiful', 'gorgeous', 'pretty', 'adorable', 'flatter', 'charming', '///', 'kawaii'],
-    'excited': ['excited', 'omggg', 'cant wait', "let's go", 'hyped', 'pumped', 'wooo'],
-    'victory': ['win', 'won', 'victory', 'yes!', 'gg', 'ez clap', 'celebrate', 'we did it'],
-    'happy': ['yay', 'happy', 'awesome', 'great', 'nice', 'hype', 'amazing', 'perfect', 'fantastic', 'wonderful', '🎉', '✨'],
-    
-    # Action emotions
-    'hug': ['hug', 'cuddle', 'hold me', 'comfort', 'embrace', '🤗'],
-    'pat': ['headpat', 'pat pat', 'good girl', 'good job', 'well done', 'petpet'],
-    'smug': ['lol', 'lmao', 'too easy', 'rekt', 'pathetic', 'gotcha', 'owned'],
-    'pout': ['mean', 'unfair', 'unhappy', 'meanie', 'hmph', 'not fair'],
-    
-    # Passive emotions (checked last)
-    'tired': ['sleepy', 'night', 'tired', 'exhausted', 'bed', 'goodnight', 'gn', 'zzz', '😴', 'yawn'],
-    'bored': ['boring', 'meh', 'whatever', 'slow', 'im bored', 'nothing to do', 'bland'],
-    'thinking': ['hmm', 'wonder', 'maybe', 'perhaps', 'consider', 'pondering'],
-    'confused': ['huh', 'what?', 'confused', "don't understand", 'weird', '???', 'explain'],
-    'wave': ['hello', 'hey', 'yo', 'sup', 'morning', 'afternoon', 'evening', 'greetings'],
-}
+# Load shared triggers or use fallback mapping
+EMOTION_TRIGGERS = {}
+try:
+    from pathlib import Path
+    import json
+    _emotions_path = Path(__file__).parent.parent / "data" / "emotions.json"
+    if _emotions_path.exists():
+        with open(_emotions_path, "r", encoding="utf-8") as f:
+            _data = json.load(f)
+            EMOTION_TRIGGERS = _data.get("triggers", {})
+except Exception as _e:
+    logger.warning(f"Failed to load shared emotions triggers: {_e}")
+
+if not EMOTION_TRIGGERS:
+    EMOTION_TRIGGERS = {
+        # Intense emotions (checked first via priority)
+        'yandere': ['mine', 'only mine', 'other girls', 'who is she', 'jealous', 'possessive', 'stay away'],
+        'bonk': ['horny', 'lewd', 'sus', 'degenerate', 'perv', 'naughty', 'dirty minded', '😏'],
+        'angry': ['angry', 'mad', 'furious', 'pissed', 'hate', 'rage', '😡', 'grr'],
+        'sad': ['sad', 'depressed', 'lonely', 'miss you', 'crying', '😢', '😭', 'heartbroken'],
+        'panic': ['help', 'panic', 'scared', 'screaming', 'aaaaa', 'worry', 'oh no'],
+        'shocked': ['what', 'nani', 'omg', 'holy', 'wow', 'real?', 'seriously', 'no way', '!?', 'wtf', 'wth'],
+        'disgust': ['gross', 'eww', 'stinky', 'ugly', 'disgusting', 'yuck', 'nasty'],
+        
+        # Positive emotions (checked after intense)
+        'love': ['love', 'ily', 'i love you', 'heart', 'sweetie', 'darling', 'mwah', '❤', '💕', '💖', 'xoxo', 'baby'],
+        'blush': ['cute', 'beautiful', 'gorgeous', 'pretty', 'adorable', 'flatter', 'charming', '///', 'kawaii'],
+        'excited': ['excited', 'omggg', 'cant wait', "let's go", 'hyped', 'pumped', 'wooo'],
+        'victory': ['win', 'won', 'victory', 'yes!', 'gg', 'ez clap', 'celebrate', 'we did it'],
+        'happy': ['yay', 'happy', 'awesome', 'great', 'nice', 'hype', 'amazing', 'perfect', 'fantastic', 'wonderful', '🎉', '✨'],
+        
+        # Action emotions
+        'hug': ['hug', 'cuddle', 'hold me', 'comfort', 'embrace', '🤗'],
+        'pat': ['headpat', 'pat pat', 'good girl', 'good job', 'well done', 'petpet'],
+        'smug': ['lol', 'lmao', 'too easy', 'rekt', 'pathetic', 'gotcha', 'owned'],
+        'pout': ['mean', 'unfair', 'unhappy', 'meanie', 'hmph', 'not fair'],
+        
+        # Passive emotions (checked last)
+        'tired': ['sleepy', 'night', 'tired', 'exhausted', 'bed', 'goodnight', 'gn', 'zzz', '😴', 'yawn'],
+        'bored': ['boring', 'meh', 'whatever', 'slow', 'im bored', 'nothing to do', 'bland'],
+        'thinking': ['hmm', 'wonder', 'maybe', 'perhaps', 'consider', 'pondering'],
+        'confused': ['huh', 'what?', 'confused', "don't understand", 'weird', '???', 'explain'],
+        'wave': ['hello', 'hey', 'yo', 'sup', 'morning', 'afternoon', 'evening', 'greetings'],
+    }
+
 
 # Priority order: intense emotions > positive > action > passive
 # This ensures Aiko's "intensity" isn't missed

@@ -175,10 +175,14 @@ class ConfigManager:
     def save(self):
         try:
             CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
-            with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            tmp_file = CONFIG_FILE.with_suffix(".tmp")
+            with open(tmp_file, "w", encoding="utf-8") as f:
                 json.dump(self._config, f, indent=4)
+            import os
+            os.replace(tmp_file, CONFIG_FILE)
         except Exception as e:
             logger.error(f"Failed to save config.json: {e}")
+
 
     def get(self, key, default=None):
         return self._config.get(key, default)
