@@ -254,6 +254,21 @@ async def handle_ws(req):
     await ws.prepare(req)
     ws_clients.add(ws)
     logger.info(f" [Hub] New WS Client connected (user={payload.get('sub', '?')}). Total: {len(ws_clients)}")
+
+    async def heartbeat_ping_loop(ws_client):
+        try:
+            while not ws_client.closed:
+                await asyncio.sleep(30)
+                if not ws_client.closed:
+                    await ws_client.ping()
+        except Exception:
+            try:
+                await ws_client.close()
+            except Exception:
+                pass
+
+    heartbeat_task = asyncio.create_task(heartbeat_ping_loop(ws))
+
     # Connection rate-limiter: maximum 5 messages per 2 seconds
     import time
     message_history = []
@@ -262,6 +277,7 @@ async def handle_ws(req):
 
     try:
         async for msg in ws:
+
             if msg.type == WSMsgType.TEXT:
                 # Enforce sliding window rate limit
                 now = time.time()
@@ -377,6 +393,8 @@ async def handle_ws(req):
     except RuntimeError as e:
         logger.error(f"WebSocket runtime error: {e}")
     finally:
+        heartbeat_task.cancel()
         ws_clients.discard(ws)
         logger.info(" [Hub] Client disconnected.")
     return ws
+

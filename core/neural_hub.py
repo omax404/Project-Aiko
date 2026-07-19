@@ -56,6 +56,21 @@ from core.structured_logger import system_logger
 BASE = Path(__file__).parent.parent
 logger = logging.getLogger("NeuralHub")
 
+@middleware
+async def global_exception_middleware(request, handler):
+    try:
+        return await handler(request)
+    except web.HTTPException as ex:
+        raise ex
+    except Exception as e:
+        logger.error(f"Unhandled Exception in API handler for {request.path}: {e}", exc_info=True)
+        return web.json_response({
+            "error": "Internal Server Error",
+            "message": str(e),
+            "path": request.path
+        }, status=500)
+
+
 async def on_startup(app):
     """Application startup — initialize all components."""
     logger.info(" [Hub] Server booting up...")
@@ -174,8 +189,12 @@ def build_hub_app() -> web.Application:
     """Build and return the aiohttp application with all routes and middleware."""
     app = web.Application()
     
+    # Register Global Exception middleware first
+    app.middlewares.append(global_exception_middleware)
+    
     # Register JWT middleware (protects all /api/* routes)
     app.middlewares.append(jwt_middleware)
+
     
     # Static routes
     app.router.add_static('/uploads', BASE / 'data' / 'uploads', name='uploads')

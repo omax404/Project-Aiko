@@ -421,13 +421,58 @@ class UnifiedMemoryManager:
     def save(self):
         """Persist all memory to disk."""
         import os
+        import contextlib
+
+        @contextlib.contextmanager
+        def file_lock(file_path):
+            lock_path = file_path.with_suffix(".lock")
+            try:
+                f = open(lock_path, "w")
+            except Exception:
+                yield
+                return
+            try:
+                if os.name == 'nt':
+                    import msvcrt
+                    try:
+                        msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, 1)
+                    except Exception:
+                        pass
+                else:
+                    import fcntl
+                    try:
+                        fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+                    except Exception:
+                        pass
+                yield
+            finally:
+                try:
+                    if os.name == 'nt':
+                        import msvcrt
+                        f.seek(0)
+                        msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
+                    else:
+                        import fcntl
+                        fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+                except Exception:
+                    pass
+                try:
+                    f.close()
+                except Exception:
+                    pass
+                try:
+                    os.remove(lock_path)
+                except Exception:
+                    pass
 
         def _write_atomic(file_path, data):
-            tmp_path = file_path.with_suffix(".tmp")
-            tmp_path.write_text(data, encoding='utf-8')
-            os.replace(tmp_path, file_path)
+            with file_lock(file_path):
+                tmp_path = file_path.with_suffix(".tmp")
+                tmp_path.write_text(data, encoding='utf-8')
+                os.replace(tmp_path, file_path)
 
         try:
+
             # Save conversations
             _write_atomic(
                 self.history_file,

@@ -27,6 +27,8 @@ class VisionEngine:
         self.camera = None  # Persistent DXCAM instance for GPU direct frame grabbing
         self._prev_image = None  # Cached last screenshot for difference checking
         self._video_cap = None
+        self._cached_description = ""
+
 
     def release_resources(self):
         """Release any persistent hardware camera channels."""
@@ -202,6 +204,8 @@ class VisionEngine:
 
             # Perform pixel-level change detection check (unless forced)
             if not force and not self._is_screen_changed(img):
+                if self._cached_description:
+                    return self._cached_description, img
                 return "Screen unchanged", None
             
             # Save the clean capture for visual preview/debugging
@@ -217,6 +221,7 @@ class VisionEngine:
             else:
                 description = await self._analyze(img)
                 
+            self._cached_description = description
             return description, img
             
         except (OSError, RuntimeError, ValueError) as e:
@@ -228,14 +233,18 @@ class VisionEngine:
                 if img:
                     # Perform pixel-level change check on fallback image too (unless forced)
                     if not force and not self._is_screen_changed(img):
+                        if self._cached_description:
+                            return self._cached_description, img
                         return "Screen unchanged", None
                     img.save("data/last_scan.png")
                     description = await self._analyze(img)
+                    self._cached_description = description
                     return description, img
             except Exception as e:
                 logger.error(f"ImageGrab fallback failed: {e}")
                 pass
             return f"My visual sensors are a bit blurry, Master... {e}", None
+
 
 
 
