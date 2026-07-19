@@ -112,8 +112,9 @@
   box-shadow: 0 0 8px var(--acc-glow);
 }
 
-body {
-  background-color: var(--bg-base);
+html, body {
+  background: transparent !important;
+  background-color: transparent !important;
   color: var(--t1);
   margin: 0;
   font-family: var(--font-ui);

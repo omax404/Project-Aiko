@@ -30,12 +30,11 @@
         "label": "main",
         "width": 1400,
         "height": 900,
-        "transparent": false,
+        "transparent": true,
         "decorations": false,
         "resizable": true,
         "fullscreen": false,
-        "visible": false,
-        "backgroundColor": "#0c0b0a"
+        "visible": false
       },
       {
         "label": "mascot",

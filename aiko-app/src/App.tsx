@@ -193,7 +193,9 @@ function App() {
       <ScreenReaderAnnouncer />
       <div style={{
       width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column',
-      overflow: 'hidden', background: 'var(--bg-base)', color: 'var(--t1)'
+      overflow: 'hidden', background: 'var(--bg-base)', color: 'var(--t1)',
+      borderRadius: '24px', border: '1px solid rgba(255, 255, 255, 0.08)',
+      boxShadow: '0 15px 35px rgba(0, 0, 0, 0.6)'
     }}>
 
       {/* ONE titlebar — session name + action icons + window controls */}
