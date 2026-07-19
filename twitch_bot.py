@@ -45,8 +45,22 @@ if not TOKEN or not USERNAME or not CHANNEL:
 if TOKEN and not TOKEN.startswith("oauth:"):
     TOKEN = f"oauth:{TOKEN}"
 
-PORT = os.getenv("AIKO_PORT", "8000")
+def load_hub_port() -> str:
+    """Reads the active port from data/port.json, falling back to env/defaults."""
+    try:
+        port_file = BASE_DIR / "data" / "port.json"
+        if port_file.exists():
+            data = json.loads(port_file.read_text(encoding="utf-8"))
+            active_port = data.get("port")
+            if active_port:
+                return str(active_port)
+    except Exception as e:
+        logger.warning(f"Could not load active port from port.json: {e}")
+    return os.getenv("AIKO_PORT", "8000")
+
+PORT = load_hub_port()
 HUB_URL = f"http://127.0.0.1:{PORT}"
+
 
 async def get_hub_response(message: str, user_id: str):
     """Call Aiko's Neural Hub."""

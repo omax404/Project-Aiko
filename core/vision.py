@@ -26,6 +26,20 @@ class VisionEngine:
         self.device = "cpu"
         self.camera = None  # Persistent DXCAM instance for GPU direct frame grabbing
         self._prev_image = None  # Cached last screenshot for difference checking
+        self._video_cap = None
+
+    def release_resources(self):
+        """Release any persistent hardware camera channels."""
+        if hasattr(self, "_video_cap") and self._video_cap is not None:
+            try:
+                self._video_cap.release()
+            except Exception:
+                pass
+            self._video_cap = None
+
+    def __del__(self):
+        self.release_resources()
+
         
     async def load_model(self) -> None:
         """Prepare local vision fallback using Ollama (replacing HF BLIP)."""
@@ -453,26 +467,27 @@ class VisionEngine:
     def _capture_camera_sync(self) -> Image.Image:
         import cv2
         import time
-        cap = cv2.VideoCapture(0)
-        if not cap.isOpened():
+
+        if self._video_cap is None:
+            self._video_cap = cv2.VideoCapture(0)
+
+        if not self._video_cap.isOpened():
+            self._video_cap.open(0)
+
+        if not self._video_cap.isOpened():
             raise Exception("Could not open camera sensors, Master...")
-        
-        # Extended Warm up - some cameras need more time to adjust exposure
-        # We read more frames and add a tiny delay
+
+        # Flush the buffer by reading several frames to obtain the newest frame
         frame = None
-        for i in range(20): 
-            ret, frame = cap.read()
-            time.sleep(0.05)
-            # If we have a frame, check if it's not just pure black
-            if ret and frame is not None:
-                if frame.mean() > 5: # Threshold for "not totally black"
-                    break
-        
-        cap.release()
-        
+        for _ in range(5):
+            ret, frame = self._video_cap.read()
+            if not ret or frame is None:
+                time.sleep(0.01)
+
         if frame is None:
             raise Exception("Failed to grab a clear frame...")
-        
+
         # Convert BGR to RGB
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         return Image.fromarray(frame_rgb)
+

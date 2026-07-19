@@ -287,10 +287,17 @@ class AgentExecutor:
                     if not is_admin:
                         observations.append(f"[Security Block: Unauthorized user cannot type on the PC.]")
                         continue
+                    # Security Sanitization: block newlines, carriage returns, tabs, and non-printable control characters
+                    import string
+                    allowed_chars = set(string.printable) - set('\n\r\t\x0b\x0c')
+                    if not all(c in allowed_chars for c in content):
+                        observations.append("[Security Block: Dangerous characters (newlines, tabs, or control codes) detected inside typed inputs. Blocked to prevent command execution.]")
+                        continue
                     try:
                         import pyautogui
                         pyautogui.write(content, interval=0.01)
                         observations.append(f"[System: Successfully typed text: '{content[:20]}...']")
+
                     except ImportError:
                         observations.append("[System Error: pyautogui not installed. Please `pip install pyautogui`]")
                     except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:

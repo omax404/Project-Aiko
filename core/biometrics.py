@@ -54,12 +54,14 @@ class BiometricScanner:
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             faces = self.face_cascade.detectMultiScale(gray, 1.3, 5)
             
-            for (x, y, w, h) in faces:
+            if len(faces) == 1:
+                (x, y, w, h) = faces[0]
                 count += 1
                 face_img = gray[y:y+h, x:x+w]
                 cv2.imwrite(str(self.training_dir / f"master_{count}.jpg"), face_img)
                 # Draw for visual feedback (internal use)
                 cv2.rectangle(frame, (x, y), (x+w, y+h), (255, 0, 0), 2)
+
             
             if count % 5 == 0:
                 logger.info(f"Bio-Sampling: {count}/{num_samples}")

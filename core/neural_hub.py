@@ -215,7 +215,16 @@ def build_hub_app() -> web.Application:
     app.on_startup.append(on_startup)
     app.on_cleanup.append(cleanup_background_tasks)
     
+    async def on_cleanup_vision_camera(app_instance):
+        try:
+            if hasattr(hub, "vision") and hub.vision is not None:
+                hub.vision.release_resources()
+        except Exception:
+            pass
+    app.on_cleanup.append(on_cleanup_vision_camera)
+    
     return app
+
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(name)s: %(message)s')
