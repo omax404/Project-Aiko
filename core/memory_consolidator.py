@@ -42,12 +42,17 @@ class MemoryConsolidator:
         if not history:
             return
 
-        # Format history for the summarizer
-        history_text = "\n".join([f"{m['role'].upper()}: {m['content']}" for m in history[-50:]])
-        
-        current_profile_str = json.dumps(self.profile_cache, indent=2)
+        if not hasattr(self, "_semaphore") or self._semaphore is None:
+            import asyncio
+            self._semaphore = asyncio.Semaphore(1)
 
-        prompt = f"""You are Aiko's subconscious memory processor.
+        async with self._semaphore:
+            # Format history for the summarizer
+            history_text = "\n".join([f"{m['role'].upper()}: {m['content']}" for m in history[-50:]])
+            
+            current_profile_str = json.dumps(self.profile_cache, indent=2)
+
+            prompt = f"""You are Aiko's subconscious memory processor.
 Your task is to update the MASTER PROFILE based on recent conversations.
 The Master Profile is how Aiko "remembers" her Master deeply, beyond just the current chat context.
 
@@ -69,60 +74,61 @@ The Master Profile is how Aiko "remembers" her Master deeply, beyond just the cu
 6. Do NOT include any explanations, tags, or markdown outside the JSON.
 """
 
-        try:
-            url = config.get("LLM_URL")
-            payload = {
-                "model": config.get("MODEL_NAME"),
-                "messages": [
-                    {"role": "system", "content": "You are a specialized JSON memory processor. Your output is always pure JSON."},
-                    {"role": "user", "content": prompt}
-                ],
-                "stream": False,
-                "options": {"temperature": 0.3} # Low temperature for factual consistency
-            }
+            try:
+                url = config.get("LLM_URL")
+                payload = {
+                    "model": config.get("MODEL_NAME"),
+                    "messages": [
+                        {"role": "system", "content": "You are a specialized JSON memory processor. Your output is always pure JSON."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    "stream": False,
+                    "options": {"temperature": 0.3} # Low temperature for factual consistency
+                }
 
-            async with aiohttp.ClientSession() as session:
-                async with session.post(url, json=payload) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        response_text = data.get("message", {}).get("content", "").strip()
-                        
-                        # Self-healing JSON extraction using regex and truncation recovery
-                        import re
-                        match = re.search(r'(\{[\s\S]*\}|\[[\s\S]*\])', response_text)
-                        json_str = match.group(1).strip() if match else response_text
-                        
-                        new_profile = None
-                        try:
-                            new_profile = json.loads(json_str)
-                        except json.JSONDecodeError:
-                            # Recovery: balance unclosed braces
-                            brackets = {'{': '}', '[': ']'}
-                            open_stack = []
-                            for char in json_str:
-                                if char in brackets:
-                                    open_stack.append(char)
-                                elif char in brackets.values():
-                                    if open_stack and brackets[open_stack[-1]] == char:
-                                        open_stack.pop()
-                            repaired = json_str
-                            repaired = re.sub(r',\s*$', '', repaired)
-                            repaired = re.sub(r',\s*[}\]]', '}', repaired)
-                            while open_stack:
-                                unclosed = open_stack.pop()
-                                repaired += brackets[unclosed]
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(url, json=payload) as resp:
+                        if resp.status == 200:
+                            data = await resp.json()
+                            response_text = data.get("message", {}).get("content", "").strip()
+                            
+                            # Self-healing JSON extraction using regex and truncation recovery
+                            import re
+                            match = re.search(r'(\{[\s\S]*\}|\[[\s\S]*\])', response_text)
+                            json_str = match.group(1).strip() if match else response_text
+                            
+                            new_profile = None
                             try:
-                                new_profile = json.loads(repaired)
-                            except Exception as repair_err:
-                                logger.error(f"Repaired JSON parsing failed: {repair_err}")
-                        
-                        if isinstance(new_profile, dict):
-                            self.profile_cache = new_profile
-                            self._save_profile()
-                            logger.info("Master Profile consolidated and saved.")
-                    else:
-                        logger.error(f"LLM consolidation failed: {resp.status}")
-        except Exception as e:
-            logger.error(f"Error during memory consolidation: {e}")
+                                new_profile = json.loads(json_str)
+                            except json.JSONDecodeError:
+                                # Recovery: balance unclosed braces
+                                brackets = {'{': '}', '[': ']'}
+                                open_stack = []
+                                for char in json_str:
+                                    if char in brackets:
+                                        open_stack.append(char)
+                                    elif char in brackets.values():
+                                        if open_stack and brackets[open_stack[-1]] == char:
+                                            open_stack.pop()
+                                repaired = json_str
+                                repaired = re.sub(r',\s*$', '', repaired)
+                                repaired = re.sub(r',\s*[}\]]', '}', repaired)
+                                while open_stack:
+                                    unclosed = open_stack.pop()
+                                    repaired += brackets[unclosed]
+                                try:
+                                    new_profile = json.loads(repaired)
+                                except Exception as repair_err:
+                                    logger.error(f"Repaired JSON parsing failed: {repair_err}")
+                            
+                            if isinstance(new_profile, dict):
+                                self.profile_cache = new_profile
+                                self._save_profile()
+                                logger.info("Master Profile consolidated and saved.")
+                        else:
+                            logger.error(f"LLM consolidation failed: {resp.status}")
+            except Exception as e:
+                logger.error(f"Error during memory consolidation: {e}")
+
 
 memory_consolidator = MemoryConsolidator()

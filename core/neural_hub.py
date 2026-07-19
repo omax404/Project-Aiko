@@ -70,6 +70,35 @@ async def global_exception_middleware(request, handler):
             "path": request.path
         }, status=500)
 
+@middleware
+async def cors_middleware(request, handler):
+    origin = request.headers.get("Origin")
+    if origin:
+        origin_lower = origin.lower()
+        is_allowed = (
+            origin_lower.startswith("http://localhost:") or
+            origin_lower.startswith("https://localhost:") or
+            origin_lower.startswith("http://127.0.0.1:") or
+            origin_lower.startswith("https://127.0.0.1:") or
+            origin_lower == "tauri://localhost"
+        )
+        if not is_allowed:
+            logger.warning(f"[Security] CORS violation: request from unauthorized origin '{origin}' blocked.")
+            return web.json_response({"error": "Forbidden: Unauthorized Origin"}, status=403)
+            
+    if request.method == "OPTIONS":
+        response = web.Response(status=204)
+    else:
+        response = await handler(request)
+
+    if origin:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        
+    return response
+
 
 async def on_startup(app):
     """Application startup — initialize all components."""
@@ -189,7 +218,10 @@ def build_hub_app() -> web.Application:
     """Build and return the aiohttp application with all routes and middleware."""
     app = web.Application()
     
-    # Register Global Exception middleware first
+    # Register CORS middleware first to handle OPTIONS and Origin validations early
+    app.middlewares.append(cors_middleware)
+    
+    # Register Global Exception middleware next
     app.middlewares.append(global_exception_middleware)
     
     # Register JWT middleware (protects all /api/* routes)

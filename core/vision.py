@@ -205,9 +205,12 @@ class VisionEngine:
             # Perform pixel-level change detection check (unless forced)
             if not force and not self._is_screen_changed(img):
                 if self._cached_description:
+                    logger.info("[Vision] Screen unchanged. Returning VLM cache HIT.")
                     return self._cached_description, img
+                logger.info("[Vision] Screen unchanged. No cached description available.")
                 return "Screen unchanged", None
             
+            logger.info("[Vision] Screen changed. VLM cache MISS. Querying VLM provider.")
             # Save the clean capture for visual preview/debugging
             os.makedirs("data", exist_ok=True)
             img.save("data/last_scan.png")
@@ -223,6 +226,7 @@ class VisionEngine:
                 
             self._cached_description = description
             return description, img
+
             
         except (OSError, RuntimeError, ValueError) as e:
             logger.error(f"Scan Error: {e}")
