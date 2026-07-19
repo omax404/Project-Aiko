@@ -680,11 +680,15 @@ export const useNeuralStore = create<NeuralState>()(
         try {
           const res = await fetch(`${hubUrl}/api/sessions`);
           const data = await res.json();
-          set({ sessions: data.sessions });
-          if (!get().activeSessionId && data.sessions.length > 0) {
-            get().switchSession(data.sessions[0].id);
+          const loadedSessions = Array.isArray(data.sessions) ? data.sessions : [];
+          set({ sessions: loadedSessions });
+          if (!get().activeSessionId && loadedSessions.length > 0) {
+            get().switchSession(loadedSessions[0].id);
           }
-        } catch (e) { console.error("Failed to load sessions", e); }
+        } catch (e) {
+          console.error("Failed to load sessions", e);
+          set({ sessions: [] });
+        }
       },
 
       switchSession: async (id) => {
@@ -693,7 +697,7 @@ export const useNeuralStore = create<NeuralState>()(
           const data = await res.json();
           set({ 
             activeSessionId: id,
-            messages: data.history || []
+            messages: Array.isArray(data.history) ? data.history : []
           });
         } catch (e) { console.error("Failed to switch session", e); }
       },
@@ -709,7 +713,7 @@ export const useNeuralStore = create<NeuralState>()(
           lastActive: new Date().toISOString()
         };
         set((state) => ({
-          sessions: [newSession, ...state.sessions],
+          sessions: [newSession, ...(state.sessions || [])],
           activeSessionId: id,
           messages: [],
           streamingContent: ""
@@ -728,7 +732,7 @@ export const useNeuralStore = create<NeuralState>()(
         try {
           await fetch(`${hubUrl}/api/sessions/delete?id=${id}`, { method: 'DELETE' });
           set((state) => ({
-            sessions: state.sessions.filter(s => s.id !== id),
+            sessions: (state.sessions || []).filter(s => s.id !== id),
             activeSessionId: state.activeSessionId === id ? null : state.activeSessionId,
             messages: state.activeSessionId === id ? [] : state.messages
           }));
@@ -743,7 +747,7 @@ export const useNeuralStore = create<NeuralState>()(
             body: JSON.stringify({ id })
           });
           set((state) => ({
-            sessions: state.sessions.map(s => s.id === id ? { ...s, pinned: !s.pinned } : s)
+            sessions: (state.sessions || []).map(s => s.id === id ? { ...s, pinned: !s.pinned } : s)
           }));
         } catch (e) { console.error("Pin failed", e); }
       },
@@ -756,7 +760,7 @@ export const useNeuralStore = create<NeuralState>()(
             body: JSON.stringify({ id, name: newName })
           });
           set((state) => ({
-            sessions: state.sessions.map(s => s.id === id ? { ...s, title: newName } : s)
+            sessions: (state.sessions || []).map(s => s.id === id ? { ...s, title: newName } : s)
           }));
         } catch (e) { console.error("Rename failed", e); }
       },

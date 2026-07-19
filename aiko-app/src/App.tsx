@@ -104,7 +104,7 @@ function App() {
     return text;
   };
 
-  const activeSession = sessions.find(s => s.id === activeSessionId);
+  const activeSession = (sessions || []).find(s => s.id === activeSessionId);
   const sessionLabel = activeSession?.title || 'New Session';
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isProjectOpen, setIsProjectOpen] = useState(false);

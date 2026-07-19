@@ -54,9 +54,9 @@ def verify_token(token: str) -> dict:
         logger.debug(f"Token verification failed: {e}")
         return None
 
-# Public paths that don't require authentication
-# NOTE: /ws is intentionally excluded — WebSocket auth is enforced at handshake level
-PUBLIC_PATHS = {"/status", "/health", "/"}
+# Public paths that don't require JWT middleware authentication
+# Note: /token handles local loopback checking itself, and /ws enforces token validation during handshake.
+PUBLIC_PATHS = {"/status", "/health", "/", "/token", "/ws"}
 
 @web.middleware
 async def jwt_middleware(request, handler):
