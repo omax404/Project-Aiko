@@ -336,13 +336,21 @@ class UnifiedMemoryManager:
             self._migrate_legacy_memory(shared_memory_path)
 
     def _load_history(self):
-        """Load conversation history from disk."""
+        """Load conversation history from disk, capping active memory size."""
         if self.history_file.exists():
             try:
-                self.history = json.loads(self.history_file.read_text(encoding='utf-8'))
+                raw_history = json.loads(self.history_file.read_text(encoding='utf-8'))
+                self.history = {}
+                for user_id, messages in raw_history.items():
+                    if isinstance(messages, list):
+                        # Bounded active context: keep only the most recent 100 messages
+                        self.history[user_id] = messages[-100:]
+                    else:
+                        self.history[user_id] = messages
             except Exception as e:
                 logger.error(f"Failed to load conversation history: {e}")
                 self.history = {}
+
 
     def _load_profiles(self):
         """Load user profiles."""

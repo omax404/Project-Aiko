@@ -36,6 +36,45 @@ def normalize_llm_url(url: str) -> str:
     return normalized_url
 
 
+import base64
+import uuid
+import sys
+import hashlib
+
+def _get_encryption_key() -> bytes:
+    """Derive a stable machine-specific encryption key."""
+    unique_str = f"{uuid.getnode()}-{sys.platform}"
+    return hashlib.sha256(unique_str.encode()).digest()
+
+def encrypt_string(plain_text: str) -> str:
+    """Encrypt a plaintext string using a machine-stable key."""
+    if not plain_text:
+        return ""
+    try:
+        key = _get_encryption_key()
+        plain_bytes = plain_text.encode('utf-8')
+        cipher_bytes = bytearray()
+        for i, b in enumerate(plain_bytes):
+            cipher_bytes.append(b ^ key[i % len(key)])
+        return "enc:" + base64.b64encode(cipher_bytes).decode('utf-8')
+    except Exception:
+        return plain_text
+
+def decrypt_string(cipher_text: str) -> str:
+    """Decrypt an encrypted string using the machine-stable key."""
+    if not cipher_text or not cipher_text.startswith("enc:"):
+        return cipher_text
+    try:
+        key = _get_encryption_key()
+        cipher_bytes = base64.b64decode(cipher_text[4:])
+        plain_bytes = bytearray()
+        for i, b in enumerate(cipher_bytes):
+            plain_bytes.append(b ^ key[i % len(key)])
+        return plain_bytes.decode('utf-8')
+    except Exception:
+        return cipher_text
+
+
 class ConfigManager:
     def __init__(self):
         load_dotenv()
@@ -71,9 +110,12 @@ class ConfigManager:
                 with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     for k, v in data.items():
+                        if isinstance(v, str) and v.startswith("enc:"):
+                            v = decrypt_string(v)
                         self._config[k] = v
             except Exception as e:
                 logger.error(f"Failed to load config.json: {e}")
+
                 
         # Load from user_settings.json
         user_settings_path = Path("user_settings.json")
@@ -176,12 +218,26 @@ class ConfigManager:
         try:
             CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
             tmp_file = CONFIG_FILE.with_suffix(".tmp")
+            
+            # Encrypt sensitive keys before dumping
+            save_data = {}
+            sensitive_keys = {
+                "API_KEY", "DEEPSEEK_API_KEY", "GEMINI_API_KEY", "IMAGE_GEN_KEY", 
+                "TTS_KEY", "STT_KEY"
+            }
+            for k, v in self._config.items():
+                if k in sensitive_keys and isinstance(v, str) and v:
+                    save_data[k] = encrypt_string(v)
+                else:
+                    save_data[k] = v
+
             with open(tmp_file, "w", encoding="utf-8") as f:
-                json.dump(self._config, f, indent=4)
+                json.dump(save_data, f, indent=4)
             import os
             os.replace(tmp_file, CONFIG_FILE)
         except Exception as e:
             logger.error(f"Failed to save config.json: {e}")
+
 
 
     def get(self, key, default=None):

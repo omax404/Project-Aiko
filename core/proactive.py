@@ -176,9 +176,11 @@ class ProactiveAgent:
             return
 
         try:
-            # Query the daily note content via our bridge
-            daily_note = self.obsidian.get_daily_note_content()
+            # Query the daily note content via our bridge (offloaded to thread to prevent IO blocking)
+            daily_note = await asyncio.to_thread(self.obsidian.get_daily_note_content)
             if not daily_note: return
+
+
             
             todos = [line.strip() for line in daily_note.split('\n') if '- [ ]' in line]
             

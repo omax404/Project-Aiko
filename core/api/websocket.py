@@ -254,12 +254,33 @@ async def handle_ws(req):
     await ws.prepare(req)
     ws_clients.add(ws)
     logger.info(f" [Hub] New WS Client connected (user={payload.get('sub', '?')}). Total: {len(ws_clients)}")
-    
+    # Connection rate-limiter: maximum 5 messages per 2 seconds
+    import time
+    message_history = []
+    MAX_MESSAGES = 5
+    TIME_WINDOW = 2.0
+
     try:
         async for msg in ws:
             if msg.type == WSMsgType.TEXT:
+                # Enforce sliding window rate limit
+                now = time.time()
+                message_history = [t for t in message_history if now - t < TIME_WINDOW]
+                if len(message_history) >= MAX_MESSAGES:
+                    logger.warning(f" [Hub] WS client message rate limit exceeded (user={payload.get('sub', '?')})")
+                    try:
+                        await ws.send_str(json.dumps({
+                            "type": "error",
+                            "message": "Rate limit exceeded. Please slow down."
+                        }))
+                    except Exception:
+                        pass
+                    continue
+                message_history.append(now)
+
                 try:
                     data = json.loads(msg.data)
+
                 except json.JSONDecodeError as e:
                     logger.warning(f"Invalid JSON from client: {e}")
                     await ws.send_str(json.dumps({"type": "error", "message": "Invalid JSON"}))
