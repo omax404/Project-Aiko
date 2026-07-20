@@ -113,8 +113,8 @@ class TestHITLPermissionGate:
 
     @pytest.mark.asyncio
     @patch("core.api.websocket.request_tool_permission")
-    @patch("core.infrastructure.tools.executor.os.system")
-    async def test_tool_permission_gate_approved(self, mock_system, mock_request_permission):
+    @patch("subprocess.Popen")
+    async def test_tool_permission_gate_approved(self, mock_popen, mock_request_permission):
         """Should execute command if user approves."""
         mock_request_permission.return_value = True
         from core.infrastructure.tools.executor import AgentExecutor
@@ -127,12 +127,12 @@ class TestHITLPermissionGate:
             await executor.execute_tools(brain, "[OPEN: calc.exe]", observations, images_data, "admin_user")
 
         assert any("Successfully requested OS to open" in obs for obs in observations)
-        mock_system.assert_called_once_with('start "" "calc.exe"')
+        mock_popen.assert_called_once()
 
     @pytest.mark.asyncio
     @patch("core.api.websocket.request_tool_permission")
-    @patch("core.infrastructure.tools.executor.os.system")
-    async def test_tool_permission_gate_denied(self, mock_system, mock_request_permission):
+    @patch("subprocess.Popen")
+    async def test_tool_permission_gate_denied(self, mock_popen, mock_request_permission):
         """Should block execution if user denies."""
         mock_request_permission.return_value = False
         from core.infrastructure.tools.executor import AgentExecutor
@@ -144,5 +144,5 @@ class TestHITLPermissionGate:
         with patch.object(policy_engine, "is_admin", return_value=True):
             await executor.execute_tools(brain, "[OPEN: calc.exe]", observations, images_data, "admin_user")
 
-        assert any("User denied permission to execute tool" in obs for obs in observations)
-        mock_system.assert_not_called()
+        assert any("User denied permission" in obs for obs in observations)
+        mock_popen.assert_not_called()

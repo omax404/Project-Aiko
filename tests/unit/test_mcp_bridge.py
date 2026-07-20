@@ -17,12 +17,14 @@ class TestMCPSandbox:
         """Paths within home should be allowed."""
         home = Path.home()
         test_file = home / "test.txt"
-        assert _is_allowed(test_file) is True
+        with patch("core.mcp_bridge.ALLOWED_ROOTS", [home]):
+            assert _is_allowed(test_file) is True
     
     def test_path_blocked_outside_home(self):
         """Paths outside home should be blocked."""
         blocked = Path("/etc/passwd")
-        assert _is_allowed(blocked) is False
+        with patch("core.mcp_bridge.ALLOWED_ROOTS", [Path.home()]):
+            assert _is_allowed(blocked) is False
     
     def test_path_blocked_system_critical(self):
         """System critical paths should be blocked."""
