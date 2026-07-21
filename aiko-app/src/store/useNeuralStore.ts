@@ -146,8 +146,14 @@ async function fetchLocalToken(): Promise<string | null> {
 
 function scheduleReconnect() {
   if (reconnectTimer) return;
+  const maxAttempts = 50;
+  if (reconnectAttempts >= maxAttempts) {
+    console.warn('[Aiko] Max reconnect attempts reached. Stopping auto-reconnection.');
+    useNeuralStore.setState({ bridgeStatus: { status: 'disconnected', latency: 0, lastSeen: new Date().toISOString() } });
+    return;
+  }
   const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
-  console.log(`[Aiko] Reconnecting in ${delay/1000}s... (Attempt ${reconnectAttempts + 1})`);
+  console.log(`[Aiko] Reconnecting in ${delay/1000}s... (Attempt ${reconnectAttempts + 1}/${maxAttempts})`);
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null;
     reconnectAttempts++;
@@ -458,7 +464,9 @@ async function connectSocket() {
             }
             break;
         }
-      } catch (_) {}
+      } catch (err) {
+        console.error('[Aiko] Error parsing WebSocket message:', err);
+      }
     };
   } catch (e) {
     console.warn('[Aiko] WebSocket init failed:', e);
