@@ -59,9 +59,9 @@ def prepare_messages_for_api(msgs: List[dict], imgs: List[str], url: str) -> Lis
     for m in out:
         role = m.get("role")
         content = m.get("content")
-        if isinstance(content, list) and role == "system" and not is_openrouter:
+        if isinstance(content, list) and (not imgs or role == "system" or not is_openrouter):
             # Flatten to plain string for basic text endpoints
-            text_parts = [part.get("text", "") for part in content if isinstance(part, dict) and "text" in part]
+            text_parts = [part.get("text", str(part)) for part in content if isinstance(part, dict) and "text" in part or isinstance(part, str)]
             normalized.append({"role": role, "content": "\n\n".join(filter(None, text_parts))})
         else:
             normalized.append(m)
