@@ -49,6 +49,25 @@ def inject_vision_openai(msgs: List[dict], imgs: List[str]) -> List[dict]:
             break
     return out
 
+def prepare_messages_for_api(msgs: List[dict], imgs: List[str], url: str) -> List[dict]:
+    """Prepare messages for OpenAI / OpenRouter / Ollama APIs, handling vision & prompt caching."""
+    out = list(msgs)
+    is_openrouter = "openrouter.ai" in url or "anthropic.com" in url or "deepseek" in url
+    
+    # Flatten array contents if endpoint doesn't support structured system content
+    normalized = []
+    for m in out:
+        role = m.get("role")
+        content = m.get("content")
+        if isinstance(content, list) and role == "system" and not is_openrouter:
+            # Flatten to plain string for basic text endpoints
+            text_parts = [part.get("text", "") for part in content if isinstance(part, dict) and "text" in part]
+            normalized.append({"role": role, "content": "\n\n".join(filter(None, text_parts))})
+        else:
+            normalized.append(m)
+            
+    return inject_vision_openai(normalized, imgs)
+
 async def stream_openai(
     url: str,
     model: str,
@@ -67,8 +86,8 @@ async def stream_openai(
         headers["HTTP-Referer"] = "https://aiko-desktop.local"
         headers["X-Title"] = "Aiko Desktop"
 
-    # Inject images if present
-    processed_messages = inject_vision_openai(messages, images or [])
+    # Inject images & prepare prompt caching
+    processed_messages = prepare_messages_for_api(messages, images or [], url)
 
     payload = {
         "model": model,

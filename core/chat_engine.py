@@ -221,21 +221,35 @@ class AikoBrain:
         for turn in range(5):
             master_id = os.getenv("MASTER_ID", "")
             is_master = master_id and str(user_id) == master_id
-            persona_prompt = self._get_cached_prompt(is_master)
+            static_persona = self._get_cached_prompt(is_master) + "\n\n" + self._get_tools_prompt()
             
+            dynamic_context = ""
             if self._reflective_state:
-                persona_prompt += f"\n\n[REFLECTIVE_STATE] (Internal emotional context):\n{self._reflective_state}"
+                dynamic_context += f"\n\n[REFLECTIVE_STATE] (Internal emotional context):\n{self._reflective_state}"
                 
             if rag_context:
-                persona_prompt += f"\n\n<relevant_memory_context>\n{rag_context[:1000]}\n</relevant_memory_context>"
+                dynamic_context += f"\n\n<relevant_memory_context>\n{rag_context[:1000]}\n</relevant_memory_context>"
 
             from core.vision_context import vision_context_buffer
             vision_ctx = vision_context_buffer.get_context_string()
             if vision_ctx:
-                persona_prompt += f"\n\n<current_visual_awareness>\n{vision_ctx}\n</current_visual_awareness>"
+                dynamic_context += f"\n\n<current_visual_awareness>\n{vision_ctx}\n</current_visual_awareness>"
 
-            system_prompt = persona_prompt + "\n\n" + self._get_tools_prompt()
-            messages = [{"role": "system", "content": system_prompt}]
+            # Structured system prompt with cache_control for static persona + tools prefix
+            system_content = [
+                {
+                    "type": "text",
+                    "text": static_persona,
+                    "cache_control": {"type": "ephemeral"}
+                }
+            ]
+            if dynamic_context.strip():
+                system_content.append({
+                    "type": "text",
+                    "text": dynamic_context.strip()
+                })
+
+            messages = [{"role": "system", "content": system_content}]
             
             for h in history[-20:]:
                 role = "user" if h["role"] == "system" else h["role"]

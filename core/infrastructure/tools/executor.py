@@ -70,6 +70,124 @@ class AgentExecutor:
             "RECALL": self._handle_recall,
         }
 
+    @staticmethod
+    def get_openai_tools_schema() -> List[Dict[str, Any]]:
+        """Return native OpenAI-compatible JSON schema declarations for all Aiko tools."""
+        return [
+            {
+                "type": "function",
+                "function": {
+                    "name": "open_application",
+                    "description": "Open a desktop application on Master's PC.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "app_name": {"type": "string", "description": "Application name, executable, or path"}
+                        },
+                        "required": ["app_name"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "type_text",
+                    "description": "Type text into the focused input on Master's PC.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "text": {"type": "string", "description": "Text string to type"}
+                        },
+                        "required": ["text"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "press_key",
+                    "description": "Simulate key press on Master's PC keyboard.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "key": {"type": "string", "description": "Key name e.g. enter, tab, space, ctrl+c"}
+                        },
+                        "required": ["key"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "click_mouse",
+                    "description": "Click screen coordinates on Master's PC.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "coords": {"type": "string", "description": "Coordinates string x,y"}
+                        },
+                        "required": ["coords"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "generate_image",
+                    "description": "Generate an AI image based on a prompt.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "prompt": {"type": "string", "description": "Detailed image generation prompt"}
+                        },
+                        "required": ["prompt"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "recall_memory",
+                    "description": "Search long-term memory palace for historical context.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "query": {"type": "string", "description": "Search query"},
+                            "room": {"type": "string", "description": "Memory palace room (optional)"}
+                        },
+                        "required": ["query"]
+                    }
+                }
+            }
+        ]
+
+    def parse_native_tool_calls(self, tool_calls: List[Dict[str, Any]]) -> List[AgentAction]:
+        """Convert native OpenAI tool_calls into AgentAction objects."""
+        actions = []
+        import json
+        for tc in tool_calls:
+            func = tc.get("function", {})
+            name = func.get("name")
+            raw_args = func.get("arguments", "{}")
+            try:
+                args = json.loads(raw_args) if isinstance(raw_args, str) else raw_args
+            except Exception:
+                args = {}
+            
+            if name == "open_application":
+                actions.append(AgentAction(tool_name="OPEN", args={"target": args.get("app_name", "")}))
+            elif name == "type_text":
+                actions.append(AgentAction(tool_name="TYPE", args={"text": args.get("text", "")}))
+            elif name == "press_key":
+                actions.append(AgentAction(tool_name="PRESS", args={"key": args.get("key", "")}))
+            elif name == "click_mouse":
+                actions.append(AgentAction(tool_name="CLICK", args={"coords": args.get("coords", "")}))
+            elif name == "generate_image":
+                actions.append(AgentAction(tool_name="IMAGE", args={"prompt": args.get("prompt", "")}))
+            elif name == "recall_memory":
+                actions.append(AgentAction(tool_name="RECALL", args={"query": args.get("query", ""), "room": args.get("room", "general")}))
+        return actions
+
     def parse_actions(self, text: str) -> List[AgentAction]:
         """Parse text to extract structured agent actions sorted by position in source text."""
         actions_with_pos = []
