@@ -2,7 +2,7 @@
 Pydantic models for all API request/response validation.
 Zero breaking changes — these validate inputs but don't change the data structure.
 """
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional, List, Dict, Any
 from enum import Enum
 
@@ -17,7 +17,8 @@ class ChatRequest(BaseModel):
     user_id: str = Field(default="user", min_length=1, max_length=256, description="User identifier")
     attachments: List[str] = Field(default=[], description="List of attachment URLs")
     
-    @validator('message')
+    @field_validator('message')
+    @classmethod
     def message_not_empty(cls, v):
         if not v.strip():
             raise ValueError("Message cannot be empty or whitespace only")
@@ -25,14 +26,13 @@ class ChatRequest(BaseModel):
 
 class SettingsUpdate(BaseModel):
     """Validate /api/settings POST requests."""
+    model_config = ConfigDict(extra="allow")
+    
     llm: Optional[Dict[str, Any]] = None
     tts: Optional[Dict[str, Any]] = None
     persona: Optional[Dict[str, Any]] = None
     plugins: Optional[Dict[str, Any]] = None
     vision: Optional[Dict[str, Any]] = None
-    
-    class Config:
-        extra = "allow"  # Allow unknown keys for forward compatibility
 
 class SessionRename(BaseModel):
     """Validate /api/sessions/rename requests."""
@@ -63,7 +63,8 @@ class LatexRenderRequest(BaseModel):
     """Validate /api/latex/render requests."""
     snippet: str = Field(..., min_length=1, max_length=5000, description="LaTeX snippet to render")
     
-    @validator('snippet')
+    @field_validator('snippet')
+    @classmethod
     def snippet_not_empty(cls, v):
         if not v.strip():
             raise ValueError("LaTeX snippet cannot be empty")

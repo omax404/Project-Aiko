@@ -134,7 +134,7 @@ async def handle_status(req):
             rag_available=rag_available,
             local_ip=get_local_ip()
         )
-        return web.json_response(response.dict())
+        return web.json_response(response.model_dump())
     except (AttributeError, TypeError) as e:
         logger.error(f"Status endpoint config error: {e}")
         return web.json_response({"status": "online", "hub_name": "Aiko Neural Hub v2", "metrics": {}, "rag_available": False, "local_ip": "127.0.0.1"})
@@ -151,7 +151,7 @@ async def handle_health(req):
             },
             llm_provider=hub.config.get("PROVIDER", "Unknown") if hub.config else "Unknown"
         )
-        return web.json_response(health.dict())
+        return web.json_response(health.model_dump())
     except (AttributeError, KeyError) as e:
         logger.error(f"Health endpoint config error: {e}")
         return web.json_response({"status": "healthy", "timestamp": datetime.now().isoformat(), "bridges": {}, "llm_provider": "Unknown"})

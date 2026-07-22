@@ -388,13 +388,21 @@ class AgentExecutor:
                 observations.append(f"Camera Error: Could not capture from webcam. ({cam_err})")
 
     async def _handle_image(self, brain, action, observations, images_data, is_admin, user_id):
-        img_prompt = action.args["prompt"]
-        if brain.image_engine:
-            filename = await brain.image_engine.generate_image(img_prompt)
-            if filename:
-                observations.append(f"[System: Generated image saved as {filename}]")
+        img_prompt = action.args.get("prompt", "")
+        try:
+            from core.selfie_generator import generate_image_via_perchance
+            from pathlib import Path
+            import time
+            filename = f"gen_{int(time.time())}.png"
+            stickers_dir = Path(__file__).parent.parent.parent.parent / "stickers"
+            save_path = str(stickers_dir / filename)
+            success = await generate_image_via_perchance(img_prompt, save_path)
+            if success:
+                observations.append(f"[System: Generated image saved as /stickers/{filename}]")
             else:
                 observations.append(f"[System: Image generation failed for prompt: {img_prompt}]")
+        except Exception as e:
+            observations.append(f"[System: Image generation error: {e}]")
 
     async def _handle_latex(self, brain, action, observations, images_data, is_admin, user_id):
         code = action.args["code"]

@@ -14,7 +14,6 @@ from core.persona import get_persona_prompt, get_core_brain_prompt, detect_emoti
 from core.gifs import get_emotion_category, get_random_gif, search_gif
 from core.orchestrator import orchestrator
 from core.sandbox_bridge import SandboxBridge
-from core.image_engine import ImageEngine
 from core.config_manager import config
 from core.plugins import PluginManager
 from core.plugins.game_plugin import GamePlugin
@@ -93,7 +92,6 @@ class AikoBrain:
         self.bridge = action_bridge
         self.obsidian = obsidian
         self.sandbox = SandboxBridge()
-        self.image_engine = ImageEngine()
         self.executor = AgentExecutor()
         
         self._message_count = 0
