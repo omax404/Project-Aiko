@@ -189,7 +189,12 @@ async def stream_ollama(
                 break
 
     for i, m in enumerate(messages):
-        om = {"role": m["role"], "content": m["content"]}
+        c = m.get("content", "")
+        if isinstance(c, list):
+            c = "\n\n".join([p.get("text", str(p)) if isinstance(p, dict) else str(p) for p in c])
+        elif not isinstance(c, str):
+            c = str(c)
+        om = {"role": m["role"], "content": c}
         if images and i == last_user_idx:
             om["images"] = images
         ollama_msgs.append(om)
