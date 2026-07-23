@@ -450,13 +450,17 @@ impl ProcessManager {
     }
 }
 
-/// Check if Neural Hub is alive via HTTP
-pub async fn check_hub_health(host: &str, port: u16) -> bool {
-    let url = format!("http://{}:{}/status", host, port);
-    match reqwest::get(&url).await {
-        Ok(resp) => resp.status().is_success(),
-        Err(_) => false,
+/// Check if Neural Hub is alive via HTTP across dynamic ports (start_port..=start_port+10)
+pub async fn check_hub_health(host: &str, start_port: u16) -> bool {
+    for p in start_port..=(start_port + 10) {
+        let url = format!("http://{}:{}/status", host, p);
+        if let Ok(resp) = reqwest::get(&url).await {
+            if resp.status().is_success() {
+                return true;
+            }
+        }
     }
+    false
 }
 
 /// Poll until hub is ready
