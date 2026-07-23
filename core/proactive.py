@@ -34,6 +34,25 @@ GREETINGS = {
 }
 
 
+import psutil
+import ctypes
+
+def get_system_idle_seconds() -> float:
+    """Returns system idle duration in seconds using Win32 API."""
+    try:
+        class LASTINPUTINFO(ctypes.Structure):
+            _fields_ = [("cbSize", ctypes.c_uint), ("dwTime", ctypes.c_uint)]
+        
+        lii = LASTINPUTINFO()
+        lii.cbSize = ctypes.sizeof(LASTINPUTINFO)
+        if ctypes.windll.user32.GetLastInputInfo(ctypes.byref(lii)):
+            millis = ctypes.windll.kernel32.GetTickCount() - lii.dwTime
+            return millis / 1000.0
+    except Exception:
+        pass
+    return 0.0
+
+
 class ProactiveAgent:
     def __init__(self, brain, vision, pc_manager, voice, obsidian=None) -> None:
         self.brain = brain
@@ -52,6 +71,32 @@ class ProactiveAgent:
         self.face_scan_interval = 300 # 5 minutes
         self._broadcast = None  # Set externally by neural_hub
 
+    def _is_safe_for_dream_cycle(self, now: datetime) -> bool:
+        """Safeguards: Must be overnight/idle period, user idle > 10 mins, and plugged into AC power."""
+        if now.date() <= self.last_consolidation:
+            return False
+            
+        # Time window check (between 00:00 and 06:00)
+        if not (0 <= now.hour < 6):
+            return False
+            
+        # Idle check: User must be idle for at least 600 seconds (10 minutes)
+        idle_secs = get_system_idle_seconds()
+        if idle_secs > 0 and idle_secs < 600:
+            logger.debug(f"[Proactive] User active ({idle_secs:.0f}s ago), skipping dream cycle.")
+            return False
+            
+        # Battery safeguard: Do not run dream consolidation on battery power
+        try:
+            battery = psutil.sensors_battery()
+            if battery and not battery.power_plugged:
+                logger.info("[Proactive] On battery power, skipping dream cycle.")
+                return False
+        except Exception:
+            pass
+
+        return True
+
     async def start_loop(self) -> None:
         logger.info("[Proactive] Agent Loop Started.")
         # Delay the first proactive check on startup to allow the API server to bind and respond to status pings
@@ -60,8 +105,8 @@ class ProactiveAgent:
             while True:
                 now = datetime.now()
 
-                # REM Sleep & Memory Consolidation (The "Dream" System) - Always active overnight
-                if now.date() > self.last_consolidation and (now.hour == 2 or (not self.active and now.hour > 0 and now.hour < 5)):
+                # REM Sleep & Memory Consolidation (The "Dream" System)
+                if self._is_safe_for_dream_cycle(now):
                     logger.info("[Proactive] Entering REM Sleep... Consolidating memories.")
                     try:
                         mem = get_unified_memory()
