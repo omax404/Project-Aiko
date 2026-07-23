@@ -9,13 +9,13 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-C9A8D9.svg)](LICENSE)
 [![Python 3.10 - 3.12](https://img.shields.io/badge/Python-3.10--3.12-2A1B30.svg)](https://python.org)
 
-[![Last Commit](https://img.shields.io/github/last-commit/omax404/Project-Aiko?color=C9A8D9)](https://github.com/omax404/Project-Aiko)
-[![Repo Size](https://img.shields.io/github/repo-size/omax404/Project-Aiko?color=C9A8D9)](https://github.com/omax404/Project-Aiko)
+[![Last Commit](https://img.shields.io/github/last-commit/omax404/aiko?color=C9A8D9)](https://github.com/omax404/aiko)
+[![Repo Size](https://img.shields.io/github/repo-size/omax404/aiko?color=C9A8D9)](https://github.com/omax404/aiko)
 
 [![Join Discord](assets/buttons/join-discord.png)](https://discord.gg/8kNMMwFjcG) &nbsp;
 [![Quick Start](assets/buttons/quick-start.png)](#quick-start) &nbsp;
 [![Wiki](assets/buttons/wiki.png)](docs/) &nbsp;
-[![Star this Repo](assets/buttons/star-repo.png)](https://github.com/omax404/Project-Aiko)
+[![Star this Repo](assets/buttons/star-repo.png)](https://github.com/omax404/aiko)
 
 <br/>
 
@@ -45,7 +45,7 @@ Hit **Save & Apply** — changes take effect instantly.
 ### For Developers
 
 ```bash
-git clone https://github.com/omax404/Project-Aiko.git
+git clone https://github.com/omax404/aiko.git
 cd Project-Aiko
 pip install -r requirements.txt
 python launch.py
@@ -326,6 +326,6 @@ Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for guideli
 
 *"I'm always watching over you, Master~"*
 
-**[⭐ Star this repo](https://github.com/omax404/Project-Aiko)** if Aiko made you smile.
+**[⭐ Star this repo](https://github.com/omax404/aiko)** if Aiko made you smile.
 
 </div>
