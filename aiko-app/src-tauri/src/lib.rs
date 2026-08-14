@@ -5,6 +5,7 @@
 mod process_manager;
 
 use tauri::{Manager, Listener};
+use serde_json;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use window_vibrancy::apply_mica;
@@ -95,6 +96,22 @@ async fn get_user_settings() -> Result<String, String> {
 
 #[tauri::command]
 async fn save_user_settings(settings: String) -> Result<(), String> {
+    // Prevent DoS: limit size to 100KB
+    if settings.len() > 100 * 1024 {
+        return Err("Settings size exceeds 100KB limit".to_string());
+    }
+
+    // Validate valid JSON
+    let parsed: serde_json::Value = match serde_json::from_str(&settings) {
+        Ok(v) => v,
+        Err(e) => return Err(format!("Invalid JSON format: {}", e)),
+    };
+
+    // Ensure it's a JSON object
+    if !parsed.is_object() {
+        return Err("Settings must be a JSON object".to_string());
+    }
+
     if let Some(root) = find_project_root() {
         let path = root.join("user_settings.json");
         if let Err(e) = std::fs::write(&path, settings) {

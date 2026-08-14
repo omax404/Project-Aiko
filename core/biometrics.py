@@ -29,13 +29,26 @@ class BiometricScanner:
         self.training_dir.mkdir(parents=True, exist_ok=True)
         
         if HAS_CV2:
-            self.cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
-            self.face_cascade = cv2.CascadeClassifier(self.cascade_path)
-            self.recognizer = cv2.face.LBPHFaceRecognizer_create()
-            
-            self.is_trained = self.model_path.exists()
-            if self.is_trained:
-                self.recognizer.read(str(self.model_path))
+            try:
+                self.cascade_path = getattr(cv2.data, 'haarcascades', '') + 'haarcascade_frontalface_default.xml'
+                if hasattr(cv2, 'CascadeClassifier'):
+                    self.face_cascade = cv2.CascadeClassifier(self.cascade_path)
+                else:
+                    self.face_cascade = None
+
+                if hasattr(cv2, 'face') and hasattr(cv2.face, 'LBPHFaceRecognizer_create'):
+                    self.recognizer = cv2.face.LBPHFaceRecognizer_create()
+                    self.is_trained = self.model_path.exists()
+                    if self.is_trained:
+                        self.recognizer.read(str(self.model_path))
+                else:
+                    self.recognizer = None
+                    self.is_trained = False
+            except Exception as e:
+                logger.warning(f"OpenCV biometric initialization failed ({e}). Biometrics disabled.")
+                self.face_cascade = None
+                self.recognizer = None
+                self.is_trained = False
             
     def register_master(self, camera_index=0, num_samples=30):
         """Captures training data from the webcam to register the Master."""

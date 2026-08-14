@@ -4,6 +4,7 @@ Refactored Neural Hub — modular, with JWT auth, clean architecture.
 Original 1,124 lines → ~200 lines by extracting routes, websocket, broadcast, and background tasks.
 """
 import os
+import time
 import json
 import asyncio
 import aiohttp
@@ -24,7 +25,8 @@ from core.api.routes import (
     handle_purge, handle_update_settings, handle_reload_settings, handle_get_settings,
     handle_upload, handle_project_structure, handle_latex_render,
     handle_latex_image, handle_create_session, handle_export_memories,
-    handle_webrtc_offer, handle_local_token
+    handle_webrtc_offer, handle_local_token, handle_email_send,
+    handle_email_inbox, handle_email_settings
 )
 from core.api.websocket import handle_ws
 from core.api.background import start_background_tasks, cleanup_background_tasks
@@ -49,12 +51,46 @@ from core.startup_manager import startup_manager
 from core.vision import VisionEngine
 from core.pc_manager import PCManager
 
-from core.hermes_agent import AikoHermesAgent
 from core.structured_logger import system_logger
+from core.card_engine import get_card_manager
 
 
 BASE = Path(__file__).parent.parent
 logger = logging.getLogger("NeuralHub")
+
+async def handle_get_cards(request):
+    """Retrieve all collected cards and active showcase card."""
+    cm = get_card_manager()
+    return web.json_response(cm.get_collection())
+
+async def handle_mint_card(request):
+    """Mint a new card from session memory."""
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+    memory_text = data.get("memory_text")
+    affection_level = data.get("affection_level", 1)
+    force_rarity = data.get("rarity")
+    
+    cm = get_card_manager()
+    new_card = cm.mint_card(memory_text=memory_text, affection_level=affection_level, force_rarity=force_rarity)
+    return web.json_response({"status": "success", "card": new_card})
+
+async def handle_set_showcase_card(request):
+    """Set showcase card."""
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"error": "Invalid payload"}, status=400)
+    card_id = data.get("card_id")
+    if not card_id:
+        return web.json_response({"error": "card_id required"}, status=400)
+    cm = get_card_manager()
+    success = cm.set_showcase(card_id)
+    if success:
+        return web.json_response({"status": "success", "showcase_id": card_id})
+    return web.json_response({"error": "Card not found"}, status=404)
 
 @middleware
 async def global_exception_middleware(request, handler):
@@ -64,9 +100,9 @@ async def global_exception_middleware(request, handler):
         raise ex
     except Exception as e:
         logger.error(f"Unhandled Exception in API handler for {request.path}: {e}", exc_info=True)
+        # SECURITY: Do not leak internal error details to clients
         return web.json_response({
             "error": "Internal Server Error",
-            "message": str(e),
             "path": request.path
         }, status=500)
 
@@ -80,7 +116,9 @@ async def cors_middleware(request, handler):
             origin_lower.startswith("https://localhost:") or
             origin_lower.startswith("http://127.0.0.1:") or
             origin_lower.startswith("https://127.0.0.1:") or
-            origin_lower == "tauri://localhost"
+            origin_lower.startswith("http://tauri.localhost") or
+            origin_lower.startswith("https://tauri.localhost") or
+            origin_lower.startswith("tauri://localhost")
         )
         if not is_allowed:
             logger.warning(f"[Security] CORS violation: request from unauthorized origin '{origin}' blocked.")
@@ -98,6 +136,69 @@ async def cors_middleware(request, handler):
         response.headers["Access-Control-Allow-Credentials"] = "true"
         
     return response
+
+
+# Rate limit tracking dictionaries
+# Format: { 'ip_address': {'count': int, 'reset_time': float} }
+api_rate_limits = {}
+chat_rate_limits = {}
+
+@middleware
+async def rate_limit_middleware(request, handler):
+    """
+    Rate limiting middleware to prevent abuse.
+    - Exempts /status, /health, /ws, /token
+    - Limits /api/chat to 10 requests per minute per IP
+    - Limits other /api/ to 60 requests per minute per IP
+    """
+    path = request.path
+    
+    # Exempt paths
+    if path in ['/status', '/health', '/ws', '/token']:
+        return await handler(request)
+        
+    # Only rate limit /api/ routes
+    if not path.startswith('/api/'):
+        return await handler(request)
+
+    ip = request.remote or "unknown"
+    current_time = time.time()
+    
+    # Chat endpoint (10 req/min)
+    if path == '/api/chat':
+        record = chat_rate_limits.get(ip, {'count': 0, 'reset_time': current_time + 60})
+        # Reset if time window expired
+        if current_time > record['reset_time']:
+            record = {'count': 0, 'reset_time': current_time + 60}
+            
+        record['count'] += 1
+        chat_rate_limits[ip] = record
+        
+        if record['count'] > 10:
+            logger.warning(f"[Security] Rate limit exceeded for {ip} on {path}")
+            return web.json_response({
+                "error": "Too Many Requests", 
+                "message": "Chat rate limit exceeded. Please wait a minute."
+            }, status=429)
+            
+    # Other API endpoints (60 req/min)
+    else:
+        record = api_rate_limits.get(ip, {'count': 0, 'reset_time': current_time + 60})
+        # Reset if time window expired
+        if current_time > record['reset_time']:
+            record = {'count': 0, 'reset_time': current_time + 60}
+            
+        record['count'] += 1
+        api_rate_limits[ip] = record
+        
+        if record['count'] > 60:
+            logger.warning(f"[Security] Rate limit exceeded for {ip} on {path}")
+            return web.json_response({
+                "error": "Too Many Requests", 
+                "message": "API rate limit exceeded. Please wait a minute."
+            }, status=429)
+            
+    return await handler(request)
 
 
 async def on_startup(app):
@@ -168,7 +269,6 @@ async def on_startup(app):
     )
     hub.proactive_agent.brain = hub.brain
     hub.proactive_agent.chat_engine = hub.brain
-    hub.hermes = AikoHermesAgent(brain=hub.brain)
     
     # 15. Autonomous Agent
     hub.autonomous_agent = autonomous_agent
@@ -196,7 +296,10 @@ async def on_startup(app):
     # 19. Generate local auth token and persist it for the desktop frontend
     token_dir = BASE / "data"
     token_dir.mkdir(parents=True, exist_ok=True)
-    local_token = generate_token("local_desktop", expires_hours=8760)  # 1 year
+    # SECURITY: Token regenerated on each startup; 24h expiry is sufficient.
+    # Previous value of 8760h (1 year) was excessive — a leaked token file
+    # would grant persistent access even after the hub restarts.
+    local_token = generate_token("local_desktop", expires_hours=24)
     (token_dir / "local_token.txt").write_text(local_token, encoding="utf-8")
     logger.info(" [Hub] Local auth token generated and saved to data/local_token.txt")
 
@@ -224,14 +327,27 @@ def build_hub_app() -> web.Application:
     # Register Global Exception middleware next
     app.middlewares.append(global_exception_middleware)
     
+    # Register Rate Limit middleware
+    app.middlewares.append(rate_limit_middleware)
+    
     # Register JWT middleware (protects all /api/* routes)
     app.middlewares.append(jwt_middleware)
 
     
     # Static routes
-    app.router.add_static('/uploads', BASE / 'data' / 'uploads', name='uploads')
-    app.router.add_static('/assets', BASE / 'assets', name='assets')
-    app.router.add_static('/stickers', BASE / 'stickers', name='stickers')
+    uploads_dir = BASE / 'data' / 'uploads'
+    assets_dir = BASE / 'assets'
+    stickers_dir = BASE / 'aiko-app' / 'public' / 'stickers'
+    if not stickers_dir.exists():
+        stickers_dir = BASE / 'stickers'
+    
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+    assets_dir.mkdir(parents=True, exist_ok=True)
+    stickers_dir.mkdir(parents=True, exist_ok=True)
+
+    app.router.add_static('/uploads', uploads_dir, name='uploads')
+    app.router.add_static('/assets', assets_dir, name='assets')
+    app.router.add_static('/stickers', stickers_dir, name='stickers')
     
     # Public API routes
     app.router.add_get('/status', handle_status)
@@ -257,7 +373,13 @@ def build_hub_app() -> web.Application:
     app.router.add_post('/api/latex/render', handle_latex_render)
     app.router.add_get('/api/latex/image/{filename}', handle_latex_image)
     app.router.add_get('/api/memory/export', handle_export_memories)
+    app.router.add_get('/api/cards', handle_get_cards)
+    app.router.add_post('/api/cards/mint', handle_mint_card)
+    app.router.add_post('/api/cards/showcase', handle_set_showcase_card)
     app.router.add_post('/api/webrtc/offer', handle_webrtc_offer)
+    app.router.add_post('/api/email/send', handle_email_send)
+    app.router.add_get('/api/email/inbox', handle_email_inbox)
+    app.router.add_post('/api/email/settings', handle_email_settings)
     
     # TTS static audio
     app.router.add_static('/api/tts/audio', BASE / 'data' / 'voices', name='tts_audio')
@@ -309,5 +431,7 @@ if __name__ == '__main__':
         logger.warning(f"Could not persist active port to port.json: {e}")
 
     logger.info(f" [Hub] Binding to port: {port}")
-    web.run_app(app, host='0.0.0.0', port=port)
+    # SECURITY: Bind to loopback only. Never use 0.0.0.0 — it exposes
+    # the entire API (chat, files, process kill) to the local network.
+    web.run_app(app, host='127.0.0.1', port=port)
 

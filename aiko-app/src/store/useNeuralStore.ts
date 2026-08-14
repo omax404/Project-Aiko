@@ -144,6 +144,18 @@ async function fetchLocalToken(): Promise<string | null> {
   return null;
 }
 
+/** Exported helper to build Authorization headers with the local JWT token for API calls. */
+export async function getAuthHeaders(extraHeaders: Record<string, string> = {}): Promise<Record<string, string>> {
+  if (!wsToken) {
+    wsToken = await fetchLocalToken();
+  }
+  const headers: Record<string, string> = { ...extraHeaders };
+  if (wsToken) {
+    headers['Authorization'] = `Bearer ${wsToken}`;
+  }
+  return headers;
+}
+
 function scheduleReconnect() {
   if (reconnectTimer) return;
   const maxAttempts = 50;
@@ -292,13 +304,27 @@ async function connectSocket() {
           case 'chat_chunk':
             useNeuralStore.setState((s) => ({ streamingContent: s.streamingContent + (data.content || data.text || '') }));
             break;
-          case 'chat_token':
-            useNeuralStore.setState((s) => ({
-              streamingContent: s.streamingContent + (data.token || data.text || '') + ' ',
-              isThinking: false,
-              currentEmotion: data.emotion || s.currentEmotion
-            }));
+          case 'chat_token': {
+            const tokenText = data.token || data.text || '';
+            useNeuralStore.setState((s) => {
+              const newContent = s.streamingContent + tokenText + ' ';
+              let detectedEmotion = data.emotion || s.currentEmotion;
+
+              // Pre-glint emotion extraction directly from token stream
+              const moodMatch = newContent.match(/<emotion>(.*?)<\/emotion>|\[mood:(.*?)\]/i);
+              if (moodMatch) {
+                const rawTag = (moodMatch[1] || moodMatch[2] || '').trim();
+                if (rawTag) detectedEmotion = rawTag.toLowerCase();
+              }
+
+              return {
+                streamingContent: newContent,
+                isThinking: false,
+                currentEmotion: detectedEmotion
+              };
+            });
             break;
+          }
           case 'tts_chunk':
             useNeuralStore.setState({ isThinking: false });
             break;
@@ -510,7 +536,8 @@ export const useNeuralStore = create<NeuralState>()(
       projectStructure: [],
       fetchProjectStructure: async () => {
         try {
-          const res = await fetch(`${hubUrl}/api/project/structure`);
+          const headers = await getAuthHeaders();
+          const res = await fetch(`${hubUrl}/api/project/structure`, { headers });
           const data = await res.json();
           set({ projectStructure: data.structure || [] });
         } catch (e) {
@@ -571,8 +598,10 @@ export const useNeuralStore = create<NeuralState>()(
       uploadFile: async (file: File) => {
         const formData = new FormData();
         formData.append('file', file);
+        const headers = await getAuthHeaders();
         const res = await fetch(`${hubUrl}/api/upload`, {
           method: 'POST',
+          headers,
           body: formData
         });
         if (!res.ok) throw new Error('Upload failed');
@@ -629,64 +658,67 @@ export const useNeuralStore = create<NeuralState>()(
           socket.send(payload);
         } else {
           // HTTP fallback — works even when WebSocket hasn't connected yet
-          fetch(`${hubUrl}/api/chat`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: content, user_id: 'master', attachments: attachments })
-          })
-          .then(r => r.json())
-          .then(data => {
-            const reply = data.response || data.text || '';
-            const emotion = data.emotion || 'neutral';
-            if (!reply) return;
-            const aiMsg: Message = {
-              role: 'assistant', content: reply, emotion,
-              timestamp: new Date().toISOString()
-            };
-            const cleanedReply = reply.replace(/<emotion>.*?<\/emotion>/gi, '').trim();
-            const replyPreview = cleanedReply.substring(0, 60).replace(/\n/g, ' ') + (cleanedReply.length > 60 ? '...' : '');
-            useNeuralStore.setState((s) => {
-              const updatedSessions = s.sessions.map((sess) => {
-                if (sess.id === s.activeSessionId) {
-                  return {
-                    ...sess,
-                    preview: replyPreview || "Empty neural buffer...",
-                    lastActive: new Date().toISOString()
-                  };
-                }
-                return sess;
-              });
-              updatedSessions.sort((a, b) => {
-                const timeA = new Date(a.lastActive || 0).getTime();
-                const timeB = new Date(b.lastActive || 0).getTime();
-                return timeB - timeA;
-              });
-              return {
-                messages: [...s.messages, aiMsg],
-                sessions: updatedSessions,
-                isThinking: false,
-                currentEmotion: emotion
+          getAuthHeaders({ 'Content-Type': 'application/json' }).then(headers => {
+            fetch(`${hubUrl}/api/chat`, {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({ message: content, user_id: 'master', attachments: attachments })
+            })
+            .then(r => r.json())
+            .then(data => {
+              const reply = data.response || data.text || '';
+              const emotion = data.emotion || 'neutral';
+              if (!reply) return;
+              const aiMsg: Message = {
+                role: 'assistant', content: reply, emotion,
+                timestamp: new Date().toISOString()
               };
+              const cleanedReply = reply.replace(/<emotion>.*?<\/emotion>/gi, '').trim();
+              const replyPreview = cleanedReply.substring(0, 60).replace(/\n/g, ' ') + (cleanedReply.length > 60 ? '...' : '');
+              useNeuralStore.setState((s) => {
+                const updatedSessions = s.sessions.map((sess) => {
+                  if (sess.id === s.activeSessionId) {
+                    return {
+                      ...sess,
+                      preview: replyPreview || "Empty neural buffer...",
+                      lastActive: new Date().toISOString()
+                    };
+                  }
+                  return sess;
+                });
+                updatedSessions.sort((a, b) => {
+                  const timeA = new Date(a.lastActive || 0).getTime();
+                  const timeB = new Date(b.lastActive || 0).getTime();
+                  return timeB - timeA;
+                });
+                return {
+                  messages: [...s.messages, aiMsg],
+                  sessions: updatedSessions,
+                  isThinking: false,
+                  currentEmotion: emotion
+                };
+              });
+            })
+            .catch(err => {
+              console.error('[Aiko] Both WS and HTTP failed:', err);
+              const errMsg: Message = {
+                role: 'system',
+                content: 'Neural Hub is offline. Start it with: python core/neural_hub.py',
+                timestamp: new Date().toISOString()
+              };
+              useNeuralStore.setState((s) => ({
+                messages: [...s.messages, errMsg],
+                isThinking: false
+              }));
             });
-          })
-          .catch(err => {
-            console.error('[Aiko] Both WS and HTTP failed:', err);
-            const errMsg: Message = {
-              role: 'system',
-              content: 'Neural Hub is offline. Start it with: python core/neural_hub.py',
-              timestamp: new Date().toISOString()
-            };
-            useNeuralStore.setState((s) => ({
-              messages: [...s.messages, errMsg],
-              isThinking: false
-            }));
           });
         }
       },
 
       loadSessions: async () => {
         try {
-          const res = await fetch(`${hubUrl}/api/sessions`);
+          const headers = await getAuthHeaders();
+          const res = await fetch(`${hubUrl}/api/sessions`, { headers });
           const data = await res.json();
           const loadedSessions = Array.isArray(data.sessions) ? data.sessions : [];
           set({ sessions: loadedSessions });
@@ -701,7 +733,8 @@ export const useNeuralStore = create<NeuralState>()(
 
       switchSession: async (id) => {
         try {
-          const res = await fetch(`${hubUrl}/api/history?uid=${id}`);
+          const headers = await getAuthHeaders();
+          const res = await fetch(`${hubUrl}/api/history?uid=${id}`, { headers });
           const data = await res.json();
           set({ 
             activeSessionId: id,
@@ -728,9 +761,10 @@ export const useNeuralStore = create<NeuralState>()(
         }));
         // Persist new session to backend
         try {
+          const headers = await getAuthHeaders({ 'Content-Type': 'application/json' });
           await fetch(`${hubUrl}/api/sessions/create`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify({ id, title: "New Conversation" })
           });
         } catch (_) {}
@@ -738,7 +772,8 @@ export const useNeuralStore = create<NeuralState>()(
 
       deleteSession: async (id) => {
         try {
-          await fetch(`${hubUrl}/api/sessions/delete?id=${id}`, { method: 'DELETE' });
+          const headers = await getAuthHeaders();
+          await fetch(`${hubUrl}/api/sessions/delete?id=${id}`, { method: 'DELETE', headers });
           set((state) => ({
             sessions: (state.sessions || []).filter(s => s.id !== id),
             activeSessionId: state.activeSessionId === id ? null : state.activeSessionId,
@@ -749,9 +784,10 @@ export const useNeuralStore = create<NeuralState>()(
 
       pinSession: async (id) => {
         try {
+          const headers = await getAuthHeaders({ 'Content-Type': 'application/json' });
           await fetch(`${hubUrl}/api/sessions/pin`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify({ id })
           });
           set((state) => ({
@@ -762,9 +798,10 @@ export const useNeuralStore = create<NeuralState>()(
 
       renameSession: async (id, newName) => {
         try {
+          const headers = await getAuthHeaders({ 'Content-Type': 'application/json' });
           await fetch(`${hubUrl}/api/sessions/rename`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify({ id, name: newName })
           });
           set((state) => ({
@@ -864,7 +901,8 @@ export const useNeuralStore = create<NeuralState>()(
       setShowAnimatedAssets: (show: boolean) => set({ showAnimatedAssets: show }),
       fetchSettings: async () => {
         try {
-          const res = await fetch(`${hubUrl}/api/settings`);
+          const headers = await getAuthHeaders();
+          const res = await fetch(`${hubUrl}/api/settings`, { headers });
           const data = await res.json();
           set((state) => ({
             apiConfig: {
@@ -910,7 +948,7 @@ export const useNeuralStore = create<NeuralState>()(
             type: 'system',
             action: 'proactive_toggle',
             state: active,
-            interval: active ? 45 : 180
+            interval: active ? 12 : 180
           }));
         }
       }

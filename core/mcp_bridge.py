@@ -189,9 +189,15 @@ class MCPBridge:
             return f"[MCP ERROR] Process list failed: {e}"
 
     async def kill_process(self, pid: int) -> str:
+        # SECURITY: Protect critical system processes from being killed by LLM
+        PROTECTED_PROCESSES = {"csrss.exe", "winlogon.exe", "lsass.exe", "smss.exe",
+                               "services.exe", "wininit.exe", "system", "registry",
+                               "svchost.exe", "dwm.exe", "explorer.exe"}
         try:
             p = psutil.Process(pid)
             name = p.name()
+            if name.lower() in PROTECTED_PROCESSES:
+                return f"[MCP BLOCKED] Cannot terminate protected system process '{name}' (PID {pid})."
             p.terminate()
             return f"[MCP OK] Terminated process {name} (PID {pid})"
         except (OSError, PermissionError, ValueError, TypeError) as e:

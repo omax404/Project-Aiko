@@ -28,8 +28,15 @@ interface ChatBubbleProps {
   attachments?: string[];
 }
 
-function stripEmotionTags(text: string): string {
-  return text.replace(/<emotion>.*?<\/emotion>/gi, '').trim();
+function sanitizeMarkdownContent(text: string): string {
+  if (!text) return '';
+  let cleaned = text.replace(/<emotion>.*?<\/emotion>/gi, '');
+  // Fix any accidental spaces in sticker paths like /stickers/08_Thinking_Pose. png -> /stickers/08_Thinking_Pose.png
+  cleaned = cleaned.replace(/\/stickers\/([^\)]+?)\s*\.\s*(png|jpg|jpeg|gif|webp)/gi, (_, name, ext) => {
+    return '/stickers/' + name.trim().replace(/\s+/g, '') + '.' + ext;
+  });
+  cleaned = cleaned.replace(/!\[(.*?)\]\((.*?)\s+\.(png|jpg|jpeg|gif|webp)\)/gi, '![$1]($2.$3)');
+  return cleaned.trim();
 }
 
 export function ChatBubble({ 
@@ -132,12 +139,12 @@ export function ChatBubble({
              )}
           </div>
 
-          {/* Chat Bubble Body */}
+          {/* Chat Bubble Body — Soft Vampirism Lavender Component Spec */}
           <div className={clsx(
-            "relative transition-all duration-500",
+            "relative transition-all duration-300 backdrop-blur-md shadow-lg",
             isUser 
-              ? "bg-[var(--bg-card)] border border-[var(--b2)] rounded-[24px] rounded-tr-none p-5 px-6 text-[var(--t1)]" 
-              : "text-[var(--t1)] py-2"
+              ? "bg-[#B8A1D9] text-[#1A0F24] border border-[#B8A1D9]/40 rounded-[24px] rounded-tr-none p-5 px-6 font-medium shadow-[0_0_20px_rgba(184,161,217,0.25)] hover:shadow-[0_0_30px_rgba(184,161,217,0.4)]" 
+              : "bg-[#3B2249] text-[#F3EAF9] border border-[#B8A1D9]/20 rounded-[24px] rounded-tl-none p-5 px-6 shadow-[0_0_25px_rgba(184,161,217,0.15)] hover:border-[#B8A1D9]/40 hover:shadow-[0_0_30px_rgba(184,161,217,0.3)]"
           )}>
             <div className={clsx(
               "text-[15px] leading-[1.8] font-normal antialiased selectable markdown-content",
@@ -195,7 +202,7 @@ export function ChatBubble({
                       }
                     }}
                   >
-                    {stripEmotionTags(content)}
+                    {sanitizeMarkdownContent(content)}
                   </ReactMarkdown>
                   
                   {attachments && attachments.length > 0 && (

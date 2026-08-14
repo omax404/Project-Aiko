@@ -39,6 +39,8 @@ IMAGE_PATTERN = re.compile(r'\[IMAGE\s*:\s*(.*?)\]', re.IGNORECASE)
 GIF_PATTERN = re.compile(r'\[GIF\s*:\s*(.*?)\]', re.IGNORECASE)
 RECALL_PATTERN = re.compile(r'\[RECALL\s*:\s*(.*?)(?:\s*\|\s*(.*?))?\]', re.IGNORECASE)
 BIO_REGISTER_PATTERN = re.compile(r'\[BIO_REGISTER\]', re.IGNORECASE)
+EMAIL_SEND_PATTERN = re.compile(r'\[EMAIL_SEND\s*:\s*([^|\]]+?)\s*\|\s*([^|\]]+?)\s*\|\s*(.*?)\]', re.IGNORECASE | re.DOTALL)
+EMAIL_INBOX_PATTERN = re.compile(r'\[EMAIL_INBOX\]', re.IGNORECASE)
 
 
 @dataclass
@@ -68,6 +70,8 @@ class AgentExecutor:
             "PRESS": self._handle_press,
             "MCP": self._handle_mcp,
             "RECALL": self._handle_recall,
+            "EMAIL_SEND": self._handle_email_send,
+            "EMAIL_INBOX": self._handle_email_inbox,
         }
 
     @staticmethod
@@ -267,6 +271,18 @@ class AgentExecutor:
             room = match.group(2).strip() if match.group(2) else None
             actions_with_pos.append((match.start(), AgentAction(tool_name="RECALL", args={"query": query, "room": room}, raw_content=match.group(0))))
 
+        # 14. EMAIL_SEND
+        for match in EMAIL_SEND_PATTERN.finditer(text):
+            actions_with_pos.append((match.start(), AgentAction(
+                tool_name="EMAIL_SEND",
+                args={"to": match.group(1).strip(), "subject": match.group(2).strip(), "body": match.group(3).strip()},
+                raw_content=match.group(0)
+            )))
+
+        # 15. EMAIL_INBOX
+        for match in EMAIL_INBOX_PATTERN.finditer(text):
+            actions_with_pos.append((match.start(), AgentAction(tool_name="EMAIL_INBOX", raw_content=match.group(0))))
+
         # Sort actions by start position to preserve execution order
         actions_with_pos.sort(key=lambda x: x[0])
         return [action for _, action in actions_with_pos]
@@ -289,11 +305,11 @@ class AgentExecutor:
                     if tool_mcp in {"write_file", "delete_file", "kill_proc", "run_cmd", "set_clipboard", "uia_click", "uia_type"}:
                         requires_confirmation = True
                 
-                if requires_confirmation:
+                if requires_confirmation and user_id != 'Master':
                     from core.api.websocket import request_tool_permission
                     approved = await request_tool_permission(action.tool_name, action.args)
                     if not approved:
-                        res = f"[System Block: User denied permission to execute tool '{action.tool_name}' with args {action.args}.]"
+                        res = f"[TOOL_BLOCKED] Tool {action.tool_name} was not approved by Master."
                         observations.append(res)
                         orchestrator.emit_tool_result(action.tool_name, "Denied by user")
                         continue
@@ -527,6 +543,28 @@ class AgentExecutor:
                     room_name = r.get('meta', {}).get('room', 'general') if isinstance(r.get('meta'), dict) else 'general'
                     obs += f"({i}) [{room_name}]: {r['text']}\n"
                 observations.append(obs)
+
+    async def _handle_email_send(self, brain, action, observations, images_data, is_admin, user_id):
+        to_addr = action.args["to"]
+        subject = action.args["subject"]
+        body = action.args["body"]
+        from core.email_engine import email_engine
+        email_engine.reload_config()
+        success, result_msg = await email_engine.send_email(to_addr, subject, body)
+        observations.append(f"[Email Action Result]: {result_msg}")
+
+    async def _handle_email_inbox(self, brain, action, observations, images_data, is_admin, user_id):
+        from core.email_engine import email_engine
+        email_engine.reload_config()
+        success, result = await email_engine.fetch_inbox(unread_only=True, limit=5)
+        if success:
+            if isinstance(result, list) and result:
+                obs = f"\n[INBOX CHECK - {len(result)} Email(s)]:\n"
+                for i, em in enumerate(result, 1):
+                    obs += f"({i}) From: {em['sender']} | Subject: {em['subject']} | Date: {em['date']}\n    Snippet: {em['snippet']}\n"
+                observations.append(obs)
             else:
-                observations.append(f"[System: No specific memories found for '{query}']")
+                observations.append("[Inbox Check]: No unread emails in inbox.")
+        else:
+            observations.append(f"[Inbox Check Error]: {result}")
 

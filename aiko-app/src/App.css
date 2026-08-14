@@ -9,41 +9,51 @@
 .animate-spin-slow { animation: spin-slow 12s linear infinite; }
 
 :root {
+  /* Soft Vampirism Lavender Design Tokens */
+  --color-lavender: #B8A1D9;
+  --color-plum: #3B2249;
+  --color-blush: #E8C4D8;
+  --color-eggplant: #1A0F24;
+  --color-moonlight: #F3EAF9;
+  --color-glow: rgba(184, 161, 217, 0.35);
+
   /* Surfaces */
-  --bg-base: #1C1320;
-  --bg-sidebar: #221729;
-  --bg-elevated: #2A1B30;
-  --bg-surface: #2A1B30;
-  --bg-card: #35223D;
-  --bg-input: #241829;
-  --bg-hover: rgba(201, 168, 217, 0.04);
-  --bg-active: rgba(201, 168, 217, 0.07);
+  --bg-base: var(--color-eggplant);
+  --bg-sidebar: var(--color-eggplant);
+  --bg-elevated: var(--color-plum);
+  --bg-surface: var(--color-plum);
+  --bg-card: var(--color-plum);
+  --bg-input: var(--color-plum);
+  --bg-hover: rgba(184, 161, 217, 0.08);
+  --bg-active: rgba(184, 161, 217, 0.15);
 
   /* Text */
-  --t1: #f0ebe3;
-  --t2: #9a8f7e;
-  --t3: #5a5248;
-  --t4: #2e2820;
+  --t1: var(--color-moonlight);
+  --t2: rgba(243, 234, 249, 0.85);
+  --t3: rgba(243, 234, 249, 0.60);
+  --t4: rgba(243, 234, 249, 0.40);
 
-  /* Accent — muted lavender */
-  --accent: #C9A8D9;
-  --acc: var(--accent);
-  --acc2: #B490C4;
-  --acc-soft: rgba(201, 168, 217, 0.12);
-  --acc-glow: rgba(201, 168, 217, 0.25);
+  /* Accent */
+  --accent: var(--color-lavender);
+  --acc: var(--color-lavender);
+  --acc2: var(--color-blush);
+  --acc-soft: rgba(184, 161, 217, 0.12);
+  --acc-glow: var(--color-glow);
 
-  /* Borders — neutral, consistent */
-  --b1: rgba(255, 255, 255, 0.06);
-  --b2: rgba(255, 255, 255, 0.10);
-  --b3: rgba(255, 255, 255, 0.18);
+  /* Borders — 1px filigree accent at 20% opacity */
+  --b1: rgba(184, 161, 217, 0.20);
+  --b2: rgba(184, 161, 217, 0.25);
+  --b3: rgba(184, 161, 217, 0.40);
 
   /* Status */
-  --green: #4ade80;
-  --red: #f87171;
+  --green: #B8A1D9;
+  --red: #E8C4D8;
 
-  /* Fonts — unified to Inter + JetBrains Mono */
-  --font-ui: 'Inter', system-ui, sans-serif;
-  --font-brand: 'Inter', system-ui, sans-serif;
+  /* Fonts — Cormorant Garamond for Headers, Quicksand for Body */
+  --font-header: 'Cormorant Garamond', serif;
+  --font-body: 'Quicksand', sans-serif;
+  --font-ui: 'Quicksand', sans-serif;
+  --font-brand: 'Cormorant Garamond', serif;
   --font-mono: 'JetBrains Mono', monospace;
 
   /* Layout */
@@ -52,7 +62,7 @@
   --th: 38px;
   --nh: 48px;
 
-  /* Legacy compatibility (bridging to components) */
+  /* Legacy compatibility */
   --bg-dark: var(--bg-base);
   --bg-pane: var(--bg-surface);
   --bg-glass: var(--bg-active);

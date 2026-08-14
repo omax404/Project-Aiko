@@ -165,7 +165,7 @@ Link Aiko directly to your Twitch channel stream chat! Configurable in the plugi
 * **Live2D avatar** — animations driven by her live emotional state
 * **Unified dashboard** — chat history, system stats, project intelligence
 * **Start Screen Upgrades** — Full screen looping ambient video, centered transparent gothic logo text, silk progress shimmer effect, and Cormorant Garamond typography.
-* **Upgraded Avatar Physics** — Harmonic dual-layer breast parameters (`Param117-120`) for highly realistic body giggle animation.
+* **Upgraded Avatar Physics** — Harmonic dual-layer physics parameters (`Param117-120`) for highly realistic body dynamics and secondary motion.
 
 ---
 

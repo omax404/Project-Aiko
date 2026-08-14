@@ -364,5 +364,106 @@ Somatic Translation: You feel {somatic_str}."""
 
         return modifiers
 
+    def process_turn(self, user_msg: str, ai_response: str, history: list = None) -> dict:
+        """
+        AAA Emotional Trigger Logic Layer ("Nervous System").
+        Processes both user input and AI response to produce smoothed emotion state,
+        intensity, gesture trigger, and reaction delay (150-350ms).
+        """
+        self.update()
+
+        # 1. Structured Tag Extraction from LLM Generation
+        detected_emotion = "neutral"
+        intensity = 0.6
+        gesture_trigger = None
+
+        # Look for explicit JSON or XML emotion tags in AI response
+        json_match = re.search(r'\{.*?"emotion"\s*:\s*"([a-zA-Z]+)".*?\}', ai_response, re.IGNORECASE)
+        xml_match = re.search(r'<emotion(?:\s+name="([a-zA-Z]+)")?(?:\s+intensity="([0-9.]+)")?>(.*?)</emotion>', ai_response, re.IGNORECASE)
+        mood_match = re.search(r'\[mood:([a-zA-Z]+)\]', ai_response, re.IGNORECASE)
+        gesture_match = re.search(r'\[gesture:([a-zA-Z]+)\]', ai_response, re.IGNORECASE)
+
+        if json_match:
+            detected_emotion = json_match.group(1).lower()
+        elif xml_match:
+            detected_emotion = (xml_match.group(1) or xml_match.group(3) or "neutral").lower().strip()
+            if xml_match.group(2):
+                try: intensity = float(xml_match.group(2))
+                except ValueError: intensity = 0.6
+        elif mood_match:
+            detected_emotion = mood_match.group(1).lower()
+
+        if gesture_match:
+            gesture_trigger = gesture_match.group(1).lower()
+
+        # 2. Context-Aware Mapping Rules (Complementing LLM classifier)
+        u_lower = user_msg.lower() if user_msg else ""
+        
+        # Compliment / Affection -> Shy / Flirty (intensity scales with directness)
+        compliments = ("cute", "adorable", "love you", "pretty", "beautiful", "sweetheart", "sweet", "good girl", "marry")
+        if any(c in u_lower for c in compliments):
+            if detected_emotion in ("neutral", "calm"):
+                detected_emotion = "shy"
+                intensity = 0.8
+            if not gesture_trigger:
+                gesture_trigger = "handToFace"
+
+        # User shares sadness -> Empathetic Caring (not mirrored distress)
+        sad_indicators = ("sad", "depressed", "bad day", "crying", "passed away", "hurt", "lonely")
+        if any(s in u_lower for s in sad_indicators):
+            detected_emotion = "caring"
+            intensity = 0.75
+
+        # Sudden unexpected topic -> Surprised Jolt
+        surprised_indicators = ("what?!", "wait what", "no way", "surprise", "omg", "holy")
+        if any(s in u_lower for s in surprised_indicators):
+            if not gesture_trigger:
+                gesture_trigger = "surprisedJolt"
+
+        # Goodnight / Greeting
+        if "goodnight" in u_lower or "sleep well" in u_lower:
+            detected_emotion = "sleepy"
+            gesture_trigger = "goodnight"
+        elif "hello" in u_lower or "hi " in u_lower or "hey" in u_lower:
+            gesture_trigger = "greet"
+
+        # 3. Temporal Smoothing (Exponential Moving Average / Chemical Spike)
+        if detected_emotion in EMOTION_MAP:
+            t_d, t_s, t_c, t_a, t_oxy, t_mela = EMOTION_MAP[detected_emotion]
+            # Spike chemical field proportionally with intensity
+            k = intensity * 0.35
+            self.apply_delta(
+                (t_d - self.baselines["dopamine"]) * k,
+                (t_s - self.baselines["serotonin"]) * k,
+                (t_c - self.baselines["cortisol"]) * k,
+                (t_a - self.baselines["adrenaline"]) * k,
+                (t_oxy - self.baselines["oxytocin"]) * k,
+                (t_mela - self.baselines["melatonin"]) * k
+            )
+
+        # 4. Gesture Rate Limiting (20-30s Cooldown Enforcement)
+        now = time.time()
+        last_gesture_time = getattr(self, "_last_gesture_time", 0)
+        if gesture_trigger and (now - last_gesture_time < 20.0):
+            logger.info(f" [EmotionEngine] Gesture '{gesture_trigger}' suppressed by 20s cooldown rate-limiter.")
+            gesture_trigger = None
+        elif gesture_trigger:
+            self._last_gesture_time = now
+
+        # 5. Artificial Reaction Delay (150 - 350 ms for human-like reaction time)
+        reaction_delay_ms = int(150 + (1.0 - intensity) * 150 + (self.chemicals["melatonin"] * 50))
+
+        smoothed_state = self.get_state()
+        active_emotion = self.get_active_emotion()
+
+        return {
+            "emotion": active_emotion if detected_emotion == "neutral" else detected_emotion,
+            "intensity": round(intensity, 2),
+            "gesture": gesture_trigger,
+            "delay_ms": reaction_delay_ms,
+            "chemicals": smoothed_state
+        }
+
 # Global singleton instance
 emotion_engine = EmotionEngine()
+

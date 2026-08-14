@@ -49,11 +49,11 @@ export const GothicButton: React.FC<GothicButtonProps> = ({
       title={title}
       disabled={disabled}
       className={clsx(
-        'relative rounded-xl border cursor-pointer flex items-center justify-center transition-all duration-200 shrink-0 select-none',
+        'relative rounded-full border cursor-pointer flex items-center justify-center transition-all duration-200 shrink-0 select-none shadow-md',
         sizeConfig.btn,
         active
-          ? 'bg-[var(--acc)]/15 border-[var(--acc)]/40 text-[var(--acc)] shadow-[0_0_12px_var(--acc-glow)]'
-          : 'bg-white/[0.03] border-white/[0.08] text-[var(--t2)] hover:bg-white/[0.06] hover:border-white/[0.12] hover:text-[var(--t1)]',
+          ? 'bg-[#B8A1D9] border-[#B8A1D9] text-[#1A0F24] font-semibold shadow-[0_0_18px_rgba(184,161,217,0.45)]'
+          : 'bg-[#3B2249]/60 border-[#B8A1D9]/30 text-[#F3EAF9] hover:bg-[#B8A1D9]/20 hover:border-[#B8A1D9]/50 hover:shadow-[0_0_15px_rgba(184,161,217,0.3)]',
         disabled && 'opacity-30 cursor-not-allowed',
         className
       )}

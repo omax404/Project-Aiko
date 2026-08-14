@@ -178,23 +178,23 @@ export default function MobileApp() {
                 <History size={16} />
             </button>
             <span style={{
-                fontFamily: "'Pixelify Sans', cursive", fontSize: 16,
-                color: 'rgba(201,168,217,0.9)', letterSpacing: 3
+                fontFamily: "'Cormorant Garamond', serif", fontSize: 20, fontWeight: 700,
+                color: '#B8A1D9', letterSpacing: 2
             }}>AIKO</span>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <div style={{
               display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px',
-              borderRadius: 8, background: 'rgba(201,168,217,0.1)', border: '1px solid rgba(201,168,217,0.2)'
+              borderRadius: 20, background: 'rgba(184,161,217,0.12)', border: '1px solid rgba(184,161,217,0.25)'
           }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#C9A8D9' }} />
-              <span style={{ fontSize: 9, color: '#C9A8D9', fontWeight: 'bold', textTransform: 'uppercase' }}>Neural Online</span>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#B8A1D9' }} />
+              <span style={{ fontSize: 9, color: '#B8A1D9', fontWeight: 'bold', textTransform: 'uppercase' }}>Neural Online</span>
           </div>
           <button onClick={() => setShowSettings(true)} title="Settings" aria-label="Settings" style={{
-            width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.05)',
-            border: '1px solid rgba(255,255,255,0.08)', display: 'flex',
+            width: 36, height: 36, borderRadius: 18, background: '#3B2249',
+            border: '1px solid rgba(184,161,217,0.2)', display: 'flex',
             alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-            color: 'rgba(255,255,255,0.4)'
+            color: '#F3EAF9'
           }}>
             <Settings size={16} />
           </button>
@@ -248,14 +248,15 @@ export default function MobileApp() {
 
         {/* Thinking indicator */}
         {thinking && !streaming && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            style={{ display: 'flex', gap: 8, padding: '8px 4px', alignItems: 'center' }}>
-            {[0,1,2].map(i => (
-              <div key={i} style={{
-                width: 6, height: 6, borderRadius: '50%', background: 'rgba(212,149,106,0.5)',
-                animation: `bounce 0.6s ${i * 0.15}s infinite`
-              }} />
-            ))}
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+            style={{
+              padding: '12px 16px', borderRadius: '24px 24px 24px 0',
+              background: '#3B2249', border: '1px solid rgba(184,161,217,0.2)',
+              display: 'inline-flex', alignItems: 'center', gap: 8, color: '#B8A1D9'
+            }}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#B8A1D9', animation: 'bounce 1s infinite' }} />
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#B8A1D9', animation: 'bounce 1s infinite 0.2s' }} />
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#B8A1D9', animation: 'bounce 1s infinite 0.4s' }} />
           </motion.div>
         )}
 
@@ -266,22 +267,23 @@ export default function MobileApp() {
       <div style={{
         position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 20,
         padding: `12px 12px calc(env(safe-area-inset-bottom, 0px) + 12px)`,
-        background: 'rgba(12,11,10,0.9)',
+        background: '#1A0F24',
         backdropFilter: 'blur(20px)',
-        borderTop: '1px solid rgba(255,255,255,0.06)',
+        borderTop: '1px solid rgba(184,161,217,0.2)',
       }}>
         <div style={{
           display: 'flex', alignItems: 'flex-end', gap: 10,
-          background: 'rgba(255,255,255,0.04)',
-          border: '1px solid rgba(255,255,255,0.08)',
-          borderRadius: 24, padding: '6px 6px 6px 16px',
+          background: '#3B2249',
+          border: '1px solid rgba(184,161,217,0.25)',
+          borderRadius: 28, padding: '6px 6px 6px 16px',
+          boxShadow: '0 0 20px rgba(184,161,217,0.15)'
         }}>
           {/* Attach */}
           <label style={{
-            width: 40, height: 40, borderRadius: 14, flexShrink: 0, marginBottom: 0,
-            background: 'rgba(255,255,255,0.05)', cursor: 'pointer',
+            width: 40, height: 40, borderRadius: 20, flexShrink: 0, marginBottom: 0,
+            background: 'rgba(184,161,217,0.1)', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.05)'
+            color: '#F3EAF9', border: '1px solid rgba(184,161,217,0.2)'
           }}>
             <Plus size={20} />
             <input type="file" accept="image/*,.pdf,.txt" title="Attach file" aria-label="Attach file" style={{ display: 'none' }}
@@ -308,9 +310,9 @@ export default function MobileApp() {
             rows={1}
             style={{
               flex: 1, background: 'transparent', border: 'none', outline: 'none',
-              boxShadow: 'none', resize: 'none', fontSize: 16, lineHeight: 1.5,
-              color: 'rgba(237,232,223,0.9)', maxHeight: 120, overflowY: 'auto',
-              padding: '10px 0', fontFamily: 'inherit',
+              boxShadow: 'none', resize: 'none', fontSize: 15, lineHeight: 1.5,
+              color: '#F3EAF9', maxHeight: 120, overflowY: 'auto',
+              padding: '10px 0', fontFamily: "'Quicksand', sans-serif",
               WebkitAppearance: 'none',
             }}
           />
@@ -318,11 +320,12 @@ export default function MobileApp() {
           {/* Send */}
           <button onClick={handleSend} disabled={!text.trim() || thinking} title="Send Message" aria-label="Send Message"
             style={{
-              width: 44, height: 44, borderRadius: 16, flexShrink: 0, marginBottom: 0,
-              background: text.trim() && !thinking ? '#fff' : 'rgba(255,255,255,0.03)',
+              width: 44, height: 44, borderRadius: 22, flexShrink: 0, marginBottom: 0,
+              background: text.trim() && !thinking ? '#B8A1D9' : 'rgba(184,161,217,0.15)',
               border: 'none', cursor: text.trim() && !thinking ? 'pointer' : 'not-allowed',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: text.trim() && !thinking ? '#000' : 'rgba(255,255,255,0.1)',
+              color: text.trim() && !thinking ? '#1A0F24' : 'rgba(243,234,249,0.3)',
+              boxShadow: text.trim() && !thinking ? '0 0 15px rgba(184,161,217,0.4)' : 'none',
               transition: 'all 200ms',
             }}>
             <Send size={18} />

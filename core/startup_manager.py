@@ -76,13 +76,17 @@ class StartupManager:
         python_exe = sys.executable
         plugins = config.get("plugins", {})
 
+        def get_bot_path(name: str) -> str:
+            p = BASE / "core" / "satellites" / name
+            return str(p) if p.exists() else str(BASE / name)
+
         # ── Discord Bot ──────────────────────────────────────────
         if plugins.get("discord_bot", True):
             discord_token = os.getenv("DISCORD_TOKEN", "")
             if discord_token and discord_token not in ("your_discord_bot_token_here", ""):
                 if not cls.is_process_running("discord_bot.py"):
                     logger.info("[Startup] Launching Discord satellite bot...")
-                    bot_script = str(BASE / "discord_bot.py")
+                    bot_script = get_bot_path("discord_bot.py")
                     cls.launch_background([python_exe, bot_script], cwd=str(BASE))
                     logger.info("[Startup] Discord bot started.")
                 else:
@@ -96,7 +100,7 @@ class StartupManager:
             if telegram_token and telegram_token not in ("your_telegram_bot_token_here", ""):
                 if not cls.is_process_running("telegram_bot.py"):
                     logger.info("[Startup] Launching Telegram satellite bot...")
-                    bot_script = str(BASE / "telegram_bot.py")
+                    bot_script = get_bot_path("telegram_bot.py")
                     cls.launch_background([python_exe, bot_script], cwd=str(BASE))
                     logger.info("[Startup] Telegram bot started.")
                 else:
@@ -112,7 +116,7 @@ class StartupManager:
             if twitch_token and twitch_channel and twitch_user:
                 if not cls.is_process_running("twitch_bot.py"):
                     logger.info("[Startup] Launching Twitch satellite bot...")
-                    bot_script = str(BASE / "twitch_bot.py")
+                    bot_script = get_bot_path("twitch_bot.py")
                     cls.launch_background([python_exe, bot_script], cwd=str(BASE))
                     logger.info("[Startup] Twitch bot started.")
                 else:

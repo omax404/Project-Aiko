@@ -78,7 +78,7 @@ export function InputDock() {
         </div>
         <div className="absolute -inset-2 bg-[var(--accent)]/5 blur-2xl rounded-3xl opacity-0 group-focus-within:opacity-100 transition-opacity" />
         
-        <div className="relative flex flex-col gap-2 p-1.5 glass-pane rounded-3xl shadow-2xl focus-within:border-accent/30 transition-all duration-500">
+        <div className="relative flex flex-col gap-2 p-2 bg-[#3B2249] border border-[#B8A1D9]/25 rounded-[28px] shadow-[0_0_30px_rgba(184,161,217,0.18)] focus-within:border-[#B8A1D9]/50 focus-within:shadow-[0_0_35px_rgba(184,161,217,0.35)] transition-all duration-300">
           
           <div className="flex items-center justify-between px-4 py-2 border-b border-white/5 mb-1">
              <div className="flex items-center gap-2.5">

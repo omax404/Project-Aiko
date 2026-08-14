@@ -55,7 +55,7 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
   const [loaded, setLoaded] = useState(false);
 
   // Hook driving autonomous expression physics, blink, saccade, breathing, boba, and vowel lip sync loops
-  const { triggerDiscreteExpression } = useLive2DExpression(modelRef, currentChemicals, {
+  const { triggerExpression, playGesture } = useLive2DExpression(modelRef, currentChemicals, {
     loaded,
     isTalking,
     mouthAmplitude: amplitude,
@@ -106,35 +106,33 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
       }
     }
 
-    // === AIKO WILL: Semantic Gesture & Sentiment Mapping via transient springs ===
+    // === AIKO WILL: Semantic Gesture & Sentiment Mapping ===
     const lowerText = newContent.toLowerCase();
     
-    // Question triggers -> Curious head tilt
+    // Question triggers -> Curious head tilt / happy expression
     if (lowerText.includes('?') || /\b(why|how|what|who|where|curious|wonder)\b/.test(lowerText)) {
-      triggerDiscreteExpression('curious_tilt', { headTiltZ: -0.22, headTiltY: -0.1 }, 1600);
+      triggerExpression('happy', 0.85);
+      playGesture('greet');
     }
     // Surprise / Excitement triggers -> Perk up
     else if (lowerText.includes('!') || /\b(wow|amazing|awesome|cool|oh|surprised|gasp)\b/.test(lowerText)) {
-      triggerDiscreteExpression('perk_up', { headTiltY: 0.18, eyeOpenness: 0.15 }, 1100);
+      triggerExpression('surprised', 0.9);
+      playGesture('surprisedJolt');
     }
     // Agreement triggers -> Nod agree
     else if (/\b(yes|yeah|agree|nod|indeed|exactly|correct|sure|alright)\b/.test(lowerText)) {
-      triggerDiscreteExpression('nod', { headTiltY: -0.18 }, 900);
+      playGesture('nod');
     }
-    // Disagreement triggers -> Shake head
-    else if (/\b(no|never|disagree|don't|not|impossible|stop|nope)\b/.test(lowerText)) {
-      triggerDiscreteExpression('shake', { headTiltX: -0.25 }, 900);
-    }
-    // Affection triggers -> Shy look away
+    // Affection triggers -> Shy hand to face
     else if (/\b(love|cute|blush|hug|heart|shy|embarrassed|hehe|hihi)\b/.test(lowerText)) {
-      triggerDiscreteExpression('shy_look', { headTiltX: 0.18, headTiltZ: 0.12 }, 1800);
+      triggerExpression('shy', 0.9);
+      playGesture('handToFace');
     }
   }, [streamingContent, messages, isThinking]);
 
   useEffect(() => {
     if (isThinking) {
-      // Look up and away randomly to process information (cognitive lookup)
-      triggerDiscreteExpression('thinking', { headTiltX: 0.35, headTiltY: 0.25, browTension: 0.2 }, 3000);
+      triggerExpression('sleepy', 0.5);
     }
   }, [isThinking]);
 
@@ -216,6 +214,17 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
         setLoaded(true);
         console.log('[Live2D] ✅ Model loaded successfully:', modelUrl);
 
+        // Power Optimization: Throttle PIXI renderer FPS when window/tab is hidden
+        const handleVisibility = () => {
+          if (app && app.ticker) {
+            app.ticker.maxFPS = document.hidden ? 15 : 60;
+          }
+        };
+        document.addEventListener('visibilitychange', handleVisibility);
+        (app as any)._visibilityCleanup = () => {
+          document.removeEventListener('visibilitychange', handleVisibility);
+        };
+
       } catch (err: any) {
         console.error('[Live2D] ❌ Failed to initialize:', err);
         setError(err.message || 'Unknown error');
@@ -227,6 +236,9 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
     return () => {
       destroyed = true;
       try {
+        if (appRef.current?._visibilityCleanup) {
+          appRef.current._visibilityCleanup();
+        }
         appRef.current?.destroy(false, { children: true, texture: true, baseTexture: true });
       } catch (_) {}
       appRef.current = null;
@@ -336,22 +348,13 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
 
   return (
     <div
-      style={{ width, height }}
-      className="relative flex items-center justify-center pointer-events-none"
+      style={{ 
+        width, 
+        height,
+        background: 'radial-gradient(circle at center, rgba(184,161,217,0.25) 0%, rgba(26,15,36,0) 70%)'
+      }}
+      className="relative flex items-center justify-center pointer-events-none overflow-hidden"
     >
-      {!loaded && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="flex gap-1">
-            {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-                className="w-1.5 h-1.5 rounded-full bg-[var(--acc)] animate-bounce"
-                style={{ animationDelay: `${i * 0.15}s` }}
-              />
-            ))}
-          </div>
-        </div>
-      )}
       <canvas
         ref={canvasRef}
         className="pointer-events-none"

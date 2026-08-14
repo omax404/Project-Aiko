@@ -168,6 +168,7 @@ DATA_DIR.mkdir(exist_ok=True)
 (DATA_DIR / "uploads").mkdir(exist_ok=True)
 
 running_procs: list[subprocess.Popen] = []
+_procs_lock = threading.Lock()  # Thread-safe access to running_procs
 
 # ─── Helpers ──────────────────────────────────────────────────
 
@@ -300,7 +301,8 @@ def spawn_background(cmd, cwd=None, label="BG", log_file=None, use_shell=False) 
         kwargs["preexec_fn"] = os.setsid
 
     proc = subprocess.Popen(cmd, **kwargs)
-    running_procs.append(proc)
+    with _procs_lock:
+        running_procs.append(proc)
 
     def _logger(stream):
         if stream is None:
@@ -328,18 +330,19 @@ def spawn_background(cmd, cwd=None, label="BG", log_file=None, use_shell=False) 
 
 
 def kill_all():
-    for p in running_procs:
-        try:
-            if IS_WINDOWS:
-                subprocess.call(
-                    ["taskkill", "/F", "/T", "/PID", str(p.pid)],
-                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-                )
-            else:
-                import signal
-                os.killpg(os.getpgid(p.pid), signal.SIGTERM)
-        except Exception:
-            pass
+    with _procs_lock:
+        for p in running_procs:
+            try:
+                if IS_WINDOWS:
+                    subprocess.call(
+                        ["taskkill", "/F", "/T", "/PID", str(p.pid)],
+                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                    )
+                else:
+                    import signal
+                    os.killpg(os.getpgid(p.pid), signal.SIGTERM)
+            except Exception:
+                pass
 
 
 # ─── Step 0: Prerequisites ────────────────────────────────────

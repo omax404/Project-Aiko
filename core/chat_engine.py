@@ -24,6 +24,7 @@ from core.infrastructure.llm.streaming import get_session, close_session, stream
 from core.infrastructure.tools.executor import AgentExecutor, GIF_PATTERN
 from core.infrastructure.rag.context_builder import build_rag_context
 from core.infrastructure.media.generator import handle_generate_command, handle_selfie_request
+from core.security import policy_engine
 
 load_dotenv()
 logger = logging.getLogger("Brain")
@@ -178,8 +179,8 @@ class AikoBrain:
             processed_images, file_context = await self._process_attachments(initial_images)
             
             if processed_images:
-                active_model = config.get("MODEL_NAME", self.model or "qwen3.5:cloud")
-                is_vision_model = any(keyword in active_model.lower() for keyword in ["vision", "vl", "llava", "moondream", "minicpm", "multimodal", "gpt-4o", "claude-3"])
+                active_model = config.get("MODEL_NAME", self.model or "gemma4:31b-cloud")
+                is_vision_model = any(keyword in active_model.lower() for keyword in ["gemma", "vision", "vl", "llava", "moondream", "minicpm", "multimodal", "gpt-4o", "claude-3", "cloud"])
                 
                 if not is_vision_model and self.vision:
                     logger.info(f"[ChatEngine] Active LLM '{active_model}' is text-only. Pre-processing {len(processed_images)} image(s) using Vision Engine...")
@@ -403,7 +404,14 @@ Use MCP tools whenever Master asks about his PC state, files, wants you to read/
                 else:
                     try:
                         text = content.decode('utf-8', errors='ignore')
-                        context_parts.append(f"Content of {filename}:\n```\n{text[:2000]}\n```")
+                        
+                        # Security Gate: scan for prompt injection
+                        is_blocked, score = policy_engine.detect_injection(text[:2000])
+                        if is_blocked:
+                            context_parts.append(f"[SECURITY WARNING: File '{filename}' contained potentially malicious instructions and was sanitized. Score: {score:.2f}]")
+                            logger.warning(f"Blocked injection in attachment {filename} (score={score:.2f})")
+                        else:
+                            context_parts.append(f"Content of {filename}:\n```\n{text[:2000]}\n```")
                     except (UnicodeDecodeError, OSError) as e:
                         logger.warning(f"Failed to decode attachment text for {filename}: {e}")
                         context_parts.append(f"[File attached: {filename}]")

@@ -59,20 +59,22 @@ export default function SplashScreen() {
   }, []);
 
   return (
-    <div className="w-screen h-screen flex flex-col items-center justify-center relative overflow-hidden select-none bg-[#0B060F] rounded-[24px] border border-white/[0.08] shadow-[0_15px_35px_rgba(0,0,0,0.6)]">
-      {/* Background Video */}
-      <video
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none rounded-[24px]"
-        src={splashVideo}
-      />
-      {/* Dynamic Overlay for high-end backdrop depth */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#1C0F24]/50 via-transparent to-[#0B060F]/95 z-5 pointer-events-none rounded-[24px]" />
-      
-      <div className="relative z-10 w-[85%] h-[80%] flex flex-col items-center justify-center gap-6 p-8 rounded-2xl bg-white/[0.01] border border-white/[0.04] backdrop-blur-md shadow-2xl">
+    <div className="w-screen h-screen bg-transparent flex items-center justify-center p-2 select-none overflow-hidden">
+      {/* Floating Glassmorphic Card Container with Pure Transparent PNG Outer Edges */}
+      <div className="w-full h-full flex flex-col items-center justify-center relative overflow-hidden bg-[#0B060F]/95 backdrop-blur-2xl rounded-[24px] border border-white/[0.12] shadow-[0_20px_50px_rgba(0,0,0,0.75)]">
+        {/* Background Video */}
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none rounded-[24px]"
+          src={splashVideo}
+        />
+        {/* Dynamic Overlay for high-end backdrop depth */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#1C0F24]/60 via-transparent to-[#0B060F]/95 z-5 pointer-events-none rounded-[24px]" />
+        
+        <div className="relative z-10 w-[88%] h-[82%] flex flex-col items-center justify-center gap-6 p-6 rounded-2xl bg-white/[0.015] border border-white/[0.05] backdrop-blur-md shadow-2xl">
         <style>{`
           @keyframes sweep {
             0% { transform: translateX(-150%); }
@@ -125,5 +127,6 @@ export default function SplashScreen() {
         </div>
       </div>
     </div>
+  </div>
   );
 }

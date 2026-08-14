@@ -24,6 +24,8 @@ import { DashboardStats } from './components/ui/DashboardStats';
 import { WelcomeScreen } from './components/ui/WelcomeScreen';
 import { NeuralNode } from './components/ui/NeuralNode';
 import { ThinkingDots } from './components/ui/ThinkingDots';
+import { AmbientParticlesCanvas } from './components/ui/AmbientParticlesCanvas';
+
 function extractHtmlCode(text: string): string | null {
   const match = text.match(/```html([\s\S]*?)(?:```|$)/i);
   return match ? match[1].trim() : null;
@@ -187,16 +189,83 @@ function App() {
     chatMouseY.set(e.clientY - rect.top);
   };
 
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const { uploadFile, sendMessage } = useNeuralStore();
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDraggingFile) setIsDraggingFile(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only set to false if leaving the window
+    if (e.clientX <= 0 || e.clientY <= 0 || e.clientX >= window.innerWidth || e.clientY >= window.innerHeight) {
+      setIsDraggingFile(false);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingFile(false);
+
+    const files = e.dataTransfer.files;
+    if (!files || files.length === 0) return;
+
+    const uploadedUrls: string[] = [];
+    for (const file of Array.from(files)) {
+      try {
+        const res = await uploadFile(file);
+        if (res && res.url) uploadedUrls.push(res.url);
+      } catch (err) {
+        console.error("Dropzone upload failed:", err);
+      }
+    }
+
+    if (uploadedUrls.length > 0) {
+      sendMessage("Analyze these attachments for me, Aiko.", uploadedUrls);
+    }
+  };
+
   return (
     <>
       <SkipLink targetId="main-content" />
       <ScreenReaderAnnouncer />
-      <div style={{
-      width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column',
-      overflow: 'hidden', background: 'var(--bg-base)', color: 'var(--t1)',
-      borderRadius: '24px', border: '1px solid rgba(255, 255, 255, 0.08)',
-      boxShadow: '0 15px 35px rgba(0, 0, 0, 0.6)'
-    }}>
+      <div 
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        style={{
+          width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column',
+          overflow: 'hidden', background: 'var(--bg-base)', color: 'var(--t1)',
+          borderRadius: '24px', border: '1px solid rgba(255, 255, 255, 0.08)',
+          boxShadow: '0 15px 35px rgba(0, 0, 0, 0.6)', position: 'relative'
+        }}
+      >
+        {/* Full-Screen Drag and Drop Overlay */}
+        <AnimatePresence>
+          {isDraggingFile && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-[150] flex flex-col items-center justify-center bg-[#0B060F]/85 backdrop-blur-xl border-2 border-dashed border-[var(--acc)] rounded-[24px] pointer-events-none"
+            >
+              <div className="flex flex-col items-center gap-4 p-8 rounded-3xl bg-white/[0.03] border border-white/10 shadow-2xl">
+                <Zap size={48} className="text-[var(--acc)] animate-bounce" />
+                <p className="text-lg font-semibold text-[#f0ebe3] tracking-wide">
+                  Drop file to analyze with Aiko
+                </p>
+                <p className="text-xs text-[var(--acc)] opacity-80 uppercase tracking-widest">
+                  Images • Code Snippets • Documents
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
       {/* ONE titlebar — session name + action icons + window controls */}
       <TitleBar
@@ -262,6 +331,7 @@ function App() {
               }}
               className="group/chat"
             >
+              <AmbientParticlesCanvas />
               <motion.div
                 className="absolute pointer-events-none rounded-full w-60 h-60 bg-[var(--acc-soft)] blur-3xl opacity-0 group-hover/chat:opacity-10 transition-opacity"
                 style={{

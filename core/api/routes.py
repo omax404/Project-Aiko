@@ -516,6 +516,7 @@ async def handle_upload(req):
             filename = f"{int(datetime.now().timestamp())}_{filename}"
             filepath = upload_path / filename
 
+        MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB limit
         size = 0
         with open(filepath, 'wb') as f:
             while True:
@@ -523,6 +524,13 @@ async def handle_upload(req):
                 if not chunk:
                     break
                 size += len(chunk)
+                if size > MAX_UPLOAD_SIZE:
+                    f.close()
+                    filepath.unlink(missing_ok=True)
+                    return web.json_response(
+                        {"error": f"File too large. Maximum size is {MAX_UPLOAD_SIZE // (1024*1024)}MB."},
+                        status=413
+                    )
                 f.write(chunk)
 
         logger.info(f"File uploaded: {filename} ({size} bytes)")
@@ -745,4 +753,73 @@ async def handle_webrtc_offer(req):
         })
     except Exception as e:
         logger.error(f"WebRTC offer handling failed: {e}")
+        return web.json_response({"error": str(e)}, status=500)
+
+
+# ============================================================
+# EMAIL ENGINE API ENDPOINTS
+# ============================================================
+
+async def handle_email_send(req):
+    """POST /api/email/send - Send an email via SMTP."""
+    try:
+        data = await req.json()
+        to_addr = data.get("to") or data.get("to_address") or ""
+        subject = data.get("subject", "No Subject")
+        body = data.get("body") or data.get("message") or ""
+        html = data.get("html")
+
+        if not to_addr or not body:
+            return web.json_response({"error": "Recipient 'to' and 'body' are required."}, status=400)
+
+        from core.email_engine import email_engine
+        email_engine.reload_config()
+        success, result_msg = await email_engine.send_email(to_addr, subject, body, html)
+
+        if success:
+            return web.json_response({"status": "success", "message": result_msg})
+        return web.json_response({"error": result_msg}, status=500)
+    except Exception as e:
+        logger.error(f"Email send endpoint failed: {e}")
+        return web.json_response({"error": str(e)}, status=500)
+
+
+async def handle_email_inbox(req):
+    """GET /api/email/inbox - Fetch recent emails via IMAP."""
+    try:
+        unread_only = req.rel_url.query.get("unread_only", "true").lower() == "true"
+        limit = int(req.rel_url.query.get("limit", 10))
+
+        from core.email_engine import email_engine
+        email_engine.reload_config()
+        success, result = await email_engine.fetch_inbox(unread_only=unread_only, limit=limit)
+
+        if success:
+            return web.json_response({"status": "success", "emails": result})
+        return web.json_response({"error": result}, status=500)
+    except Exception as e:
+        logger.error(f"Email inbox endpoint failed: {e}")
+        return web.json_response({"error": str(e)}, status=500)
+
+
+async def handle_email_settings(req):
+    """POST /api/email/settings - Update email credentials."""
+    try:
+        data = await req.json()
+        current_cfg = config.get("email") or {}
+        current_cfg.update(data)
+        config.set("email", current_cfg)
+        config.save()
+
+        from core.email_engine import email_engine
+        email_engine.reload_config()
+
+        return web.json_response({
+            "status": "success",
+            "message": "Email settings updated successfully.",
+            "configured": email_engine.is_configured,
+            "address": email_engine.address
+        })
+    except Exception as e:
+        logger.error(f"Email settings endpoint failed: {e}")
         return web.json_response({"error": str(e)}, status=500)

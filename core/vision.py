@@ -398,10 +398,13 @@ class VisionEngine:
         img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
         
         vision_provider = config.get("VISION_PROVIDER", "ollama").lower()
-        model = config.get("VISION_MODEL")
-        if not model:
-            # If no Vision Model is explicitly set, default strictly to minicpm-v for local vision.
-            model = "minicpm-v"
+        model = config.get("VISION_MODEL") or "llava"
+        
+        # If user assigned a text-only LLM model as vision model, fallback to VLM
+        text_only_models = ("gemma", "llama3:", "qwen2", "mistral", "deepseek")
+        if any(tm in model.lower() for tm in text_only_models) and "vision" not in model.lower() and "llava" not in model.lower() and "moondream" not in model.lower() and "minicpm" not in model.lower():
+            logger.info(f"[Vision] '{model}' is a text-only LLM. Auto-switching vision engine to VLM 'minicpm-v4.6'.")
+            model = "minicpm-v4.6"
         
         try:
             loop = asyncio.get_event_loop()
@@ -455,22 +458,32 @@ class VisionEngine:
                 verify_connection_safety(url)
                 def _req():
                     try:
-                        resp = requests.post(url, json=payload, timeout=90)
-                        resp.raise_for_status()
-                        return resp.json().get("response", "I see something, but I can't quite describe it, Master.")
-                    except (OSError, ValueError) as e:
-                        logger.error(f"Ollama internal error at {url}: {e}")
-                        err_str = str(e)
-                        if "404" in err_str or "not found" in err_str.lower():
-                            return f"I need a local vision model to see, Master. Please run 'ollama pull {model}' in your terminal to install it!"
-                        return f"Ollama is having trouble seeing this: {e}. (Make sure 'ollama pull {model}' has been run successfully)"
+                        resp = requests.post(url, json=payload, timeout=75)
+                        if resp.status_code != 200:
+                            logger.warning(f"[Vision] VLM provider returned status {resp.status_code}: {resp.text[:150]}")
+                            return "Visual scan temporarily unavailable (VLM model loading or busy)."
+                        data = resp.json()
+                        return data.get("response", "").strip() or "No visual details captured."
+                    except (requests.exceptions.RequestException, KeyError, ValueError) as err:
+                        logger.warning(f"[Vision] VLM query failed: {err}")
+                        return "Visual scan temporarily unavailable."
             
             return await loop.run_in_executor(None, _req)
-        except (OSError, ValueError) as e:
-            logger.error(f"Local Vision Error ({vision_provider}): {e}")
-            return "My local visual cortex is having trouble processing this frame, Master... 👁️‍🗨️"
+        except Exception as e:
+            logger.error(f"[Vision] Local Vision Error ({vision_provider}): {e}")
+            return "Visual sensors adjusting, Master."
 
-
+    async def analyze_base64(self, img_b64: str) -> str:
+        """Analyze a base64 encoded image using the VLM vision provider."""
+        try:
+            import base64
+            import io
+            image_data = base64.b64decode(img_b64)
+            image = Image.open(io.BytesIO(image_data)).convert("RGB")
+            return await self._analyze_ollama(image)
+        except Exception as e:
+            logger.error(f"[Vision] analyze_base64 failed: {e}")
+            return "Unable to analyze attached image."
 
     async def capture_camera(self) -> Image.Image:
         """Capture a frame from the default camera."""

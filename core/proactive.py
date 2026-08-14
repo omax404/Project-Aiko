@@ -128,18 +128,14 @@ class ProactiveAgent:
 
                 start_time = time.time()
                 if self.active:
-                    # Time-based greeting (once per session block)
-                    await self._maybe_greet(now)
+                    # Time-based greeting & monologue ONLY when in long-interval idle mode (interval >= 180s)
+                    if self.interval >= 180:
+                        await self._maybe_greet(now)
+                        await self._check_obsidian_tasks(now)
+                        await self._check_music()
+                        await self._check_inner_monologue(now)
 
-                    # Obsidian TODO Check (Once every 2 hours if active)
-                    await self._check_obsidian_tasks(now)
-
-                    # Spotify Track Change
-                    await self._check_music()
-
-                    # Inner Monologue (High Emotion / Idle Trigger)
-                    await self._check_inner_monologue(now)
-
+                    # Always perform active screen vision tick
                     await self.tick()
                     wait = self.interval if self.interval < 30 else random.randint(self.interval, self.interval * 2)
                 else:
@@ -285,8 +281,9 @@ class ProactiveAgent:
             return
         self.is_ticking = True
         try:
-            # 1. Capture screen and check for pixel-level difference
-            result = await self.vision.scan_screen()
+            # 1. Capture screen with VLM
+            force_scan = (self.interval <= 30)
+            result = await self.vision.scan_screen(force=force_scan)
             desc = result[0] if isinstance(result, tuple) else result
 
             if not desc or "Error" in str(desc) or desc in ("Screen unchanged", "Screen unavailable"):
