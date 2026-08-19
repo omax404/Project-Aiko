@@ -25,6 +25,7 @@ import { WelcomeScreen } from './components/ui/WelcomeScreen';
 import { NeuralNode } from './components/ui/NeuralNode';
 import { ThinkingDots } from './components/ui/ThinkingDots';
 import { AmbientParticlesCanvas } from './components/ui/AmbientParticlesCanvas';
+import beamsVideo from './assets/beams-bg.webm';
 
 function extractHtmlCode(text: string): string | null {
   const match = text.match(/```html([\s\S]*?)(?:```|$)/i);
@@ -331,9 +332,19 @@ function App() {
               }}
               className="group/chat"
             >
+              {/* Beams Animated WebM Background */}
+              <video
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="absolute inset-0 w-full h-full object-cover pointer-events-none opacity-50 z-0"
+                src={beamsVideo}
+              />
+              <div className="absolute inset-0 bg-black/20 pointer-events-none z-0" />
               <AmbientParticlesCanvas />
               <motion.div
-                className="absolute pointer-events-none rounded-full w-60 h-60 bg-[var(--acc-soft)] blur-3xl opacity-0 group-hover/chat:opacity-10 transition-opacity"
+                className="absolute pointer-events-none rounded-full w-60 h-60 bg-[var(--acc-soft)] blur-3xl opacity-0 group-hover/chat:opacity-10 transition-opacity z-0"
                 style={{
                   x: useTransform(chatGlowX, (v: number) => v - 120),
                   y: useTransform(chatGlowY, (v: number) => v - 120),
@@ -341,7 +352,7 @@ function App() {
               />
 
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto custom-scrollbar" style={{ padding: '24px 24px 0' }}>
+              <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar" style={{ padding: '24px 24px 0' }}>
                 <div style={{ maxWidth: 680, margin: '0 auto', display: 'flex', flexDirection: 'column', paddingBottom: 160 }}>
                   {messages.length === 0 ? (
                     <WelcomeScreen onRecall={loadSessions} />
@@ -434,11 +445,13 @@ function App() {
               </div>
 
               {/* Input bar — floating at bottom */}
-              <div className="absolute bottom-0 left-0 w-full z-10" style={{
+              <div className="absolute bottom-0 left-0 w-full z-20 pointer-events-none" style={{
                 padding: '0 0 16px 0',
-                background: 'var(--bg-base)',
+                background: 'linear-gradient(to top, var(--bg-base) 85%, transparent)',
               }}>
-                <InputDock />
+                <div className="pointer-events-auto">
+                  <InputDock />
+                </div>
               </div>
             </main>
 
