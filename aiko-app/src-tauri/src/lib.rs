@@ -313,13 +313,9 @@ pub fn run() {
                 let _ = window.set_decorations(false);
                 let _ = window.set_shadow(true);
 
-                #[cfg(target_os = "windows")]
-                {
-                    let _ = apply_mica(&window, Some(true));
-                }
-
                 // Force window visible immediately
                 let _ = window.show();
+                let _ = window.unminimize();
                 let _ = window.set_focus();
 
                 // Listen for app-ready from frontend (re-show + focus)
