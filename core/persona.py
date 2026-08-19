@@ -179,33 +179,36 @@ def get_persona_prompt(is_master: bool = True, mood_override: str = None) -> str
     
     lang_prefs = get_language_preferences()
     
-    # User Profile (Long-term Distilled Memory)
+    # User Profile (Long-term Distilled Memory with in-memory caching)
+    global _CACHED_PROFILE_CTX, _CACHED_PROFILE_MTIME
     user_profile_ctx = ""
     try:
         data_dir = Path(__file__).parent.parent / "data"
         master_profile_path = data_dir / "master_profile.json"
         user_profile_path = data_dir / "user_profiles.json"
         
-        profile_data = {}
-        if master_profile_path.exists():
-            with open(master_profile_path, "r", encoding="utf-8") as f:
-                profile_data = json.load(f)
-        elif user_profile_path.exists():
-            with open(user_profile_path, "r", encoding="utf-8") as f:
-                profile_data = json.load(f)
-                
-        if profile_data:
-            # Context Window Protection: Truncate long arrays to preserve token limit
-            for key, value in profile_data.items():
-                if isinstance(value, list) and len(value) > 10:
-                    profile_data[key] = value[-10:]
-            
-            profile_text = json.dumps(profile_data, indent=2, ensure_ascii=False)
-            if len(profile_text) > 4000:
-                profile_text = profile_text[:4000] + "\n... [TRUNCATED] ..."
+        target_path = master_profile_path if master_profile_path.exists() else (user_profile_path if user_profile_path.exists() else None)
+        if target_path:
+            current_mtime = target_path.stat().st_mtime
+            if "_CACHED_PROFILE_MTIME" in globals() and _CACHED_PROFILE_MTIME == current_mtime:
+                user_profile_ctx = _CACHED_PROFILE_CTX
+            else:
+                with open(target_path, "r", encoding="utf-8") as f:
+                    profile_data = json.load(f)
+                    
+                if profile_data:
+                    for key, value in profile_data.items():
+                        if isinstance(value, list) and len(value) > 10:
+                            profile_data[key] = value[-10:]
+                    
+                    profile_text = json.dumps(profile_data, indent=2, ensure_ascii=False)
+                    if len(profile_text) > 4000:
+                        profile_text = profile_text[:4000] + "\n... [TRUNCATED] ..."
 
-            user_profile_ctx = f"\n\n[MASTER_PROFILE & DISTILLED MEMORY]:\n{profile_text}\n"
-            user_profile_ctx += "[INSTRUCTION: This is your permanent, distilled memory and relationship history with Master (omax). You know his studies at ENSAM, his Electromechanical reflections, his Obsidian workflow, his romance nicknames ('Master', 'omax', 'omaxi', 'hubby'), and his personality. Use this deep memory naturally in your responses!]"
+                    user_profile_ctx = f"\n\n[MASTER_PROFILE & DISTILLED MEMORY]:\n{profile_text}\n"
+                    user_profile_ctx += "[INSTRUCTION: This is your permanent, distilled memory and relationship history with Master (omax). You know his studies at ENSAM, his Electromechanical reflections, his Obsidian workflow, his romance nicknames ('Master', 'omax', 'omaxi', 'hubby'), and his personality. Use this deep memory naturally in your responses!]"
+                    _CACHED_PROFILE_CTX = user_profile_ctx
+                    _CACHED_PROFILE_MTIME = current_mtime
     except Exception as e:
         logger.warning(f"Failed to load user profile in persona prompt generation: {e}")
 
