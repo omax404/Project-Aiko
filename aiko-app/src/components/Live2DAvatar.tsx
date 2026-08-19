@@ -176,14 +176,10 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
         }
 
         modelRef.current = model;
-        model.autoUpdate = false;
+        model.autoUpdate = true;
 
-        // === AUTONOMY: Disable mouse-driven interaction ===
         try {
-          (model as any).autoInteract = false;
-          if (model.internalModel?.motionManager) {
-            (model.internalModel.motionManager as any).autoIdle = false;
-          }
+          (model as any).autoInteract = true;
         } catch (_) {}
 
         // Improved scaling logic to fill more space

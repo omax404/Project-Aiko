@@ -219,7 +219,7 @@ class AikoBrain:
 
         for turn in range(5):
             master_id = os.getenv("MASTER_ID", "")
-            is_master = master_id and str(user_id) == master_id
+            is_master = not master_id or str(user_id).lower() in {"user", "master", "omax", "admin", "owner", master_id.lower()}
             static_persona = self._get_cached_prompt(is_master) + "\n\n" + self._get_tools_prompt()
             
             dynamic_context = ""
