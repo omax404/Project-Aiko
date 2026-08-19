@@ -144,5 +144,5 @@ class TestHITLPermissionGate:
         with patch.object(policy_engine, "is_admin", return_value=True):
             await executor.execute_tools(brain, "[OPEN: calc.exe]", observations, images_data, "admin_user")
 
-        assert any("User denied permission" in obs for obs in observations)
+        assert any("[TOOL_BLOCKED]" in obs or "not approved" in obs for obs in observations)
         mock_popen.assert_not_called()
