@@ -16,12 +16,14 @@ export default function SplashScreen() {
     const transitionToMain = async () => {
       if (isTransitioning) return;
       isTransitioning = true;
-      try {
+        try {
         const { Window } = await import('@tauri-apps/api/window');
         const mainWindow = new Window('main');
         await mainWindow.show();
+        await mainWindow.unminimize().catch(() => {});
+        await mainWindow.setFocus().catch(() => {});
         const splashWindow = new Window('splashscreen');
-        await splashWindow.close();
+        await splashWindow.close().catch(() => {});
       } catch (err) {
         console.error("Error transitioning to main window:", err);
       }
