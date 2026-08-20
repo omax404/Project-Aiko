@@ -185,64 +185,54 @@ pub fn run() {
                 // Store ProcessManager in Tauri state for commands
                 app.manage(pm.clone());
 
-                // Step 1: Check if Hub is already alive (launched by AikoLauncher.py)
-                let hub_already_alive = {
+                // IMPORTANT: All process startup runs in a background thread
+                // so the main thread can create the WebView2 window immediately.
+                // Blocking the main thread here deadlocks window creation on Windows.
+                let pm_bg = pm.clone();
+                std::thread::spawn(move || {
                     let rt = tokio::runtime::Runtime::new().unwrap();
                     rt.block_on(async {
-                        process_manager::check_hub_health("127.0.0.1", 8000).await
-                    })
-                };
+                        // Step 1: Check if Hub is already alive
+                        let hub_already_alive = process_manager::check_hub_health("127.0.0.1", 8000).await;
 
-                if hub_already_alive {
-                    println!("[Aiko/Rust] Neural Hub already online — skipping process startup");
-
-                    // Still start monitoring in background
-                    std::thread::spawn(move || {
-                        let rt = tokio::runtime::Runtime::new().unwrap();
-                        rt.block_on(async {
+                        if hub_already_alive {
+                            println!("[Aiko/Rust] Neural Hub already online — skipping process startup");
                             println!("[Aiko/Rust] ALL SYSTEMS GO (external launcher mode)");
-                        });
-                    });
-                } else {
+                        } else {
+                            // Step 2: Kill stale processes
+                            println!("[Aiko/Rust] Cleaning stale processes...");
+                            pm_bg.cleanup_stale_processes();
 
-                    // Step 2: Kill stale processes (only when we need to do a cold start)
-                    println!("[Aiko/Rust] Cleaning stale processes...");
-                    pm.cleanup_stale_processes();
+                            // Step 3: Start Ollama
+                            println!("[Aiko/Rust] Starting Ollama...");
+                            pm_bg.start_ollama();
 
-                    // Step 3: Start Ollama
-                    println!("[Aiko/Rust] Starting Ollama...");
-                    pm.start_ollama();
+                            // Step 4: Start Neural Hub
+                            println!("[Aiko/Rust] Starting Neural Hub...");
+                            match pm_bg.start_hub() {
+                                Ok(_) => println!("[Aiko/Rust] Neural Hub spawned"),
+                                Err(e) => eprintln!("[Aiko/Rust] Hub error: {}", e),
+                            }
 
-                    // Step 4: Start Neural Hub
-                    println!("[Aiko/Rust] Starting Neural Hub...");
-                    match pm.start_hub() {
-                        Ok(_) => println!("[Aiko/Rust] Neural Hub spawned"),
-                        Err(e) => eprintln!("[Aiko/Rust] Hub error: {}", e),
-                    }
-
-                    // Step 5: Wait for hub in background, then start bots
-                    let pm_async = pm.clone();
-                    std::thread::spawn(move || {
-                        let rt = tokio::runtime::Runtime::new().unwrap();
-                        rt.block_on(async {
+                            // Step 5: Wait for hub, then start bots
                             println!("[Aiko/Rust] Waiting for Neural Hub health...");
                             let ready = process_manager::wait_for_hub("127.0.0.1", 8000, 150).await;
                             if ready {
                                 println!("[Aiko/Rust] Neural Hub ONLINE — starting satellites");
                                 tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-                                pm_async.start_bots();
+                                pm_bg.start_bots();
                                 println!("[Aiko/Rust] ALL SYSTEMS GO");
 
-                                let pm_monitor = pm_async.clone();
+                                let pm_monitor = pm_bg.clone();
                                 tokio::spawn(async move {
                                     pm_monitor.start_monitoring().await;
                                 });
                             } else {
                                 eprintln!("[Aiko/Rust] CRITICAL: Hub failed to start after 30s");
                             }
-                        });
+                        }
                     });
-                }
+                });
 
                 // We DO NOT shut down processes when a window is destroyed (e.g. hidden).
                 // ProcessManager will be shut down gracefully on App Exit instead.
@@ -309,21 +299,34 @@ pub fn run() {
             )?;
 
             // Visual Effects & Boot Logic
+            println!("[Aiko/Rust] Looking for main window...");
             if let Some(window) = app.get_webview_window("main") {
-                let _ = window.set_decorations(false);
-                let _ = window.set_shadow(true);
+                println!("[Aiko/Rust] MAIN WINDOW FOUND — applying settings");
 
                 // Force window visible immediately
-                let _ = window.show();
-                let _ = window.unminimize();
-                let _ = window.set_focus();
+                println!("[Aiko/Rust] Calling show() + unminimize() + set_focus()...");
+                match window.show() {
+                    Ok(_) => println!("[Aiko/Rust] window.show() OK"),
+                    Err(e) => eprintln!("[Aiko/Rust] window.show() FAILED: {}", e),
+                }
+                match window.unminimize() {
+                    Ok(_) => println!("[Aiko/Rust] window.unminimize() OK"),
+                    Err(e) => eprintln!("[Aiko/Rust] window.unminimize() FAILED: {}", e),
+                }
+                match window.set_focus() {
+                    Ok(_) => println!("[Aiko/Rust] window.set_focus() OK"),
+                    Err(e) => eprintln!("[Aiko/Rust] window.set_focus() FAILED: {}", e),
+                }
 
                 // Listen for app-ready from frontend (re-show + focus)
                 let win_clone = window.clone();
                 app.listen("app-ready", move |_| {
+                    println!("[Aiko/Rust] Received app-ready event from frontend");
                     let _ = win_clone.show();
                     let _ = win_clone.set_focus();
                 });
+            } else {
+                eprintln!("[Aiko/Rust] CRITICAL: Main window NOT found! WebView2 failed to create window.");
             }
 
             Ok(())

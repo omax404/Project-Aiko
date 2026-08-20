@@ -19,7 +19,7 @@
         "width": 1400,
         "height": 900,
         "transparent": false,
-        "decorations": false,
+        "decorations": true,
         "resizable": true,
         "fullscreen": false,
         "center": true,
