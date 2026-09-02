@@ -15,8 +15,8 @@ import re
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Robust absolute path .env loading
-BASE_DIR = Path(__file__).parent.resolve()
+# Robust absolute path .env loading - anchored to project root
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(BASE_DIR / ".env")
 
 logger = logging.getLogger("AikoDiscordV2")
@@ -39,20 +39,51 @@ try:
 except ValueError:
     MASTER_ID = 0
 HUB_URL = "http://127.0.0.1:8000"
+_cached_token = None
 
-intents = discord.Intents.default()
-intents.message_content = True
-bot = commands.Bot(command_prefix="!", intents=intents)
+async def _get_auth_header() -> dict:
+    """Retrieve loopback JWT token for Neural Hub communication."""
+    global _cached_token
+    if _cached_token:
+        return {"Authorization": f"Bearer {_cached_token}"}
+    
+    # 1. Try reading local_token.txt directly
+    token_file = BASE_DIR / "data" / "local_token.txt"
+    if token_file.exists():
+        try:
+            _cached_token = token_file.read_text(encoding="utf-8").strip()
+            if _cached_token:
+                return {"Authorization": f"Bearer {_cached_token}"}
+        except Exception:
+            pass
 
-async def get_hub_response(message: str, user_id: str, attachments: list = None):
-    """Call the Neural Hub for Aiko's brain."""
+    # 2. Fetch from /token loopback endpoint
     try:
         async with aiohttp.ClientSession() as session:
+            async with session.get(f"{HUB_URL}/token", timeout=5) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    _cached_token = data.get("token")
+                    return {"Authorization": f"Bearer {_cached_token}"}
+    except Exception as e:
+        logger.error(f"Failed to acquire Hub auth token: {e}")
+    return {}
+
+async def get_hub_response(message: str, user_id: str, attachments: list = None):
+    """Call the Neural Hub for Aiko's brain with valid authentication."""
+    try:
+        headers = await _get_auth_header()
+        headers["Content-Type"] = "application/json"
+        async with aiohttp.ClientSession() as session:
             payload = {"message": message, "user_id": str(user_id), "attachments": attachments or []}
-            async with session.post(f"{HUB_URL}/api/chat", json=payload, timeout=90) as resp:
+            async with session.post(f"{HUB_URL}/api/chat", json=payload, headers=headers, timeout=90) as resp:
                 if resp.status == 200:
                     data = await resp.json()
                     return data.get("response"), data.get("emotion"), data.get("audio_path")
+                elif resp.status == 401:
+                    global _cached_token
+                    _cached_token = None
+                    return "Authentication rejected by Neural Hub.", "confused", None
                 else:
                     return "Master, my neural links are fuzzy right now...", "sad", None
     except Exception as e:

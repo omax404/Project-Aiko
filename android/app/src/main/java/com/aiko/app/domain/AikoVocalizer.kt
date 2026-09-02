@@ -148,7 +148,7 @@ class AikoVocalizer @Inject constructor(
                 val audioBytes = response.body?.bytes() ?: throw Exception("Response body is null")
                 
                 // Save temporary audio file to app cache directory
-                val tempFile = File(context.cacheDirs(), "aiko_temp_tts.mp3")
+                val tempFile = File(context.cacheDir, "aiko_tts_${System.currentTimeMillis()}.mp3")
                 FileOutputStream(tempFile).use { fos ->
                     fos.write(audioBytes)
                 }
@@ -163,6 +163,13 @@ class AikoVocalizer @Inject constructor(
                             it.release()
                             if (mediaPlayer == it) {
                                 mediaPlayer = null
+                            }
+                            try {
+                                if (tempFile.exists()) {
+                                    tempFile.delete()
+                                }
+                            } catch (e: Exception) {
+                                Log.e("AikoVocalizer", "Failed to delete temp TTS file: ${e.message}")
                             }
                         }
                     }

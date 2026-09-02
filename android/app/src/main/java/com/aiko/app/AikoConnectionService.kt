@@ -34,6 +34,8 @@ class AikoConnectionService : Service() {
         const val NOTIFICATION_ID = 1001
         const val PUSH_NOTIFICATION_ID = 1002
         
+        // Static foreground state flag set via MainActivity lifecycle events
+        // Note: ProcessLifecycleOwner requires androidx.lifecycle:lifecycle-process which is not included in dependencies.
         var isAppInForeground = false
     }
 
@@ -97,7 +99,7 @@ class AikoConnectionService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Aiko Link Active")
             .setContentText("Connected to Neural Hub in background")
-            .setSmallIcon(android.R.drawable.stat_sys_data_bluetooth) // standard fallback icon
+            .setSmallIcon(R.mipmap.ic_launcher)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
@@ -116,7 +118,7 @@ class AikoConnectionService : Service() {
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(content)
-            .setSmallIcon(android.R.drawable.stat_notify_chat)
+            .setSmallIcon(R.mipmap.ic_launcher)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)

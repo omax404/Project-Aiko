@@ -39,11 +39,13 @@ import com.aiko.app.ui.components.EditorialCard
 import com.aiko.app.ui.components.AbstractPosterCanvas
 import com.aiko.app.ui.theme.AikoColors
 import com.aiko.app.ui.theme.AikoTypography
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import kotlinx.coroutines.launch
 
 @Composable
 fun MemoryScreen(
     chatRepository: ChatRepository,
+    onBack: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val memories by chatRepository.getMemories().collectAsState(initial = emptyList<MemoryEntity>())
@@ -62,18 +64,33 @@ fun MemoryScreen(
                 .fillMaxSize()
                 .padding(24.dp)
         ) {
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-            Text(
-                text = "Memory Core",
-                style = AikoTypography.headlineLarge.copy(fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            )
-            Text(
-                text = "Facts AIKO has remembered about you",
-                style = AikoTypography.bodyMedium
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = AikoColors.TextPrimary
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Column {
+                    Text(
+                        text = "Memory Core",
+                        style = AikoTypography.headlineLarge.copy(fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                    )
+                    Text(
+                        text = "Facts AIKO has remembered about you",
+                        style = AikoTypography.bodyMedium
+                    )
+                }
+            }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             if (memories.isEmpty()) {
                 Box(

@@ -862,10 +862,10 @@ def main():
         while True:
             if hub_proc.poll() is not None:
                 # Double-check if the server is still active (e.g. wrapper stub spawned grandchild)
-                if not http_ok(f"{NEURAL_HUB_URL}/status", timeout=5):
+                if not http_ok(f"{NEURAL_HUB_URL}/status", timeout=10):
                     consecutive_failures += 1
-                    if consecutive_failures >= 5:
-                        UI.err("Neural Hub exited unexpectedly (5 consecutive health check failures)!")
+                    if consecutive_failures >= 15:
+                        UI.err("Neural Hub exited unexpectedly (15 consecutive health check failures)!")
                         break
                 else:
                     consecutive_failures = 0

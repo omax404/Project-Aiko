@@ -3,6 +3,7 @@ core/api/websocket.py
 WebSocket handler for real-time streaming UI bridge.
 S+ grade: specific exception types, Pydantic validation, structured error handling.
 """
+import os
 import asyncio
 import json
 import logging
@@ -76,8 +77,8 @@ async def _on_sentence(sentence: str, emotion: str = "neutral", suppress_audio: 
             logger.info(f" [Hub] Speech suppressed for: {sentence[:30]}...")
 
 
-async def _process_chat_ws(data: dict, ws: web.WebSocketResponse):
-    """Process a chat message from WebSocket."""
+async def _process_chat_ws(data: dict, ws: web.WebSocketResponse, user_claims: dict = None):
+    """Process a chat message from WebSocket with per-connection stream isolation."""
     try:
         validated = WSChatMessage(**data)
     except (TypeError, ValueError) as e:
@@ -86,7 +87,19 @@ async def _process_chat_ws(data: dict, ws: web.WebSocketResponse):
         return
 
     text = validated.text or ""
-    uid = validated.session_id or validated.user_id or hub.user_id
+    user_claims = user_claims or {}
+    auth_user = user_claims.get("sub", "")
+    is_admin = bool(user_claims.get("is_admin", False))
+    master_id = os.getenv("MASTER_ID", "")
+    if master_id and str(auth_user) == str(master_id):
+        is_admin = True
+
+    # Non-admin users cannot spoof arbitrary user/session IDs
+    if not is_admin and auth_user:
+        uid = auth_user
+    else:
+        uid = validated.session_id or validated.user_id or auth_user or hub.user_id
+
     attachments = validated.attachments or []
     
     # === SECURITY GATE ===
@@ -106,24 +119,31 @@ async def _process_chat_ws(data: dict, ws: web.WebSocketResponse):
         return
     # === END SECURITY GATE ===
     
-    await broadcast_event("chat_start", {"role": "user", "text": sanitized_text})
+    if not ws.closed:
+        await ws.send_str(json.dumps({"type": "chat_start", "role": "user", "text": sanitized_text}))
     await sync_star_office("researching", "Processing user request...")
     
-    original_on_sentence = hub.brain.on_sentence
-    
-    def _bridge_sentence(s, emotion="neutral", suppress_audio=False):
-        try:
-            loop = asyncio.get_running_loop()
-            loop.create_task(_on_sentence(s, emotion, suppress_audio))
-        except RuntimeError as e:
-            logger.error(f" [Hub] Bridge loop error: {e}")
-        except AttributeError as e:
-            logger.error(f" [Hub] Bridge attribute error: {e}")
-    
-    hub.brain.on_sentence = _bridge_sentence
+    async def _scoped_on_sentence(s, emotion="neutral", suppress_audio=False):
+        if not ws.closed:
+            try:
+                await ws.send_str(json.dumps({
+                    "type": "chat_token",
+                    "text": s,
+                    "token": s,
+                    "data": {"token": s, "text": s, "emotion": emotion},
+                    "emotion": emotion
+                }))
+            except Exception as e:
+                logger.debug(f"[WS] Scoped sentence send error: {e}")
     
     try:
-        chat_res = await hub.brain.chat(sanitized_text, user_id=uid, initial_images=attachments)
+        chat_res = await hub.brain.chat(
+            sanitized_text,
+            user_id=uid,
+            initial_images=attachments,
+            on_sentence=_scoped_on_sentence,
+            is_admin=is_admin
+        )
         reply = chat_res[0]
         active_emotion = chat_res[1]
         gif_url = chat_res[5] if len(chat_res) > 5 else None
@@ -142,21 +162,21 @@ async def _process_chat_ws(data: dict, ws: web.WebSocketResponse):
         reply = f"Network error: {e}"
         active_emotion = "sad"
         gif_url = None
-    finally:
-        hub.brain.on_sentence = original_on_sentence
     
     await sync_star_office("idle", "Resting...")
-    await broadcast_event("chat_end", {
-        "role": "assistant",
-        "text": reply,
-        "content": reply,
-        "emotion": active_emotion,
-        "gif_url": gif_url
-    })
+    if not ws.closed:
+        await ws.send_str(json.dumps({
+            "type": "chat_end",
+            "role": "assistant",
+            "text": reply,
+            "content": reply,
+            "emotion": active_emotion,
+            "gif_url": gif_url
+        }))
 
 
-async def _process_branch_ws(data: dict, ws: web.WebSocketResponse):
-    """Process a branch message from WebSocket."""
+async def _process_branch_ws(data: dict, ws: web.WebSocketResponse, user_claims: dict = None):
+    """Process a branch message from WebSocket with per-connection isolation."""
     try:
         validated = WSChatMessage(**data)
     except (TypeError, ValueError) as e:
@@ -166,7 +186,18 @@ async def _process_branch_ws(data: dict, ws: web.WebSocketResponse):
 
     text = validated.text or ""
     msg_id = validated.message_id
-    uid = validated.session_id or validated.user_id or hub.user_id
+    user_claims = user_claims or {}
+    auth_user = user_claims.get("sub", "")
+    is_admin = bool(user_claims.get("is_admin", False))
+    master_id = os.getenv("MASTER_ID", "")
+    if master_id and str(auth_user) == str(master_id):
+        is_admin = True
+
+    if not is_admin and auth_user:
+        uid = auth_user
+    else:
+        uid = validated.session_id or validated.user_id or auth_user or hub.user_id
+
     attachments = validated.attachments or []
     
     try:
@@ -181,32 +212,31 @@ async def _process_branch_ws(data: dict, ws: web.WebSocketResponse):
     except (KeyError, TypeError, AttributeError) as e:
         logger.warning(f"Branch history lookup error: {e}")
     
-    await broadcast_event("chat_start", {"role": "user", "text": text})
+    if not ws.closed:
+        await ws.send_str(json.dumps({"type": "chat_start", "role": "user", "text": text}))
     await sync_star_office("researching", "Branching timeline...")
     
-    async def _conn_stream(s: str):
-        try:
-            await ws.send_str(json.dumps({"type": "chat_token", "data": {"token": s, "text": s}}))
-        except (ConnectionResetError, ConnectionAbortedError) as e:
-            logger.debug(f"Client disconnected during stream: {e}")
-        except TypeError as e:
-            logger.warning(f"WebSocket send error: {e}")
-    
-    original_on_sentence = hub.brain.on_sentence
-    
-    def _branch_bridge(s, emotion="neutral", suppress_audio=False):
-        try:
-            loop = asyncio.get_running_loop()
-            loop.create_task(_conn_stream(s))
-        except RuntimeError as e:
-            logger.error(f" [Hub] Branch bridge loop error: {e}")
-        except AttributeError as e:
-            logger.error(f" [Hub] Branch bridge attribute error: {e}")
-    
-    hub.brain.on_sentence = _branch_bridge
+    async def _scoped_branch_stream(s, emotion="neutral", suppress_audio=False):
+        if not ws.closed:
+            try:
+                await ws.send_str(json.dumps({
+                    "type": "chat_token",
+                    "text": s,
+                    "token": s,
+                    "data": {"token": s, "text": s, "emotion": emotion},
+                    "emotion": emotion
+                }))
+            except Exception as e:
+                logger.debug(f"[WS] Scoped branch stream error: {e}")
     
     try:
-        chat_res = await hub.brain.chat(text, user_id=uid, initial_images=attachments)
+        chat_res = await hub.brain.chat(
+            text,
+            user_id=uid,
+            initial_images=attachments,
+            on_sentence=_scoped_branch_stream,
+            is_admin=is_admin
+        )
         reply = chat_res[0]
         active_emotion = chat_res[1]
         gif_url = chat_res[5] if len(chat_res) > 5 else None
@@ -225,17 +255,17 @@ async def _process_branch_ws(data: dict, ws: web.WebSocketResponse):
         reply = f"Network error: {e}"
         active_emotion = "sad"
         gif_url = None
-    finally:
-        hub.brain.on_sentence = original_on_sentence
     
     await sync_star_office("idle", "Resting...")
-    await broadcast_event("chat_end", {
-        "role": "assistant",
-        "text": reply,
-        "content": reply,
-        "emotion": active_emotion,
-        "gif_url": gif_url
-    })
+    if not ws.closed:
+        await ws.send_str(json.dumps({
+            "type": "chat_end",
+            "role": "assistant",
+            "text": reply,
+            "content": reply,
+            "emotion": active_emotion,
+            "gif_url": gif_url
+        }))
 
 
 async def handle_ws(req):
@@ -308,7 +338,7 @@ async def handle_ws(req):
                 m_type = data.get("type")
                 
                 if m_type == "chat":
-                    asyncio.create_task(_process_chat_ws(data, ws))
+                    asyncio.create_task(_process_chat_ws(data, ws, user_claims=payload))
                 
                 elif m_type == "speak":
                     text = data.get("text", "")
@@ -331,7 +361,7 @@ async def handle_ws(req):
                         logger.warning(f"Speak command error: {e}")
                 
                 elif m_type == "branch":
-                    asyncio.create_task(_process_branch_ws(data, ws))
+                    asyncio.create_task(_process_branch_ws(data, ws, user_claims=payload))
                 
                 elif m_type == "ping":
                     try:

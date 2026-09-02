@@ -24,20 +24,22 @@ def _unb64url(data: str) -> bytes:
         data += '=' * padding
     return base64.urlsafe_b64decode(data)
 
-def generate_token(user_id: str, expires_hours: int = 168) -> str:
-    """Generate a JWT-like token. Default expiry: 7 days."""
+def generate_token(user_id: str, is_admin: bool = False, expires_hours: int = 168) -> str:
+    """Generate a JWT token. Default expiry: 7 days."""
     secret = policy_engine._secret
     header = _b64url(json.dumps({"alg": "HS256", "typ": "JWT"}).encode())
     payload = _b64url(json.dumps({
         "sub": user_id,
+        "is_admin": bool(is_admin),
         "iat": time.time(),
         "exp": time.time() + expires_hours * 3600
     }).encode())
-    sig = hmac.new(secret.encode(), f"{header}.{payload}".encode(), hashlib.sha256).hexdigest()
+    sig_raw = hmac.new(secret.encode(), f"{header}.{payload}".encode(), hashlib.sha256).digest()
+    sig = _b64url(sig_raw)
     return f"{header}.{payload}.{sig}"
 
 def verify_token(token: str) -> dict:
-    """Verify a JWT-like token and return payload or None."""
+    """Verify a JWT token and return payload or None."""
     try:
         parts = token.split('.')
         if len(parts) != 3:
@@ -46,8 +48,15 @@ def verify_token(token: str) -> dict:
         if payload.get("exp", 0) < time.time():
             return None
         secret = policy_engine._secret
-        expected = hmac.new(secret.encode(), f"{parts[0]}.{parts[1]}".encode(), hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(parts[2], expected):
+        
+        # Verify standard base64url signature
+        expected_raw = hmac.new(secret.encode(), f"{parts[0]}.{parts[1]}".encode(), hashlib.sha256).digest()
+        expected_b64url = _b64url(expected_raw)
+        
+        # Also support legacy hex signature for backwards compatibility
+        expected_hex = hmac.new(secret.encode(), f"{parts[0]}.{parts[1]}".encode(), hashlib.sha256).hexdigest()
+        
+        if not (hmac.compare_digest(parts[2], expected_b64url) or hmac.compare_digest(parts[2], expected_hex)):
             return None
         return payload
     except (json.JSONDecodeError, ValueError, TypeError, KeyError, IndexError) as e:
@@ -68,10 +77,8 @@ async def jwt_middleware(request, handler):
         return await handler(request)
     if path.startswith(("/assets/", "/uploads/", "/stickers/", "/api/tts/")):
         return await handler(request)
-    if path.startswith("/api/settings") and request.method == "GET":
-        return await handler(request)
-    
-    # SECURITY: Subnet/loopback bypass has been removed.
+    # SECURITY: All /api/* routes require a valid Bearer token.
+    # Subnet/loopback bypass has been removed.
     # All clients (local or remote) must present a valid Bearer token.
     # If deployed behind a reverse proxy the proxy IP would otherwise bypass auth.
     auth = request.headers.get("Authorization", "")

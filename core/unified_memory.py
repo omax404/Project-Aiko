@@ -620,7 +620,24 @@ class UnifiedMemoryManager:
 
     def clear_memory(self, user_id: str = None) -> bool:
         """Clear memory for compatibility with legacy API."""
-        self.clear_history(user_id)
+        return self.purge_user_data(user_id)
+
+    def purge_user_data(self, user_id: str = None) -> bool:
+        """Thoroughly wipe all conversation history, profiles, reminders, and links for a user (or globally)."""
+        if user_id:
+            self.history.pop(user_id, None)
+            self.user_profiles.pop(user_id, None)
+            self.reminders = [r for r in self.reminders if r.get("user_id") != user_id]
+        else:
+            self.history.clear()
+            self.user_profiles.clear()
+            self.reminders.clear()
+
+        # Clean file graph links if global purge
+        if not user_id and hasattr(self, 'file_graph'):
+            self.file_graph.links.clear()
+
+        self.save()
         return True
 
     def get_stats(self, user_id: str) -> Dict:

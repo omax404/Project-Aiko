@@ -14,8 +14,8 @@ import json
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Load .env
-BASE_DIR = Path(__file__).parent.resolve()
+# Load .env - anchored to project root
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(BASE_DIR / ".env")
 
 logger = logging.getLogger("AikoTwitchBot")
@@ -60,17 +60,46 @@ def load_hub_port() -> str:
 
 PORT = load_hub_port()
 HUB_URL = f"http://127.0.0.1:{PORT}"
+_cached_token = None
 
-
-async def get_hub_response(message: str, user_id: str):
-    """Call Aiko's Neural Hub."""
+async def _get_auth_header() -> dict:
+    """Retrieve loopback JWT token for Neural Hub communication."""
+    global _cached_token
+    if _cached_token:
+        return {"Authorization": f"Bearer {_cached_token}"}
+    token_file = BASE_DIR / "data" / "local_token.txt"
+    if token_file.exists():
+        try:
+            _cached_token = token_file.read_text(encoding="utf-8").strip()
+            if _cached_token:
+                return {"Authorization": f"Bearer {_cached_token}"}
+        except Exception:
+            pass
     try:
         async with aiohttp.ClientSession() as session:
+            async with session.get(f"{HUB_URL}/token", timeout=5) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    _cached_token = data.get("token")
+                    return {"Authorization": f"Bearer {_cached_token}"}
+    except Exception as e:
+        logger.error(f"Failed to acquire Hub auth token: {e}")
+    return {}
+
+async def get_hub_response(message: str, user_id: str):
+    """Call Aiko's Neural Hub with authenticated Bearer token."""
+    try:
+        headers = await _get_auth_header()
+        headers["Content-Type"] = "application/json"
+        async with aiohttp.ClientSession() as session:
             payload = {"message": message, "user_id": str(user_id), "attachments": []}
-            async with session.post(f"{HUB_URL}/api/chat", json=payload, timeout=90) as resp:
+            async with session.post(f"{HUB_URL}/api/chat", json=payload, headers=headers, timeout=90) as resp:
                 if resp.status == 200:
                     data = await resp.json()
                     return data.get("response")
+                elif resp.status == 401:
+                    global _cached_token
+                    _cached_token = None
     except Exception as e:
         logger.error(f"Hub connection error: {e}")
     return None

@@ -299,7 +299,7 @@ async def on_startup(app):
     # SECURITY: Token regenerated on each startup; 24h expiry is sufficient.
     # Previous value of 8760h (1 year) was excessive — a leaked token file
     # would grant persistent access even after the hub restarts.
-    local_token = generate_token("local_desktop", expires_hours=24)
+    local_token = generate_token("local_desktop", is_admin=True, expires_hours=24)
     (token_dir / "local_token.txt").write_text(local_token, encoding="utf-8")
     logger.info(" [Hub] Local auth token generated and saved to data/local_token.txt")
 

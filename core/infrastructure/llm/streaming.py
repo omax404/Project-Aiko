@@ -12,6 +12,21 @@ logger = logging.getLogger("LLMStreaming")
 # Connection pool - shared across all instances
 _session_pool = None
 
+def _safe_emit(callback: Optional[Callable], text: str) -> None:
+    """Safely invoke streaming callback handling both async and sync targets."""
+    if not callback or not text:
+        return
+    try:
+        if asyncio.iscoroutinefunction(callback):
+            asyncio.create_task(callback(text))
+        else:
+            res = callback(text)
+            if asyncio.iscoroutine(res):
+                asyncio.create_task(res)
+    except Exception as e:
+        logger.debug(f"Emit callback error: {e}")
+
+
 def get_session() -> aiohttp.ClientSession:
     """Get or create shared aiohttp session with connection pooling."""
     global _session_pool
@@ -141,11 +156,11 @@ async def stream_openai(
                 full += tok
                 cur += tok
                 if emit_callback and any(cur.endswith(p) for p in [".", "!", "?", "\n", "。", "！", "？"]):
-                    emit_callback(cur.strip())
+                    _safe_emit(emit_callback, cur.strip())
                     cur = ""
 
             if emit_callback and cur.strip():
-                emit_callback(cur.strip())
+                _safe_emit(emit_callback, cur.strip())
             
             if not stream_completed and full:
                 provider = config.get("PROVIDER", "Ollama")
@@ -251,11 +266,11 @@ async def stream_ollama(
                     cur += tok
                     
                     if emit_callback and any(cur.endswith(p) for p in [".", "!", "?", "\n", "。", "！", "？"]):
-                        emit_callback(cur.strip())
+                        _safe_emit(emit_callback, cur.strip())
                         cur = ""
 
             if emit_callback and cur.strip():
-                emit_callback(cur.strip())
+                _safe_emit(emit_callback, cur.strip())
 
             if not stream_completed and full:
                 provider = config.get("PROVIDER", "Ollama")

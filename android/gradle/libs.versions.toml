@@ -17,6 +17,9 @@ ksp = "2.0.21-1.0.27"
 splashscreen = "1.2.0-alpha02"
 window = "1.4.0"
 serialization = "1.8.0"
+camerax = "1.3.4"
+mlkit-barcode = "17.3.0"
+stream-webrtc = "1.3.9"
 
 [libraries]
 # Compose
@@ -55,6 +58,16 @@ splashscreen = { group = "androidx.core", name = "core-splashscreen", version.re
 window = { group = "androidx.window", name = "window", version.ref = "window" }
 # Kotlinx Serialization
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
+
+# CameraX
+camerax-core = { group = "androidx.camera", name = "camera-core", version.ref = "camerax" }
+camerax-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
+camerax-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
+camerax-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
+
+# ML Kit & WebRTC
+mlkit-barcode = { group = "com.google.mlkit", name = "barcode-scanning", version.ref = "mlkit-barcode" }
+stream-webrtc = { group = "io.getstream", name = "stream-webrtc-android", version.ref = "stream-webrtc" }
 
 # Crucial Android dependencies
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version = "1.15.0" }

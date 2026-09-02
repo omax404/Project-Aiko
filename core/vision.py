@@ -389,22 +389,25 @@ class VisionEngine:
 
 
     async def _analyze_ollama(self, image: Image.Image) -> str:
-        """Native local vision using Ollama or LM Studio."""
+        """Native local vision using Ollama or LM Studio with optimized resolution and context."""
         import requests
         import base64
         
+        # Optimize image for rapid VLM inference (max 768px, 80% JPEG)
+        img_copy = image.copy().convert("RGB")
+        img_copy.thumbnail((768, 768))
         buffered = io.BytesIO()
-        image.save(buffered, format="JPEG")
+        img_copy.save(buffered, format="JPEG", quality=80)
         img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
         
         vision_provider = config.get("VISION_PROVIDER", "ollama").lower()
-        model = config.get("VISION_MODEL") or "llava"
+        model = config.get("VISION_MODEL") or "moondream:latest"
         
         # If user assigned a text-only LLM model as vision model, fallback to VLM
         text_only_models = ("gemma", "llama3:", "qwen2", "mistral", "deepseek")
         if any(tm in model.lower() for tm in text_only_models) and "vision" not in model.lower() and "llava" not in model.lower() and "moondream" not in model.lower() and "minicpm" not in model.lower():
-            logger.info(f"[Vision] '{model}' is a text-only LLM. Auto-switching vision engine to VLM 'minicpm-v4.6'.")
-            model = "minicpm-v4.6"
+            logger.info(f"[Vision] '{model}' is a text-only LLM. Auto-switching vision engine to VLM 'moondream:latest'.")
+            model = "moondream:latest"
         
         try:
             loop = asyncio.get_event_loop()
@@ -425,7 +428,7 @@ class VisionEngine:
                         {
                             "role": "user",
                             "content": [
-                                {"type": "text", "text": "Describe this image in detail. What objects, text, or actions are visible?"},
+                                {"type": "text", "text": "Describe what windows, apps, code, or content are visible on this computer screen in 1-2 sentences."},
                                 {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_str}"}}
                             ]
                         }
@@ -450,15 +453,20 @@ class VisionEngine:
                 url = f"{base_url}/api/generate"
                 payload = {
                     "model": model,
-                    "prompt": "Describe this image in detail. What objects, text, or actions are visible?",
+                    "prompt": "Describe what windows, apps, code, or content are visible on this computer screen in 1-2 sentences.",
                     "images": [img_str],
-                    "stream": False
+                    "stream": False,
+                    "options": {
+                        "num_ctx": 2048,
+                        "num_predict": 100,
+                        "temperature": 0.2
+                    }
                 }
                 from core.utils import verify_connection_safety
                 verify_connection_safety(url)
                 def _req():
                     try:
-                        resp = requests.post(url, json=payload, timeout=75)
+                        resp = requests.post(url, json=payload, timeout=90)
                         if resp.status_code != 200:
                             logger.warning(f"[Vision] VLM provider returned status {resp.status_code}: {resp.text[:150]}")
                             return "Visual scan temporarily unavailable (VLM model loading or busy)."

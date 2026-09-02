@@ -31,7 +31,14 @@ interface ChatBubbleProps {
 function sanitizeMarkdownContent(text: string): string {
   if (!text) return '';
   let cleaned = text.replace(/<emotion>.*?<\/emotion>/gi, '');
-  // Fix any accidental spaces in sticker paths like /stickers/08_Thinking_Pose. png -> /stickers/08_Thinking_Pose.png
+  // 1. Convert [STICKER:xxx] tags to markdown images
+  cleaned = cleaned.replace(/\[STICKER\s*:\s*([^\]]+)\]/gi, (_, name) => {
+    const cleanName = name.trim().endsWith('.png') ? name.trim() : `${name.trim()}.png`;
+    return `![sticker](/stickers/${cleanName})`;
+  });
+  // 2. Fix missing leading slash in ![alt](stickers/...)
+  cleaned = cleaned.replace(/!\[(.*?)\]\(stickers\/(.*?)\)/gi, '![$1](/stickers/$2)');
+  // 3. Fix any accidental spaces in sticker paths like /stickers/08_Thinking_Pose. png -> /stickers/08_Thinking_Pose.png
   cleaned = cleaned.replace(/\/stickers\/([^\)]+?)\s*\.\s*(png|jpg|jpeg|gif|webp)/gi, (_, name, ext) => {
     return '/stickers/' + name.trim().replace(/\s+/g, '') + '.' + ext;
   });

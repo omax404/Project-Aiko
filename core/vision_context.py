@@ -114,20 +114,34 @@ class VisionContextBuffer:
         return results
 
     def get_latest(self) -> Optional[Dict]:
-        return self.entries[-1] if self.entries else None
+        if self.entries:
+            return self.entries[-1]
+        recent = self.query_recent_visuals(time_window_seconds=86400)
+        return recent[0] if recent else None
 
     def clear(self):
         self.entries.clear()
 
     def get_context_string(self) -> str:
         """Format the recent observations for the system prompt."""
-        if not self.entries:
+        entries_to_use = self.entries
+        if not entries_to_use:
+            # Fallback to persistent SQLite if in-memory buffer is empty
+            db_entries = self.query_recent_visuals(time_window_seconds=86400)
+            if db_entries:
+                entries_to_use = [{
+                    "time_str": e["time"],
+                    "window_title": e["title"],
+                    "description": e["description"]
+                } for e in reversed(db_entries[:5])]
+
+        if not entries_to_use:
             return ""
         
         lines = ["Recent Ambient Visual Observations:"]
-        for entry in self.entries[-5:]:
+        for entry in entries_to_use[-5:]:
             proc_info = f" ({entry['window_title']})" if entry.get('window_title') else ""
-            lines.append(f"- [{entry['time_str']}]{proc_info} {entry['description']}")
+            lines.append(f"- [{entry.get('time_str', '')}]{proc_info} {entry.get('description', '')}")
         return "\n".join(lines)
 
 # Global singleton instance

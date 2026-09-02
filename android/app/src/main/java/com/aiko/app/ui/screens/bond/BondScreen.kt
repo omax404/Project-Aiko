@@ -39,10 +39,15 @@ import com.aiko.app.ui.theme.AikoTypography
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 
 @Composable
 fun BondScreen(
     chatRepository: ChatRepository,
+    onBack: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val bondState by chatRepository.getBond().collectAsState(initial = BondEntity())
@@ -63,18 +68,33 @@ fun BondScreen(
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-            Text(
-                text = "Bond Telemetry",
-                style = AikoTypography.headlineLarge.copy(fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            )
-            Text(
-                text = "Neuro-chemical analytics & bond parameters",
-                style = AikoTypography.bodyMedium
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = AikoColors.TextPrimary
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Column {
+                    Text(
+                        text = "Bond Telemetry",
+                        style = AikoTypography.headlineLarge.copy(fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                    )
+                    Text(
+                        text = "Neuro-chemical analytics & bond parameters",
+                        style = AikoTypography.bodyMedium
+                    )
+                }
+            }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             // Milestone indicators
             EditorialCard(modifier = Modifier.fillMaxWidth()) {

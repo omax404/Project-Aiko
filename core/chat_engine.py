@@ -8,6 +8,7 @@ import logging
 import os
 import mimetypes
 from datetime import datetime
+from typing import Any, Optional, Dict, List, Callable, Union
 from dotenv import load_dotenv
 
 from core.persona import get_persona_prompt, get_core_brain_prompt, detect_emotion
@@ -25,55 +26,210 @@ from core.infrastructure.tools.executor import AgentExecutor, GIF_PATTERN
 from core.infrastructure.rag.context_builder import build_rag_context
 from core.infrastructure.media.generator import handle_generate_command, handle_selfie_request
 from core.security import policy_engine
+from core.eq_engine import eq_engine
 
 load_dotenv()
 logger = logging.getLogger("Brain")
 
 STICKER_MAPPING = {
+    # 01_Happy_Cheer.png
+    "01_happy_cheer.png": "01_Happy_Cheer.png",
+    "01_happy_cheer": "01_Happy_Cheer.png",
+    "happy": "01_Happy_Cheer.png",
+    "cheer": "01_Happy_Cheer.png",
+    "cheering": "01_Happy_Cheer.png",
+    "happy_cheer": "01_Happy_Cheer.png",
+    "happy_umbrella": "01_Happy_Cheer.png",
+    "ssr_star_eyes": "01_Happy_Cheer.png",
+    "joy": "01_Happy_Cheer.png",
+
+    # 02_Shy_Blush.png
+    "02_shy_blush.png": "02_Shy_Blush.png",
+    "02_shy_blush": "02_Shy_Blush.png",
+    "shy": "02_Shy_Blush.png",
+    "blush": "02_Shy_Blush.png",
+    "shy_blush": "02_Shy_Blush.png",
+    "shy_smile": "02_Shy_Blush.png",
+    "flustered": "02_Shy_Blush.png",
+    "embarrassed": "02_Shy_Blush.png",
+
+    # 03_Surprised_Gasp.png
+    "03_surprised_gasp.png": "03_Surprised_Gasp.png",
+    "03_surprised_gasp": "03_Surprised_Gasp.png",
+    "surprised": "03_Surprised_Gasp.png",
+    "shocked": "03_Surprised_Gasp.png",
+    "gasp": "03_Surprised_Gasp.png",
+    "surprised_gasp": "03_Surprised_Gasp.png",
+    "worried": "03_Surprised_Gasp.png",
+
+    # 04_Sleepy_Yawn.png
+    "04_sleepy_yawn.png": "04_Sleepy_Yawn.png",
+    "04_sleepy_yawn": "04_Sleepy_Yawn.png",
+    "sleepy": "04_Sleepy_Yawn.png",
+    "sleeping": "04_Sleepy_Yawn.png",
+    "sleeping_zzz": "04_Sleepy_Yawn.png",
+    "yawn": "04_Sleepy_Yawn.png",
+    "sleepy_yawn": "04_Sleepy_Yawn.png",
+    "tired": "04_Sleepy_Yawn.png",
+
+    # 05_Crying_Comical.png
+    "05_crying_comical.png": "05_Crying_Comical.png",
+    "05_crying_comical": "05_Crying_Comical.png",
+    "crying": "05_Crying_Comical.png",
+    "crying_tears": "05_Crying_Comical.png",
+    "crying_comical": "05_Crying_Comical.png",
+    "sad": "05_Crying_Comical.png",
+    "despair": "05_Crying_Comical.png",
+
+    # 06_Confident_Smirk_Right.png
+    "06_confident_smirk_right.png": "06_Confident_Smirk_Right.png",
+    "06_confident_smirk_right": "06_Confident_Smirk_Right.png",
+    "smirk_right": "06_Confident_Smirk_Right.png",
+    "confident_smirk_right": "06_Confident_Smirk_Right.png",
+    "smug": "06_Confident_Smirk_Right.png",
+    "proud": "06_Confident_Smirk_Right.png",
+    "thumbs_up": "06_Confident_Smirk_Right.png",
+
+    # 07_Waving_Hello.png
+    "07_waving_hello.png": "07_Waving_Hello.png",
+    "07_waving_hello": "07_Waving_Hello.png",
     "hello": "07_Waving_Hello.png",
     "waving": "07_Waving_Hello.png",
-    "happy_umbrella": "01_Happy_Cheer.png",
-    "cheering": "01_Happy_Cheer.png",
-    "ssr_star_eyes": "01_Happy_Cheer.png",
-    "wink": "14_Winking_Peace.png",
-    "lol": "11_Laughing.png",
-    "victory": "14_Winking_Peace.png",
-    "heart_eyes": "09_Heart_Eyes_Rose.png",
-    "present": "09_Heart_Eyes_Rose.png",
-    "cup": "17_Teacup_Sip.png",
-    "singing": "09_Heart_Eyes_Rose.png",
-    "thumbs_up": "06_Confident_Smirk_Right.png",
-    "proud": "06_Confident_Smirk_Right.png",
+    "waving_hello": "07_Waving_Hello.png",
+    "greet": "07_Waving_Hello.png",
+    "calm": "07_Waving_Hello.png",
+
+    # 08_Thinking_Pose.png
+    "08_thinking_pose.png": "08_Thinking_Pose.png",
+    "08_thinking_pose": "08_Thinking_Pose.png",
     "thinking": "08_Thinking_Pose.png",
+    "thinking_pose": "08_Thinking_Pose.png",
     "reading": "08_Thinking_Pose.png",
     "studying": "08_Thinking_Pose.png",
     "idea": "08_Thinking_Pose.png",
-    "surprised": "03_Surprised_Gasp.png",
-    "shocked": "03_Surprised_Gasp.png",
-    "shy_blush": "02_Shy_Blush.png",
-    "shy_smile": "02_Shy_Blush.png",
+    "thoughtful": "08_Thinking_Pose.png",
+
+    # 09_Heart_Eyes_Rose.png
+    "09_heart_eyes_rose.png": "09_Heart_Eyes_Rose.png",
+    "09_heart_eyes_rose": "09_Heart_Eyes_Rose.png",
+    "heart_eyes": "09_Heart_Eyes_Rose.png",
+    "heart_eyes_rose": "09_Heart_Eyes_Rose.png",
+    "love": "09_Heart_Eyes_Rose.png",
+    "devoted": "09_Heart_Eyes_Rose.png",
+    "present": "09_Heart_Eyes_Rose.png",
+    "singing": "09_Heart_Eyes_Rose.png",
+    "affection": "09_Heart_Eyes_Rose.png",
+
+    # 10_Annoyed_Pout.png
+    "10_annoyed_pout.png": "10_Annoyed_Pout.png",
+    "10_annoyed_pout": "10_Annoyed_Pout.png",
+    "annoyed": "10_Annoyed_Pout.png",
+    "pout": "10_Annoyed_Pout.png",
+    "pouty": "10_Annoyed_Pout.png",
+    "annoyed_pout": "10_Annoyed_Pout.png",
     "pouty_umbrella": "10_Annoyed_Pout.png",
     "angry_dagger": "10_Annoyed_Pout.png",
+    "jealous": "10_Annoyed_Pout.png",
+
+    # 11_Laughing.png
+    "11_laughing.png": "11_Laughing.png",
+    "11_laughing": "11_Laughing.png",
+    "laughing": "11_Laughing.png",
+    "giggle": "11_Laughing.png",
+    "lol": "11_Laughing.png",
+    "fun": "11_Laughing.png",
+
+    # 12_Sad_Wilted_Rose.png
+    "12_sad_wilted_rose.png": "12_Sad_Wilted_Rose.png",
+    "12_sad_wilted_rose": "12_Sad_Wilted_Rose.png",
+    "sad_wilted_rose": "12_Sad_Wilted_Rose.png",
+    "wilted_rose": "12_Sad_Wilted_Rose.png",
+    "downcast": "12_Sad_Wilted_Rose.png",
+
+    # 13_Excited_Jump.png
+    "13_excited_jump.png": "13_Excited_Jump.png",
+    "13_excited_jump": "13_Excited_Jump.png",
+    "excited": "13_Excited_Jump.png",
+    "jump": "13_Excited_Jump.png",
+    "excited_jump": "13_Excited_Jump.png",
+    "hyper": "13_Excited_Jump.png",
+
+    # 14_Winking_Peace.png
+    "14_winking_peace.png": "14_Winking_Peace.png",
+    "14_winking_peace": "14_Winking_Peace.png",
+    "wink": "14_Winking_Peace.png",
+    "winking_peace": "14_Winking_Peace.png",
+    "victory": "14_Winking_Peace.png",
+    "peace": "14_Winking_Peace.png",
+    "teasing": "14_Winking_Peace.png",
+
+    # 15_Sick_Dizzy.png
+    "15_sick_dizzy.png": "15_Sick_Dizzy.png",
+    "15_sick_dizzy": "15_Sick_Dizzy.png",
+    "sick": "15_Sick_Dizzy.png",
+    "dizzy": "15_Sick_Dizzy.png",
     "confused": "15_Sick_Dizzy.png",
     "sweatdrop": "15_Sick_Dizzy.png",
-    "dizzy": "15_Sick_Dizzy.png",
-    "sleeping": "04_Sleepy_Yawn.png",
-    "sleeping_zzz": "04_Sleepy_Yawn.png",
-    "crying_tears": "05_Crying_Comical.png"
+    "sick_dizzy": "15_Sick_Dizzy.png",
+
+    # 16_Determined_Fist.png
+    "16_determined_fist.png": "16_Determined_Fist.png",
+    "16_determined_fist": "16_Determined_Fist.png",
+    "determined": "16_Determined_Fist.png",
+    "fist": "16_Determined_Fist.png",
+    "determined_fist": "16_Determined_Fist.png",
+    "bonk": "16_Determined_Fist.png",
+    "yandere": "16_Determined_Fist.png",
+
+    # 17_Teacup_Sip.png
+    "17_teacup_sip.png": "17_Teacup_Sip.png",
+    "17_teacup_sip": "17_Teacup_Sip.png",
+    "teacup": "17_Teacup_Sip.png",
+    "tea": "17_Teacup_Sip.png",
+    "sip": "17_Teacup_Sip.png",
+    "teacup_sip": "17_Teacup_Sip.png",
+    "cup": "17_Teacup_Sip.png",
+
+    # 18_Confident_Smirk_Left.png
+    "18_confident_smirk_left.png": "18_Confident_Smirk_Left.png",
+    "18_confident_smirk_left": "18_Confident_Smirk_Left.png",
+    "smirk_left": "18_Confident_Smirk_Left.png",
+    "confident_smirk_left": "18_Confident_Smirk_Left.png",
 }
 
 def translate_stickers(text: str) -> str:
-    """Helper to translate virtual /stickers/lavender_<mood>.png to actual local paths."""
+    """Helper to translate virtual /stickers/ paths and [STICKER:...] tags to valid sticker paths."""
     if not text:
         return text
-    def repl(match):
+
+    # 1. Translate [STICKER:xxx] tags
+    def repl_sticker_tag(match):
+        raw_name = match.group(1).strip()
+        key = raw_name.lower().replace(".png", "")
+        mapped = STICKER_MAPPING.get(key, STICKER_MAPPING.get(raw_name.lower(), raw_name))
+        if not mapped.endswith(".png"):
+            mapped += ".png"
+        return f"![sticker](/stickers/{mapped})"
+
+    text = re.sub(r'\[STICKER\s*:\s*([^\]]+)\]', repl_sticker_tag, text, flags=re.IGNORECASE)
+
+    # 2. Fix accidental spaces: /stickers/08_Thinking_Pose. png -> /stickers/08_Thinking_Pose.png
+    text = re.sub(r'/stickers/([^\)]+?)\s*\.\s*(png|jpg|jpeg|gif|webp)', r'/stickers/\1.\2', text, flags=re.IGNORECASE)
+
+    # 3. Translate ![alt](/stickers/...) and ![alt](stickers/...)
+    def repl_img(match):
         alt = match.group(1)
-        mood = match.group(2)
-        mapped = STICKER_MAPPING.get(mood.lower())
-        if mapped:
-            return f"![{alt}](/stickers/{mapped})"
-        return match.group(0)
-    return re.sub(r'!\[([^\]]*)\]\(/stickers/lavender_([a-zA-Z0-9_-]+)\.png\)', repl, text)
+        target = match.group(2).strip()
+        # Clean target name
+        clean_target = target.split("/")[-1].strip().lower()
+        clean_key = clean_target.replace("lavender_", "").replace(".png", "")
+        mapped = STICKER_MAPPING.get(clean_key, STICKER_MAPPING.get(clean_target, target.split("/")[-1]))
+        if not mapped.endswith(".png"):
+            mapped += ".png"
+        return f"![{alt}](/stickers/{mapped})"
+
+    text = re.sub(r'!\[([^\]]*)\]\(/?stickers/([^)]+)\)', repl_img, text, flags=re.IGNORECASE)
+    return text
 
 
 class AikoBrain:
@@ -138,24 +294,35 @@ class AikoBrain:
 
         return self._cached_prompts[cache_key]
 
-    def _emit_sentence(self, text: str) -> None:
-        """Emit a complete sentence to the UI streaming callback with emotion detection."""
-        text = translate_stickers(text)
-        if not text or text.startswith(("```", "{\"")):
-            return
-            
-        if self.on_sentence:
+    def _create_sentence_emitter(self, custom_cb=None):
+        target_cb = custom_cb or self.on_sentence
+        if not target_cb:
+            return None
+        def _emitter(text: str):
+            text = translate_stickers(text)
+            if not text or text.startswith(("```", "{\"")):
+                return
             try:
                 emotion = detect_emotion(text)
-                if asyncio.iscoroutinefunction(self.on_sentence):
-                    asyncio.create_task(self.on_sentence(text, emotion, suppress_audio=self.suppress_speech))
+                if asyncio.iscoroutinefunction(target_cb):
+                    asyncio.create_task(target_cb(text, emotion=emotion, suppress_audio=self.suppress_speech))
                 else:
-                    self.on_sentence(text, emotion, suppress_audio=self.suppress_speech)
+                    res = target_cb(text, emotion=emotion, suppress_audio=self.suppress_speech)
+                    if asyncio.iscoroutine(res):
+                        asyncio.create_task(res)
             except Exception as e:
                 logger.error(f"Sentence Callback Error: {e}")
+        return _emitter
+
+    def _emit_sentence(self, text: str) -> None:
+        """Emit a complete sentence to the UI streaming callback with emotion detection."""
+        emitter = self._create_sentence_emitter()
+        if emitter:
+            emitter(text)
 
     async def chat(self, message: str, user_id: str = "user", input_role: str = "user",
-                   save_input: bool = True, initial_images: list = None) -> tuple:
+                   save_input: bool = True, initial_images: list = None,
+                   on_sentence: Any = None, is_admin: bool = False) -> tuple:
         """
         Send message to LLM and get response with ReAct loop.
         """
@@ -168,7 +335,16 @@ class AikoBrain:
             text_reply, emotion = await handle_generate_command(message, self, user_id, save_input)
             if save_input:
                 self.memory.add_message(user_id, "assistant", text_reply)
-            self._emit_sentence(text_reply)
+            if on_sentence:
+                try:
+                    if asyncio.iscoroutinefunction(on_sentence):
+                        await on_sentence(text_reply, emotion, suppress_audio=self.suppress_speech)
+                    else:
+                        on_sentence(text_reply, emotion, suppress_audio=self.suppress_speech)
+                except Exception as e:
+                    logger.error(f"Scoped sentence callback error: {e}")
+            else:
+                self._emit_sentence(text_reply)
             return text_reply, emotion, [], [], False, None
 
         # Process Attachments
@@ -178,21 +354,33 @@ class AikoBrain:
         if initial_images:
             processed_images, file_context = await self._process_attachments(initial_images)
             
-            if processed_images:
+            if processed_images and self.vision:
                 active_model = config.get("MODEL_NAME", self.model or "gemma4:31b-cloud")
-                is_vision_model = any(keyword in active_model.lower() for keyword in ["gemma", "vision", "vl", "llava", "moondream", "minicpm", "multimodal", "gpt-4o", "claude-3", "cloud"])
+                native_vision_models = ["llava", "moondream", "minicpm", "paligemma", "gpt-4o", "gpt-4-vision", "claude-3", "gemini-1.5", "gemini-2"]
+                is_native_vision = any(vm in active_model.lower() for vm in native_vision_models)
                 
-                if not is_vision_model and self.vision:
-                    logger.info(f"[ChatEngine] Active LLM '{active_model}' is text-only. Pre-processing {len(processed_images)} image(s) using Vision Engine...")
+                if not is_native_vision:
+                    logger.info(f"[ChatEngine] Active LLM '{active_model}' is text-only. Analyzing {len(processed_images)} attached image(s) using Vision Engine...")
                     for idx, img_b64 in enumerate(processed_images):
                         description = await self.vision.analyze_base64(img_b64)
-                        file_context += f"\n[IMAGE_{idx+1}_ANALYSIS]: {description}"
+                        file_context += f"\n[ATTACHED_IMAGE_{idx+1}_VISUAL_ANALYSIS]: {description}"
                     processed_images = []
                 else:
-                    file_context += f"\n[VISUAL_INPUT]: {len(processed_images)} image(s) attached. Describe what you see."
+                    file_context += f"\n[VISUAL_INPUT]: {len(processed_images)} image(s) attached."
 
-            if file_context:
-                message = f"{message}\n\n[SENSORY_CONTEXT]:\n{file_context}"
+        # On-Demand Live Screen Analysis if user is asking about their screen
+        screen_triggers = ["screen", "look at my screen", "what am i doing", "what's on my screen", "what is on my screen", "see my screen", "can you see", "check my screen", "scan screen", "desktop", "my window", "active window", "look at this"]
+        if self.vision and any(st in message.lower() for st in screen_triggers):
+            try:
+                logger.info("[ChatEngine] User asked about screen. Performing on-demand live screen scan...")
+                live_desc, _ = await self.vision.scan_screen(force=True)
+                if live_desc and "unavailable" not in live_desc.lower():
+                    file_context += f"\n[LIVE_ON_DEMAND_SCREEN_OBSERVATION]: {live_desc}"
+            except Exception as e:
+                logger.warning(f"[ChatEngine] On-demand screen scan failed: {e}")
+
+        if file_context:
+            message = f"{message}\n\n[SENSORY_CONTEXT]:\n{file_context}"
 
         if save_input:
             self.memory.add_message(user_id, input_role, message)
@@ -234,6 +422,12 @@ class AikoBrain:
             if vision_ctx:
                 dynamic_context += f"\n\n<current_visual_awareness>\n{vision_ctx}\n</current_visual_awareness>"
 
+            # EQ: Inject emotional intelligence context from user's message
+            eq_snapshot = eq_engine.analyze(message, user_id)
+            eq_ctx = eq_snapshot.to_context_string()
+            if eq_ctx:
+                dynamic_context += f"\n\n<eq_signal>\n{eq_ctx}\n</eq_signal>"
+
             # Structured system prompt with cache_control for static persona + tools prefix
             system_content = [
                 {
@@ -261,11 +455,11 @@ class AikoBrain:
             if plugin_context:
                 messages.append({"role": "system", "content": f"[DYNAMIC_CONTEXT]:\n{plugin_context}"})
 
-            text = await self._call_llm(messages, self.model, images=images_data if images_data else None, apply_neuromodulators=True)
+            text = await self._call_llm(messages, self.model, images=images_data if images_data else None, apply_neuromodulators=True, emit_callback=on_sentence)
 
             has_tool = any(tag in text.upper() for tag in [
                 "[OPEN:", "[SCAN]", "[TYPE:", "[CLICK:", "[PRESS:", "[TASK:", "[LATEX:",
-                "[GAME:", "[EXEC:", "[MCP:", "[IMAGE:", "[BIO_REGISTER]", "[MUSIC:"
+                "[GAME:", "[EXEC:", "[MCP:", "[BIO_REGISTER]", "[MUSIC:"
             ])
             
             if not has_tool:
@@ -274,7 +468,7 @@ class AikoBrain:
                 break
 
             final_response = text
-            await self._execute_tools(text, observations, images_data, user_id)
+            await self._execute_tools(text, observations, images_data, user_id, is_admin=is_admin)
 
         # Process emotion
         from .emotion_engine import emotion_engine
@@ -293,9 +487,9 @@ class AikoBrain:
             gif_url = await search_gif(f"{active_emotion} girl")
 
         # Clean Tags
-        cleaned_response = re.sub(r'<(think|emotion|thought|relevant_memory_context|current_visual_awareness)>.*?</\1>', '', final_response, flags=re.IGNORECASE | re.DOTALL)
-        cleaned_response = re.sub(r'</?(think|emotion|thought|relevant_memory_context|current_visual_awareness)>', '', cleaned_response, flags=re.IGNORECASE)
-        cleaned_response = re.sub(r'\[(SCAN|MCP|TASK|BIO_REGISTER|GAME|OPEN|TYPE|CLICK|PRESS|WAIT|WALLPAPER|WEATHER|MUSIC|LETTER|VTS_BG|IMAGE|RECALL|LATEX|REFLECTIVE_STATE|GIF)[^\]]*?\]', '', cleaned_response, flags=re.IGNORECASE)
+        cleaned_response = re.sub(r'<(think|emotion|thought|relevant_memory_context|current_visual_awareness|eq_signal)>.*?</\1>', '', final_response, flags=re.IGNORECASE | re.DOTALL)
+        cleaned_response = re.sub(r'</?(think|emotion|thought|relevant_memory_context|current_visual_awareness|eq_signal)>', '', cleaned_response, flags=re.IGNORECASE)
+        cleaned_response = re.sub(r'\[(SCAN|MCP|TASK|BIO_REGISTER|GAME|OPEN|TYPE|CLICK|PRESS|WAIT|WALLPAPER|WEATHER|MUSIC|LETTER|VTS_BG|RECALL|LATEX|REFLECTIVE_STATE|GIF)[^\]]*?\]', '', cleaned_response, flags=re.IGNORECASE)
         cleaned_response = re.sub(r'\n{3,}', '\n\n', cleaned_response).strip()
         cleaned_response = translate_stickers(cleaned_response)
 
@@ -358,9 +552,9 @@ Use these tags to interact with Master's PC directly:
 Use MCP tools whenever Master asks about his PC state, files, wants you to read/write something, or wants to interact with desktop applications."""
         return tools
 
-    async def _execute_tools(self, text: str, observations: list, images_data: list, user_id: str):
+    async def _execute_tools(self, text: str, observations: list, images_data: list, user_id: str, is_admin: bool = False):
         """Execute tools found in the text with Identity-Based Authorization."""
-        await self.executor.execute_tools(self, text, observations, images_data, user_id)
+        await self.executor.execute_tools(self, text, observations, images_data, user_id, is_admin=is_admin)
 
     async def _process_attachments(self, attachment_paths_or_urls: list) -> tuple:
         """Process local file paths or URLs for vision/context."""
@@ -421,11 +615,13 @@ Use MCP tools whenever Master asks about his PC state, files, wants you to read/
 
         return images, "\n".join(context_parts)
 
-    async def _call_llm(self, messages, model=None, images=None, apply_neuromodulators=False):
+    async def _call_llm(self, messages, model=None, images=None, apply_neuromodulators=False, emit_callback=None):
         """Call LLM with connection pooling."""
         PROVIDER = config.get("PROVIDER", "Ollama")
         MODEL = config.get("MODEL_NAME", model or "qwen3.5:cloud")
         API_KEY = config.get("API_KEY", "")
+
+        callback = self._create_sentence_emitter(emit_callback)
 
         if apply_neuromodulators:
             from core.emotion_engine import emotion_engine
@@ -446,7 +642,7 @@ Use MCP tools whenever Master asks about his PC state, files, wants you to read/
                     url = "http://127.0.0.1:11434/api/chat"
                 content, status = await stream_ollama(
                     url=url, model=MODEL, messages=messages, images=images,
-                    api_key=API_KEY, modifiers=modifiers, emit_callback=self._emit_sentence
+                    api_key=API_KEY, modifiers=modifiers, emit_callback=callback
                 )
             else:
                 primary_url = config.get("LLM_URL", "")
@@ -457,7 +653,7 @@ Use MCP tools whenever Master asks about his PC state, files, wants you to read/
                 
                 content, status = await stream_openai(
                     url=primary_url, model=MODEL, messages=messages, images=images,
-                    api_key=API_KEY, modifiers=modifiers, emit_callback=self._emit_sentence
+                    api_key=API_KEY, modifiers=modifiers, emit_callback=callback
                 )
         except Exception as conn_err:
             logger.error(f"[Brain] LLM connection failed: {conn_err}")

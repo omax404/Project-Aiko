@@ -28,21 +28,26 @@ logger = logging.getLogger("Routes")
 BASE = Path(__file__).parent.parent.parent
 STAR_OFFICE_URL = "http://127.0.0.1:19000"
 
-# Redacted key patterns
+# Comprehensive sensitive key patterns for automatic redaction
 _REDACTED_KEY_PATTERNS = {
     "API_KEY", "DEEPSEEK_API_KEY", "GEMINI_API_KEY", "DISCORD_TOKEN",
-    "TELEGRAM_TOKEN", "SPOTIFY_CLIENT_SECRET", "TTS_KEY", "STT_KEY", "IMAGE_GEN_KEY",
+    "TELEGRAM_TOKEN", "TWITCH_TOKEN", "SPOTIFY_CLIENT_SECRET", "TTS_KEY",
+    "STT_KEY", "IMAGE_GEN_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY",
+    "MISTRAL_API_KEY", "GROQ_API_KEY", "OPENROUTER_API_KEY", "EMAIL_PASSWORD",
+    "SECRET_KEY", "AUTH_TOKEN", "ACCESS_TOKEN", "REFRESH_TOKEN",
 }
 
-
 def _redact_secrets(data: dict) -> dict:
-    """Return a shallow copy with sensitive keys masked."""
+    """Recursively redact sensitive credentials in configuration payloads."""
     safe = {}
     for k, v in data.items():
-        if k.upper() in _REDACTED_KEY_PATTERNS or k.upper().endswith("_SECRET"):
+        k_upper = str(k).upper()
+        if k_upper in _REDACTED_KEY_PATTERNS or k_upper.endswith(("_SECRET", "_TOKEN", "_PASSWORD", "_API_KEY")):
             safe[k] = f"{str(v)[:4]}...{'*' * 8}" if v else ""
         elif isinstance(v, dict):
             safe[k] = _redact_secrets(v)
+        elif isinstance(v, list):
+            safe[k] = [_redact_secrets(item) if isinstance(item, dict) else item for item in v]
         else:
             safe[k] = v
     return safe
@@ -270,7 +275,24 @@ async def handle_delete_session(req):
 
 async def handle_history(req):
     try:
-        sid = req.query.get("uid") or req.query.get("id") or hub.user_id
+        auth_user = ""
+        is_admin = False
+        user_payload = req.get("user")
+        if user_payload:
+            auth_user = user_payload.get("sub", "")
+            is_admin = bool(user_payload.get("is_admin", False))
+        
+        master_id = os.getenv("MASTER_ID", "")
+        if master_id and str(auth_user) == str(master_id):
+            is_admin = True
+        
+        requested_uid = req.query.get("uid") or req.query.get("id")
+        
+        # If non-admin requests another user's history, reject with 403 Forbidden
+        if requested_uid and requested_uid != auth_user and not is_admin:
+            return web.json_response({"error": "Forbidden: Cannot access other users' history"}, status=403)
+        
+        sid = requested_uid or auth_user or hub.user_id
         mem, uid = hub.memory.get_user_data(sid)
         return web.json_response({"history": mem[uid]["history"]})
     except (KeyError, TypeError) as e:
@@ -327,12 +349,21 @@ async def handle_chat_api(req):
     except KeyError as e:
         return web.json_response({"error": f"Missing field: {e}"}, status=400)
 
+    user_payload = req.get("user") or {}
+    auth_user = user_payload.get("sub", "")
+    is_admin = bool(user_payload.get("is_admin", False))
+    master_id = os.getenv("MASTER_ID", "")
+    if master_id and str(auth_user) == str(master_id):
+        is_admin = True
+
+    chat_uid = auth_user if (auth_user and not is_admin) else (validated.user_id or auth_user or hub.user_id)
+
     # === SECURITY GATE ===
     from core.structured_logger import system_logger
     sanitized_message, is_safe, rejection_reason = _sanitize_input(validated.message or "")
     if not is_safe:
         system_logger.warning(
-            f"SECURITY_REJECT: user={validated.user_id} reason={rejection_reason}"
+            f"SECURITY_REJECT: user={chat_uid} reason={rejection_reason}"
         )
         return web.json_response(
             {
@@ -353,8 +384,9 @@ async def handle_chat_api(req):
 
         chat_res = await hub.brain.chat(
             sanitized_message,
-            user_id=validated.user_id,
-            initial_images=validated.attachments
+            user_id=chat_uid,
+            initial_images=validated.attachments,
+            is_admin=is_admin
         )
         reply = chat_res[0]
         gif_url = chat_res[5] if len(chat_res) > 5 else None
@@ -397,13 +429,20 @@ async def handle_purge(req):
     try:
         data = await req.json()
         user_id = data.get("user_id")
-    except json.JSONDecodeError:
-        pass
-    except (TypeError, KeyError):
+    except (json.JSONDecodeError, TypeError, KeyError):
         pass
 
+    user_payload = req.get("user") or {}
+    auth_user = user_payload.get("sub", "")
+    is_admin = bool(user_payload.get("is_admin", False))
+    if not is_admin and auth_user:
+        user_id = auth_user
+
     try:
-        hub.memory.clear_memory(user_id)
+        if hasattr(hub.memory, "purge_user_data"):
+            hub.memory.purge_user_data(user_id)
+        else:
+            hub.memory.clear_memory(user_id)
         await broadcast_event("state", {"info": "SYSTEM_PURGE_COMPLETE"})
         return web.json_response({"status": "success"})
     except AttributeError as e:
@@ -497,6 +536,19 @@ async def handle_get_settings(req):
         return web.json_response({"error": f"Failed to load settings: {e}"}, status=500)
 
 
+ALLOWED_UPLOAD_EXTENSIONS = {
+    '.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp',
+    '.mp3', '.wav', '.ogg', '.m4a',
+    '.txt', '.pdf', '.md', '.json', '.csv', '.log'
+}
+PROHIBITED_UPLOAD_EXTENSIONS = {
+    '.html', '.htm', '.xhtml', '.svg', '.js', '.jsx', '.ts', '.tsx',
+    '.exe', '.bat', '.cmd', '.ps1', '.vbs', '.sh', '.bash',
+    '.php', '.phtml', '.py', '.rb', '.pl', '.cgi', '.jar',
+    '.dll', '.scr', '.msi', '.com', '.asp', '.aspx', '.jsp'
+}
+
+
 async def handle_upload(req):
     try:
         reader = await req.multipart()
@@ -504,17 +556,26 @@ async def handle_upload(req):
         if not field or field.name != 'file':
             return web.json_response({"error": "No file field found"}, status=400)
 
-        filename = field.filename
-        filename = "".join([c for c in filename if c.isalpha() or c.isdigit() or c in ('.', '_', '-')]).strip()
-        if not filename:
-            filename = f"upload_{int(datetime.now().timestamp())}"
+        raw_filename = field.filename or "file"
+        ext = Path(raw_filename).suffix.lower()
+        
+        # Check against prohibited and allowed lists
+        if ext in PROHIBITED_UPLOAD_EXTENSIONS or (ext not in ALLOWED_UPLOAD_EXTENSIONS):
+            logger.warning(f"[Upload] Rejected file with disallowed extension: {raw_filename} ({ext})")
+            return web.json_response({
+                "error": f"Disallowed file extension '{ext}'. Permitted extensions: {', '.join(sorted(ALLOWED_UPLOAD_EXTENSIONS))}"
+            }, status=400)
+
+        stem = Path(raw_filename).stem
+        sanitized_stem = "".join([c for c in stem if c.isalpha() or c.isdigit() or c in ('_', '-')]).strip()
+        if not sanitized_stem:
+            sanitized_stem = "upload"
+
+        filename = f"{sanitized_stem}_{int(datetime.now().timestamp())}{ext}"
 
         upload_path = BASE / "data" / "uploads"
-        upload_path.mkdir(exist_ok=True)
+        upload_path.mkdir(parents=True, exist_ok=True)
         filepath = upload_path / filename
-        if filepath.exists():
-            filename = f"{int(datetime.now().timestamp())}_{filename}"
-            filepath = upload_path / filename
 
         MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB limit
         size = 0
@@ -533,7 +594,7 @@ async def handle_upload(req):
                     )
                 f.write(chunk)
 
-        logger.info(f"File uploaded: {filename} ({size} bytes)")
+        logger.info(f"File uploaded safely: {filename} ({size} bytes)")
         upload_url = f"{req.scheme}://{req.host}/uploads/{filename}"
         return web.json_response({
             "status": "success",

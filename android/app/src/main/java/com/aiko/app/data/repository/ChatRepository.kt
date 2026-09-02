@@ -66,6 +66,9 @@ class ChatRepository @Inject constructor(
     private val _currentAmplitude = MutableStateFlow(0f)
     val currentAmplitude: StateFlow<Float> = _currentAmplitude.asStateFlow()
 
+    private val _weatherText = MutableStateFlow("")
+    val weatherText: StateFlow<String> = _weatherText.asStateFlow()
+
     // Shared streaming states for UI coordination
     val streamingText = MutableStateFlow("")
     val isThinking = MutableStateFlow(false)
@@ -107,6 +110,39 @@ class ChatRepository @Inject constructor(
         
         // Start WebSocket Connection Monitor
         startWebSocketConnection()
+
+        // Fetch weather and update periodically
+        repositoryScope.launch {
+            while (true) {
+                fetchWeather()
+                delay(1800000) // update every 30 minutes
+            }
+        }
+    }
+
+    suspend fun fetchWeather() = withContext(Dispatchers.IO) {
+        try {
+            val client = OkHttpClient()
+            val request = Request.Builder()
+                .url("https://wttr.in/?format=3")
+                .header("User-Agent", "curl/7.64.1")
+                .build()
+            client.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    val result = response.body?.string() ?: ""
+                    _weatherText.value = if (result.contains(":")) {
+                        result.substringAfter(":").trim()
+                    } else {
+                        result.trim()
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("ChatRepository", "Weather fetch error: ${e.message}")
+            if (_weatherText.value.isEmpty()) {
+                _weatherText.value = "Clear · 68°F"
+            }
+        }
     }
 
     fun getMessages(conversationId: String): Flow<List<MessageEntity>> {
@@ -146,9 +182,9 @@ class ChatRepository @Inject constructor(
     }
 
     /**
-     * Converts an HTTP URL to its WebSocket equivalent.
+     * Converts an HTTP URL to its WebSocket equivalent with auth token.
      */
-    private fun getWebSocketUrl(httpUrl: String): String {
+    private fun getWebSocketUrl(httpUrl: String, token: String = ""): String {
         val clean = httpUrl.trim()
         val noProto = when {
             clean.startsWith("http://") -> clean.substring(7)
@@ -157,7 +193,8 @@ class ChatRepository @Inject constructor(
         }
         val proto = if (clean.startsWith("https://")) "wss://" else "ws://"
         val base = if (noProto.endsWith("/")) noProto.dropLast(1) else noProto
-        return "$proto$base/ws"
+        val query = if (token.isNotEmpty()) "?token=$token" else ""
+        return "$proto$base/ws$query"
     }
 
     /**
@@ -197,16 +234,22 @@ class ChatRepository @Inject constructor(
     private fun connectWs(serverUrl: String) {
         if (webSocket != null || isConnecting) return
         isConnecting = true
-        try {
-            val wsUrl = getWebSocketUrl(serverUrl)
-            val request = Request.Builder().url(wsUrl).build()
-
-            webSocket = wsClient.newWebSocket(request, object : okhttp3.WebSocketListener() {
-                override fun onOpen(webSocket: okhttp3.WebSocket, response: okhttp3.Response) {
-                    Log.i("ChatRepository", "WebSocket Connected to $wsUrl")
-                    isConnecting = false
-                    reconnectDelay = 1000L
+        repositoryScope.launch(Dispatchers.IO) {
+            try {
+                val token = aikoPrefs.authTokenFlow.first()
+                val wsUrl = getWebSocketUrl(serverUrl, token)
+                val requestBuilder = Request.Builder().url(wsUrl)
+                if (token.isNotEmpty()) {
+                    requestBuilder.addHeader("Authorization", "Bearer $token")
                 }
+                val request = requestBuilder.build()
+
+                webSocket = wsClient.newWebSocket(request, object : okhttp3.WebSocketListener() {
+                    override fun onOpen(webSocket: okhttp3.WebSocket, response: okhttp3.Response) {
+                        Log.i("ChatRepository", "WebSocket Connected to $wsUrl")
+                        isConnecting = false
+                        reconnectDelay = 1000L
+                    }
 
                 override fun onMessage(webSocket: okhttp3.WebSocket, text: String) {
                     try {
@@ -268,6 +311,7 @@ class ChatRepository @Inject constructor(
         } catch (e: Exception) {
             Log.e("ChatRepository", "Error creating WebSocket: ${e.message}")
             isConnecting = false
+        }
         }
     }
 
@@ -380,6 +424,7 @@ class ChatRepository @Inject constructor(
         if (!isConnected) return@withContext false
 
         val baseUrl = aikoPrefs.desktopUrlFlow.first()
+        val token = aikoPrefs.authTokenFlow.first()
         val since = aikoPrefs.lastSyncTimestampFlow.first()
         val url = if (baseUrl.endsWith("/")) {
             "${baseUrl}api/memory/export?since=${since / 1000.0}"
@@ -387,7 +432,11 @@ class ChatRepository @Inject constructor(
             "${baseUrl}/api/memory/export?since=${since / 1000.0}"
         }
 
-        val request = Request.Builder().url(url).build()
+        val requestBuilder = Request.Builder().url(url)
+        if (token.isNotEmpty()) {
+            requestBuilder.addHeader("Authorization", "Bearer $token")
+        }
+        val request = requestBuilder.build()
 
         return@withContext try {
             val response = wsClient.newCall(request).execute()

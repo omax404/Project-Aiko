@@ -30,6 +30,7 @@ class AikoPrefs @Inject constructor(
         val ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
         val DESKTOP_CONNECTED = booleanPreferencesKey("desktop_connected")
         val DESKTOP_URL = stringPreferencesKey("desktop_url")
+        val AUTH_TOKEN = stringPreferencesKey("auth_token")
 
         // Connection & Appearance
         val CONNECTION_MODE = stringPreferencesKey("connection_mode")
@@ -84,6 +85,7 @@ class AikoPrefs @Inject constructor(
     val onboardingDoneFlow: Flow<Boolean> = safeFlow(PreferencesKeys.ONBOARDING_DONE, false)
     val desktopConnectedFlow: Flow<Boolean> = safeFlow(PreferencesKeys.DESKTOP_CONNECTED, false)
     val desktopUrlFlow: Flow<String> = safeFlow(PreferencesKeys.DESKTOP_URL, "http://10.0.2.2:8000")
+    val authTokenFlow: Flow<String> = safeFlow(PreferencesKeys.AUTH_TOKEN, "")
 
     val connectionModeFlow: Flow<String> = safeFlow(PreferencesKeys.CONNECTION_MODE, "Link to Desktop")
     val themeAccentColorFlow: Flow<String> = safeFlow(PreferencesKeys.THEME_ACCENT_COLOR, "#C9A8D9")
@@ -121,6 +123,7 @@ class AikoPrefs @Inject constructor(
     suspend fun setOnboardingDone(done: Boolean) = dataStore.edit { it[PreferencesKeys.ONBOARDING_DONE] = done }
     suspend fun setDesktopConnected(connected: Boolean) = dataStore.edit { it[PreferencesKeys.DESKTOP_CONNECTED] = connected }
     suspend fun setDesktopUrl(url: String) = dataStore.edit { it[PreferencesKeys.DESKTOP_URL] = url }
+    suspend fun setAuthToken(token: String) = dataStore.edit { it[PreferencesKeys.AUTH_TOKEN] = token }
 
     suspend fun setConnectionMode(mode: String) = dataStore.edit { it[PreferencesKeys.CONNECTION_MODE] = mode }
     suspend fun setThemeAccentColor(color: String) = dataStore.edit { it[PreferencesKeys.THEME_ACCENT_COLOR] = color }

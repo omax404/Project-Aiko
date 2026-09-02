@@ -186,6 +186,12 @@ async def start_background_tasks(app):
         background_tasks.add(t5)
         t5.add_done_callback(background_tasks.discard)
     
+    # Proactive screen observation & vision loop
+    if hub.proactive_agent:
+        t6 = asyncio.create_task(hub.proactive_agent.start_loop())
+        background_tasks.add(t6)
+        t6.add_done_callback(background_tasks.discard)
+    
     logger.info(f"[Hub] {len(background_tasks)} background tasks started.")
 
 async def cleanup_background_tasks(app):

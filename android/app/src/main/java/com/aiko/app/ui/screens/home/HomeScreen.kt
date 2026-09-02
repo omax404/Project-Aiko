@@ -81,38 +81,7 @@ fun HomeScreen(
 
     val scope = rememberCoroutineScope()
     val dominantEmotion = emotionEngine.determineDominantEmotion(currentEmotion)
-
-    // Dynamic weather caching and loading directly via wttr.in
-    var weatherText by remember { mutableStateOf("") }
-    LaunchedEffect(Unit) {
-        while (true) {
-            withContext(Dispatchers.IO) {
-                try {
-                    val client = okhttp3.OkHttpClient()
-                    val request = okhttp3.Request.Builder()
-                        .url("https://wttr.in/?format=3")
-                        .header("User-Agent", "curl/7.64.1")
-                        .build()
-                    client.newCall(request).execute().use { response ->
-                        if (response.isSuccessful) {
-                            val result = response.body?.string() ?: ""
-                            weatherText = if (result.contains(":")) {
-                                result.substringAfter(":").trim()
-                            } else {
-                                result.trim()
-                            }
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.e("HomeScreen", "Weather fetch error: ${e.message}")
-                    if (weatherText.isEmpty()) {
-                        weatherText = "Clear · 68°F" // Fallback
-                    }
-                }
-            }
-            delay(1800000) // update every 30 minutes
-        }
-    }
+    val weatherText by chatRepository.weatherText.collectAsState()
 
     // Dialogue calculation
     val lastAikoMessage = remember(messages) {

@@ -291,11 +291,11 @@ async function connectSocket() {
     socket.onmessage = (event) => {
       try {
         const raw = JSON.parse(event.data);
-        // Neural Hub wraps as {type, data} — unwrap both formats (including standard payload)
         const type = raw.type;
-        const data = raw.payload !== undefined 
+        const nestedData = typeof raw.payload === 'object' && raw.payload !== null 
           ? raw.payload 
-          : (raw.data !== undefined ? raw.data : raw);
+          : (typeof raw.data === 'object' && raw.data !== null ? raw.data : {});
+        const data = { ...raw, ...nestedData };
         switch (type) {
           case 'chat_start':
             useNeuralStore.setState({ isThinking: true, streamingContent: '', streamingId: data.message_id || Date.now().toString() });

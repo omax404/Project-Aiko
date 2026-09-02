@@ -289,6 +289,22 @@ fun AikoAvatar(
                 }
             }
 
+            // Pauses and resumes the GL surface rendering with lifecycle
+            DisposableEffect(lifecycleOwner, glSurfaceView) {
+                val observer = LifecycleEventObserver { _, event ->
+                    when (event) {
+                        Lifecycle.Event.ON_RESUME -> glSurfaceView.onResume()
+                        Lifecycle.Event.ON_PAUSE -> glSurfaceView.onPause()
+                        else -> {}
+                    }
+                }
+                lifecycleOwner.lifecycle.addObserver(observer)
+                onDispose {
+                    lifecycleOwner.lifecycle.removeObserver(observer)
+                    glSurfaceView.onPause()
+                }
+            }
+
             // Push dynamic updates to the GLES renderer
             LaunchedEffect(dominantEmotion, animatedGlowColor, isSpeaking, amplitude) {
                 val r = animatedGlowColor.red

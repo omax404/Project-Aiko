@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Aiko</string>
+    <string name="notification_channel_name">Aiko Neural Link</string>
+    <string name="notification_channel_desc">Maintains connection to Aiko Desktop Hub</string>
+    <string name="notification_incoming_title">Aiko</string>
+    <string name="sticker_picker_title">Choose a Sticker</string>
+    <string name="settings_title">Settings</string>
+    <string name="chat_hint">Talk to Aiko...</string>
+    <string name="home_greeting">Hey there, Master~</string>
+    <string name="bond_title">Our Bond</string>
+    <string name="memory_title">Memory Palace</string>
+    <string name="onboarding_welcome">Welcome to Aiko</string>
+    <string name="error_hub_disconnected">Neural Hub not connected</string>
+</resources>

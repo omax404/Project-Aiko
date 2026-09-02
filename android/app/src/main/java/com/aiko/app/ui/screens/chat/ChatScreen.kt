@@ -184,6 +184,8 @@ fun ChatScreen(
     emotionEngine: EmotionEngine,
     aikoPrefs: AikoPrefs,
     onOpenSettings: () -> Unit,
+    onOpenBond: () -> Unit = {},
+    onOpenMemory: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val messages by chatRepository.getMessages("default").collectAsState(initial = emptyList())
@@ -435,6 +437,14 @@ fun ChatScreen(
             open = drawerOpen,
             messages = messages,
             onDismiss = { drawerOpen = false },
+            onOpenBond = {
+                drawerOpen = false
+                onOpenBond()
+            },
+            onOpenMemory = {
+                drawerOpen = false
+                onOpenMemory()
+            },
             onSyncMemory = {
                 drawerOpen = false
                 showMemorySyncBanner = true
@@ -795,6 +805,8 @@ private fun ConversationDrawer(
     open: Boolean,
     messages: List<MessageEntity>,
     onDismiss: () -> Unit,
+    onOpenBond: () -> Unit = {},
+    onOpenMemory: () -> Unit = {},
     onSyncMemory: () -> Unit
 ) = AnimatedVisibility(
     visible = open,
@@ -809,7 +821,48 @@ private fun ConversationDrawer(
                     Icon(Icons.Default.Close, "Close", tint = AikoColors.TextPrimary)
                 }
             }
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(16.dp))
+
+            // Navigation tiles
+            Surface(
+                modifier = Modifier.fillMaxWidth().clickable { onOpenBond() },
+                color = AikoColors.SurfaceDark,
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Favorite, null, tint = AikoColors.PrimaryRed)
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text("Bond & Telemetry", style = AikoTypography.bodyLarge.copy(fontWeight = FontWeight.Bold))
+                        Text("Relationship status & analytics", style = AikoTypography.bodyMedium)
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            Surface(
+                modifier = Modifier.fillMaxWidth().clickable { onOpenMemory() },
+                color = AikoColors.SurfaceDark,
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Bookmark, null, tint = AikoColors.Accent)
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text("Memory Palace", style = AikoTypography.bodyLarge.copy(fontWeight = FontWeight.Bold))
+                        Text("View facts Aiko remembered", style = AikoTypography.bodyMedium)
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(10.dp))
             
             // Memory Sync Trigger Row
             Surface(
@@ -818,7 +871,7 @@ private fun ConversationDrawer(
                 shape = RoundedCornerShape(14.dp)
             ) {
                 Row(
-                    modifier = Modifier.padding(14.dp),
+                    modifier = Modifier.padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(Icons.Default.CloudSync, null, tint = AikoColors.Accent)
@@ -867,11 +920,11 @@ fun StickerPickerSheet(
     val stickersList = remember {
         listOf(
             "01_Happy_Cheer.png", "02_Shy_Blush.png", "03_Surprised_Gasp.png",
-            "04_Sleepy_Yawn.png", "05_Crying_Tears.png", "06_Confident_Smile.png",
-            "07_Waving_Hello.png", "08_Thinking_Hmm.png", "09_Heart_Eyes.png",
-            "10_Annoyed_Sigh.png", "11_Laughing_Giggle.png", "12_Sad_Pout.png",
-            "13_Excited_Sparkle.png", "14_Winking_Tease.png", "15_Sick_Dizzy.png",
-            "16_Determined_Focus.png", "17_Sipping_Tea.png", "18_Confident_Smirk_Left.png"
+            "04_Sleepy_Yawn.png", "05_Crying_Comical.png", "06_Confident_Smirk_Right.png",
+            "07_Waving_Hello.png", "08_Thinking_Pose.png", "09_Heart_Eyes_Rose.png",
+            "10_Annoyed_Pout.png", "11_Laughing.png", "12_Sad_Wilted_Rose.png",
+            "13_Excited_Jump.png", "14_Winking_Peace.png", "15_Sick_Dizzy.png",
+            "16_Determined_Fist.png", "17_Teacup_Sip.png", "18_Confident_Smirk_Left.png"
         )
     }
 

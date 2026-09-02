@@ -335,3 +335,5 @@ class PCManager:
             return f"Hidden letter left at {path} 💌"
         except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
             return f"Failed to hide letter: {e}"
+
+pc_manager = PCManager()

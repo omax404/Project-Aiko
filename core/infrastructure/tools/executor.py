@@ -32,15 +32,13 @@ TASK_PATTERN = re.compile(r'\[TASK\s*:\s*(.*?)\]', re.IGNORECASE | re.DOTALL)
 NOTE_PATTERN = re.compile(r'\[NOTE\s*:\s*(.*?)\]', re.IGNORECASE | re.DOTALL)
 READ_PATTERN = re.compile(r'\[READ\s*:\s*(.*?)\]', re.IGNORECASE)
 WRITE_PATTERN = re.compile(r'\[WRITE\s*:\s*([^|\]]+?)\s*\|\s*(.*?)\]', re.IGNORECASE | re.DOTALL)
-DRAW_PATTERN = re.compile(r'\[DRAW\s*:\s*(.*?)\]', re.IGNORECASE)
-VIDEO_PATTERN = re.compile(r'\[VIDEO\s*:\s*(.*?)\]', re.IGNORECASE)
 MCP_PATTERN  = re.compile(r'\[MCP\s*:\s*(\w+)\s*(?:\|\s*(.*?))?\]', re.IGNORECASE | re.DOTALL)
-IMAGE_PATTERN = re.compile(r'\[IMAGE\s*:\s*(.*?)\]', re.IGNORECASE)
 GIF_PATTERN = re.compile(r'\[GIF\s*:\s*(.*?)\]', re.IGNORECASE)
 RECALL_PATTERN = re.compile(r'\[RECALL\s*:\s*(.*?)(?:\s*\|\s*(.*?))?\]', re.IGNORECASE)
 BIO_REGISTER_PATTERN = re.compile(r'\[BIO_REGISTER\]', re.IGNORECASE)
 EMAIL_SEND_PATTERN = re.compile(r'\[EMAIL_SEND\s*:\s*([^|\]]+?)\s*\|\s*([^|\]]+?)\s*\|\s*(.*?)\]', re.IGNORECASE | re.DOTALL)
 EMAIL_INBOX_PATTERN = re.compile(r'\[EMAIL_INBOX\]', re.IGNORECASE)
+IMAGE_PATTERN = re.compile(r'\[IMAGE\s*:\s*(.*?)\]', re.IGNORECASE | re.DOTALL)
 
 
 @dataclass
@@ -62,7 +60,6 @@ class AgentExecutor:
             "EXEC": self._handle_exec,
             "SCAN": self._handle_scan,
             "CAMERA": self._handle_camera,
-            "IMAGE": self._handle_image,
             "LATEX": self._handle_latex,
             "OPEN": self._handle_open,
             "TYPE": self._handle_type,
@@ -137,20 +134,6 @@ class AgentExecutor:
             {
                 "type": "function",
                 "function": {
-                    "name": "generate_image",
-                    "description": "Generate an AI image based on a prompt.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "prompt": {"type": "string", "description": "Detailed image generation prompt"}
-                        },
-                        "required": ["prompt"]
-                    }
-                }
-            },
-            {
-                "type": "function",
-                "function": {
                     "name": "recall_memory",
                     "description": "Search long-term memory palace for historical context.",
                     "parameters": {
@@ -186,8 +169,6 @@ class AgentExecutor:
                 actions.append(AgentAction(tool_name="PRESS", args={"key": args.get("key", "")}))
             elif name == "click_mouse":
                 actions.append(AgentAction(tool_name="CLICK", args={"coords": args.get("coords", "")}))
-            elif name == "generate_image":
-                actions.append(AgentAction(tool_name="IMAGE", args={"prompt": args.get("prompt", "")}))
             elif name == "recall_memory":
                 actions.append(AgentAction(tool_name="RECALL", args={"query": args.get("query", ""), "room": args.get("room", "general")}))
         return actions
@@ -205,8 +186,8 @@ class AgentExecutor:
             # Skip core tools to avoid duplicate parsing
             if tag.upper() in {
                 "EXEC", "ARGS", "LATEX", "OPEN", "TYPE", "CLICK", "PRESS", "TASK", "NOTE", 
-                "READ", "WRITE", "DRAW", "VIDEO", "MCP", "IMAGE", "GIF", "RECALL", 
-                "BIO_REGISTER", "SCAN", "CAMERA"
+                "READ", "WRITE", "MCP", "GIF", "RECALL", 
+                "BIO_REGISTER", "SCAN", "CAMERA", "IMAGE"
             }:
                 continue
             for match in re.finditer(rf'\[{tag}\s*:\s*(.*?)\]', text, re.I):
@@ -235,13 +216,13 @@ class AgentExecutor:
         for match in re.finditer(r'\[CAMERA\]', text, re.I):
             actions_with_pos.append((match.start(), AgentAction(tool_name="CAMERA", raw_content=match.group(0))))
 
-        # 6. IMAGE
-        for match in IMAGE_PATTERN.finditer(text):
-            actions_with_pos.append((match.start(), AgentAction(tool_name="IMAGE", args={"prompt": match.group(1).strip()}, raw_content=match.group(0))))
-
-        # 7. LATEX
+        # 6. LATEX
         for match in LATEX_PATTERN.finditer(text):
             actions_with_pos.append((match.start(), AgentAction(tool_name="LATEX", args={"code": match.group(1).strip()}, raw_content=match.group(0))))
+
+        # 7. IMAGE
+        for match in IMAGE_PATTERN.finditer(text):
+            actions_with_pos.append((match.start(), AgentAction(tool_name="IMAGE", args={"prompt": match.group(1).strip()}, raw_content=match.group(0))))
 
         # 8. OPEN
         for match in OPEN_PATTERN.finditer(text):
@@ -287,25 +268,33 @@ class AgentExecutor:
         actions_with_pos.sort(key=lambda x: x[0])
         return [action for _, action in actions_with_pos]
 
-    async def execute_tools(self, brain: Any, text: str, observations: List[str], images_data: List[str], user_id: str) -> None:
+    async def execute_tools(self, brain: Any, text: str, observations: List[str], images_data: List[str], user_id: str, is_admin: bool = False) -> None:
         """Execute tools found in the text with Identity-Based Authorization."""
         from core.security import policy_engine
-        is_admin = policy_engine.is_admin(user_id)
+        is_admin = is_admin or policy_engine.is_admin(user_id, is_admin_claim=is_admin)
         
         actions = self.parse_actions(text)
         
         for action in actions:
             try:
                 # --- Human-in-the-Loop Confirmation Gate ---
-                requires_confirmation = False
-                if action.tool_name in {"OPEN", "TYPE", "CLICK", "PRESS"}:
-                    requires_confirmation = True
-                elif action.tool_name == "MCP":
+                # Sensitive system tools ALWAYS require confirmation, even for admin/master,
+                # to prevent indirect prompt injection from driving the desktop autonomously.
+                CONFIRMATION_REQUIRED_TOOLS = {
+                    "OPEN", "TYPE", "CLICK", "PRESS", "EMAIL_SEND"
+                }
+                MCP_SENSITIVE_TOOLS = {
+                    "write_file", "delete_file", "kill_proc", "run_cmd",
+                    "set_clipboard", "uia_click", "uia_type"
+                }
+
+                requires_confirmation = action.tool_name in CONFIRMATION_REQUIRED_TOOLS
+                if action.tool_name == "MCP":
                     tool_mcp = action.args.get("tool", "")
-                    if tool_mcp in {"write_file", "delete_file", "kill_proc", "run_cmd", "set_clipboard", "uia_click", "uia_type"}:
+                    if tool_mcp in MCP_SENSITIVE_TOOLS:
                         requires_confirmation = True
-                
-                if requires_confirmation and user_id != 'Master':
+
+                if requires_confirmation:
                     from core.api.websocket import request_tool_permission
                     approved = await request_tool_permission(action.tool_name, action.args)
                     if not approved:
@@ -402,23 +391,6 @@ class AgentExecutor:
                     images_data.append(base64.b64encode(buffered.getvalue()).decode("utf-8"))
             except (OSError, RuntimeError, ValueError, ImportError) as cam_err:
                 observations.append(f"Camera Error: Could not capture from webcam. ({cam_err})")
-
-    async def _handle_image(self, brain, action, observations, images_data, is_admin, user_id):
-        img_prompt = action.args.get("prompt", "")
-        try:
-            from core.selfie_generator import generate_image_via_perchance
-            from pathlib import Path
-            import time
-            filename = f"gen_{int(time.time())}.png"
-            stickers_dir = Path(__file__).parent.parent.parent.parent / "stickers"
-            save_path = str(stickers_dir / filename)
-            success = await generate_image_via_perchance(img_prompt, save_path)
-            if success:
-                observations.append(f"[System: Generated image saved as /stickers/{filename}]")
-            else:
-                observations.append(f"[System: Image generation failed for prompt: {img_prompt}]")
-        except Exception as e:
-            observations.append(f"[System: Image generation error: {e}]")
 
     async def _handle_latex(self, brain, action, observations, images_data, is_admin, user_id):
         code = action.args["code"]

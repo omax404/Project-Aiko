@@ -61,7 +61,7 @@ class ProactiveAgent:
         self.voice = voice
         self.obsidian = obsidian
         self.active = False
-        self.interval = 600  # Check every 10 minutes (prevents CPU/RAM overhead when idle)
+        self.interval = 12  # Screen observation interval: scans screen every 12s
         self.last_consolidation = date.today()
         self.last_greeting_date = None
         self.last_greeting_hour = -1
@@ -137,7 +137,7 @@ class ProactiveAgent:
 
                     # Always perform active screen vision tick
                     await self.tick()
-                    wait = self.interval if self.interval < 30 else random.randint(self.interval, self.interval * 2)
+                    wait = self.interval if self.interval <= 30 else random.randint(self.interval, int(self.interval * 1.5))
                 else:
                     wait = 60
                 
@@ -318,11 +318,12 @@ class ProactiveAgent:
 
             # 3. Request comment using brain.chat() (unified context)
             prompt = (
-                f"[VISUAL_OBSERVATION]\nI can see Master's screen: {desc}\n"
+                f"[SENSORY_OBSERVATION: LIVE MONITOR VIEW]\n"
+                f"You look over at Master's screen and see: {desc}\n"
                 + (f"{music_ctx}\n" if music_ctx else "")
-                + "React to or comment on what Master is doing or what is currently visible on the screen. "
-                "Be brief (1-2 sentences max), natural, and in-character. "
-                "If it is basically the same as what you saw before, or if there is nothing new/noticeable to say, respond with exactly '...' and nothing else."
+                + "Speak directly to Master (Omax) in a natural, charming, intelligent anime-companion tone (1-2 short sentences max). "
+                "Do NOT talk about being software, hardware, or an AI. "
+                "If it is basically the same as what you saw before, or if there is nothing new or helpful to say, respond with exactly '...' and nothing else."
             )
             
             from core.config_manager import config
@@ -340,8 +341,11 @@ class ProactiveAgent:
 
             # 4. If she decides to comment (not '...'), save it to memory, broadcast, and vocalize
             if comment and "..." not in comment and len(comment.strip()) > 5:
-                # Save to main chat history
-                self.brain.memory.add_message(uid, "user", f"[Visual Observation] {desc}")
+                if any(err_kw in comment.lower() for err_kw in ["unreachable", "returned an error", "taking too long to think", "couldn't connect"]):
+                    logger.warning(f"[Proactive] Suppressed LLM error comment from chat history: {comment}")
+                    return
+
+                # Save only assistant response to chat history (no fake user messages)
                 self.brain.memory.add_message(uid, "assistant", comment)
                 
                 # Vocalize proactive message (broadcasts + TTS)

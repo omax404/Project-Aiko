@@ -23,6 +23,10 @@ import com.aiko.app.ui.screens.settings.SettingsScreen
 import com.aiko.app.ui.screens.home.HomeScreen
 import com.aiko.app.ui.theme.AikoColors
 import com.aiko.app.ui.theme.AikoTheme
+import androidx.activity.result.contract.ActivityResultContracts
+import com.aiko.app.ui.screens.bond.BondScreen
+import com.aiko.app.ui.screens.memory.MemoryScreen
+import com.aiko.app.ui.screens.onboarding.OnboardingScreen
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -32,12 +36,23 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var emotionEngine: EmotionEngine
     @Inject lateinit var prefs: com.aiko.app.data.local.AikoPrefs
 
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (!isGranted) {
+            Log.w("MainActivity", "POST_NOTIFICATIONS permission not granted")
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen().setKeepOnScreenCondition { false }
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
         setContent {
+            val onboardingDone by prefs.onboardingDoneFlow.collectAsState(initial = true)
             var currentScreen by rememberSaveable { mutableStateOf("home") }
+
             val themeAccentColor by prefs.themeAccentColorFlow.collectAsState(initial = "#C9A8D9")
             val chatFont by prefs.chatFontFlow.collectAsState(initial = "system_sans")
             val chatTextSize by prefs.chatTextSizeFlow.collectAsState(initial = 1.0f)
@@ -51,38 +66,62 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = AikoColors.Background
                 ) {
-                    when (currentScreen) {
-                        "settings" -> {
-                            SettingsScreen(chatRepository, prefs, onBack = { currentScreen = "home" })
-                        }
-                        "chat" -> {
-                            ChatScreen(
-                                chatRepository = chatRepository,
-                                emotionEngine = emotionEngine,
-                                aikoPrefs = prefs,
-                                onOpenSettings = { currentScreen = "settings" }
-                            )
-                            androidx.activity.compose.BackHandler {
-                                currentScreen = "home"
+                    if (!onboardingDone) {
+                        OnboardingScreen(
+                            aikoPrefs = prefs,
+                            onOnboardingComplete = { currentScreen = "home" }
+                        )
+                    } else {
+                        when (currentScreen) {
+                            "settings" -> {
+                                SettingsScreen(chatRepository, prefs, onBack = { currentScreen = "home" })
+                                androidx.activity.compose.BackHandler {
+                                    currentScreen = "home"
+                                }
                             }
-                        }
-                        else -> {
-                            HomeScreen(
-                                chatRepository = chatRepository,
-                                aikoPrefs = prefs,
-                                emotionEngine = emotionEngine,
-                                onOpenSettings = { currentScreen = "settings" },
-                                onSwipeUp = { currentScreen = "chat" }
-                            )
+                            "bond" -> {
+                                BondScreen(chatRepository, onBack = { currentScreen = "chat" })
+                                androidx.activity.compose.BackHandler {
+                                    currentScreen = "chat"
+                                }
+                            }
+                            "memory" -> {
+                                MemoryScreen(chatRepository, onBack = { currentScreen = "chat" })
+                                androidx.activity.compose.BackHandler {
+                                    currentScreen = "chat"
+                                }
+                            }
+                            "chat" -> {
+                                ChatScreen(
+                                    chatRepository = chatRepository,
+                                    emotionEngine = emotionEngine,
+                                    aikoPrefs = prefs,
+                                    onOpenSettings = { currentScreen = "settings" },
+                                    onOpenBond = { currentScreen = "bond" },
+                                    onOpenMemory = { currentScreen = "memory" }
+                                )
+                                androidx.activity.compose.BackHandler {
+                                    currentScreen = "home"
+                                }
+                            }
+                            else -> {
+                                HomeScreen(
+                                    chatRepository = chatRepository,
+                                    aikoPrefs = prefs,
+                                    emotionEngine = emotionEngine,
+                                    onOpenSettings = { currentScreen = "settings" },
+                                    onSwipeUp = { currentScreen = "chat" }
+                                )
+                            }
                         }
                     }
                 }
             }
         }
         
-        // Phase 5: Request push notifications permission on Android 13+
+        // Request push notifications permission on Android 13+ with modern ActivityResult API
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 101)
+            notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
         }
     }
 
