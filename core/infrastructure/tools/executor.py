@@ -298,7 +298,7 @@ class AgentExecutor:
                     from core.api.websocket import request_tool_permission
                     approved = await request_tool_permission(action.tool_name, action.args)
                     if not approved:
-                        res = f"[TOOL_BLOCKED] Tool {action.tool_name} was not approved by Master."
+                        res = f"[TOOL_BLOCKED] Execution of {action.tool_name} was denied or timed out."
                         observations.append(res)
                         orchestrator.emit_tool_result(action.tool_name, "Denied by user")
                         continue

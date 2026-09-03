@@ -42,8 +42,8 @@ def _redact_secrets(data: dict) -> dict:
     safe = {}
     for k, v in data.items():
         k_upper = str(k).upper()
-        if k_upper in _REDACTED_KEY_PATTERNS or k_upper.endswith(("_SECRET", "_TOKEN", "_PASSWORD", "_API_KEY")):
-            safe[k] = f"{str(v)[:4]}...{'*' * 8}" if v else ""
+        if k_upper in _REDACTED_KEY_PATTERNS or k_upper.endswith(("_SECRET", "_TOKEN", "_PASSWORD", "_PASSWD", "_API_KEY")):
+            safe[k] = f"{str(v)[:4]}...***" if v else ""
         elif isinstance(v, dict):
             safe[k] = _redact_secrets(v)
         elif isinstance(v, list):
