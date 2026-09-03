@@ -1,6 +1,9 @@
 """
-Game Integration Bridge for Aiko
-Provides control interface for games like Minecraft and Factorio
+Game Integration Bridge Architecture for Aiko Desktop
+──────────────────────────────────────────────────────────
+Provides an extensible plugin-based control interface for game integrations.
+Third-party games, server connectors, RCON clients, or bot frameworks implement
+the abstract `GameBridge` interface and register into the `GameManager` singleton.
 """
 import logging
 import asyncio
@@ -12,7 +15,13 @@ logger = logging.getLogger("GameBridge")
 
 
 class GameBridge(ABC):
-    """Abstract base class for game integrations."""
+    """
+    Abstract base class for game integrations.
+
+    Subclasses must implement asynchronous methods for lifecycle management
+    (`connect`, `disconnect`), bidirectional command execution (`send_command`),
+    and state inspection (`get_state`).
+    """
     
     def __init__(self, name: str):
         self.name = name
