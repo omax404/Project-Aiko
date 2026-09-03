@@ -230,8 +230,8 @@ class VisionEngine:
             return description, img
 
             
-        except (OSError, RuntimeError, ValueError) as e:
-            logger.error(f"Scan Error: {e}")
+        except Exception as scan_err:
+            logger.error(f"Scan Error: {scan_err}")
             # Final fallback to PIL ImageGrab if everything fails
             try:
                 from PIL import ImageGrab
@@ -248,10 +248,9 @@ class VisionEngine:
                     description = await self._analyze(img)
                     self._cached_description = description
                     return description, img
-            except Exception as e:
-                logger.error(f"ImageGrab fallback failed: {e}")
-                pass
-            return f"My visual sensors are a bit blurry, Master... {e}", None
+            except Exception as grab_err:
+                logger.error(f"ImageGrab fallback failed: {grab_err}")
+            return f"My visual sensors are a bit blurry, Master... {scan_err}", None
 
 
 
