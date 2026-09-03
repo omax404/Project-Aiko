@@ -12,16 +12,18 @@ interface DashboardStatsProps {
   currentEmotion: string;
   avatarScale: number;
   setAvatarScale: (s: number) => void;
-  amplitude: number;
+  amplitude?: number;
   chemicals: any;
   isCompact?: boolean;
 }
 
 export function DashboardStats({
   bridgeStatus, isThinking, isTalking, currentEmotion,
-  avatarScale, setAvatarScale, amplitude, chemicals, isCompact
+  avatarScale, setAvatarScale, amplitude: propAmplitude, chemicals, isCompact
 }: DashboardStatsProps) {
   const apiConfig = useNeuralStore(state => state.apiConfig);
+  const storeAmplitude = useNeuralStore(state => state.amplitude);
+  const amplitude = propAmplitude !== undefined ? propAmplitude : storeAmplitude;
   const width = isCompact ? 160 : 320;
 
   return (

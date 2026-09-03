@@ -39,7 +39,7 @@ function App() {
     isThinking, triggerPurge, loadSessions, fetchBridgeStatus, fetchSettings,
     bridgeStatus, currentEmotion, isSidebarOpen, toggleSidebar, themeColor,
     dynamicsIntensity, showAnimatedAssets, isTalking, avatarScale, setAvatarScale,
-    amplitude, apiConfig, chemicals, pendingToolRequest, respondToToolRequest
+    apiConfig, chemicals, pendingToolRequest, respondToToolRequest
   } = useNeuralStore(useShallow((state) => ({
     messages: state.messages,
     streamingContent: state.streamingContent,
@@ -61,7 +61,6 @@ function App() {
     isTalking: state.isTalking,
     avatarScale: state.avatarScale,
     setAvatarScale: state.setAvatarScale,
-    amplitude: state.amplitude,
     apiConfig: state.apiConfig,
     chemicals: state.chemicals,
     pendingToolRequest: state.pendingToolRequest,
@@ -191,7 +190,8 @@ function App() {
   };
 
   const [isDraggingFile, setIsDraggingFile] = useState(false);
-  const { uploadFile, sendMessage } = useNeuralStore();
+  const uploadFile = useNeuralStore((s) => s.uploadFile);
+  const sendMessage = useNeuralStore((s) => s.sendMessage);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -463,7 +463,6 @@ function App() {
               currentEmotion={currentEmotion}
               avatarScale={avatarScale}
               setAvatarScale={setAvatarScale}
-              amplitude={amplitude}
               chemicals={chemicals}
               isCompact={!!activeArtifactCode}
             />

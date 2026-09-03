@@ -16,7 +16,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { useNeuralStore, getHubUrl } from '../store/useNeuralStore';
-import { useState } from 'react';
+import { useState, memo } from 'react';
 
 interface ChatBubbleProps {
   id?: string;
@@ -38,15 +38,16 @@ function sanitizeMarkdownContent(text: string): string {
   });
   // 2. Fix missing leading slash in ![alt](stickers/...)
   cleaned = cleaned.replace(/!\[(.*?)\]\(stickers\/(.*?)\)/gi, '![$1](/stickers/$2)');
-  // 3. Fix any accidental spaces in sticker paths like /stickers/08_Thinking_Pose. png -> /stickers/08_Thinking_Pose.png
-  cleaned = cleaned.replace(/\/stickers\/([^\)]+?)\s*\.\s*(png|jpg|jpeg|gif|webp)/gi, (_, name, ext) => {
-    return '/stickers/' + name.trim().replace(/\s+/g, '') + '.' + ext;
-  });
+  // 3. Fix [STICKER:xxx] inside image alt text
+  cleaned = cleaned.replace(/!\[\[STICKER\s*:\s*([^\]]+)\]\]\((.*?)\)/gi, '![$1]($2)');
+  // 4. Strip stray markdown escapes that break rendering
+  cleaned = cleaned.replace(/\\([*_`~[\]()])/g, '$1');
+  // 5. Fix malformed image extensions like ".png" with a space before the dot
   cleaned = cleaned.replace(/!\[(.*?)\]\((.*?)\s+\.(png|jpg|jpeg|gif|webp)\)/gi, '![$1]($2.$3)');
   return cleaned.trim();
 }
 
-export function ChatBubble({ 
+export const ChatBubble = memo(function ChatBubble({ 
   id, 
   content, 
   role, 
@@ -55,7 +56,11 @@ export function ChatBubble({
   attachments,
   emotion: _emotion = "neutral"
 }: ChatBubbleProps) {
-  const { deleteMessage, retryMessage, branchChat, playTTS, editMessage } = useNeuralStore();
+  const deleteMessage = useNeuralStore((s) => s.deleteMessage);
+  const retryMessage = useNeuralStore((s) => s.retryMessage);
+  const branchChat = useNeuralStore((s) => s.branchChat);
+  const playTTS = useNeuralStore((s) => s.playTTS);
+  const editMessage = useNeuralStore((s) => s.editMessage);
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(content);
   const isUser = role === 'user';
@@ -313,4 +318,4 @@ export function ChatBubble({
       </div>
     </motion.div>
   );
-}
+});

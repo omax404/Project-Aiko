@@ -20,7 +20,12 @@ export function InputDock() {
   const [pendingFiles, setPendingFiles] = useState<{url: string, filename: string, type: string}[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   
-  const { sendMessage, isThinking, isListening, startListening, apiConfig, uploadFile } = useNeuralStore();
+  const sendMessage = useNeuralStore((s) => s.sendMessage);
+  const isThinking = useNeuralStore((s) => s.isThinking);
+  const isListening = useNeuralStore((s) => s.isListening);
+  const startListening = useNeuralStore((s) => s.startListening);
+  const apiConfig = useNeuralStore((s) => s.apiConfig);
+  const uploadFile = useNeuralStore((s) => s.uploadFile);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 

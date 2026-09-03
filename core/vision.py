@@ -202,23 +202,25 @@ class VisionEngine:
             if img is None:
                 raise Exception("Unable to capture screen.")
 
-            # Perform pixel-level change detection check (unless forced)
-            if not force and not self._is_screen_changed(img):
-                if self._cached_description:
-                    logger.info("[Vision] Screen unchanged. Returning VLM cache HIT.")
-                    return self._cached_description, img
-                logger.info("[Vision] Screen unchanged. No cached description available.")
-                return "Screen unchanged", None
+            # Perform pixel-level change detection check in worker thread (unless forced)
+            if not force:
+                is_changed = await asyncio.to_thread(self._is_screen_changed, img)
+                if not is_changed:
+                    if self._cached_description:
+                        logger.info("[Vision] Screen unchanged. Returning VLM cache HIT.")
+                        return self._cached_description, img
+                    logger.info("[Vision] Screen unchanged. No cached description available.")
+                    return "Screen unchanged", None
             
             logger.info("[Vision] Screen changed. VLM cache MISS. Querying VLM provider.")
-            # Save the clean capture for visual preview/debugging
+            # Save the clean capture for visual preview/debugging asynchronously
             os.makedirs("data", exist_ok=True)
-            img.save("data/last_scan.png")
+            await asyncio.to_thread(img.save, "data/last_scan.png")
             
             # Draw interactive grid overlay if enabled (gives model precise coordinate targets)
             if config.get("VISION_GRID_OVERLAY", True):
-                img_with_grid = self.draw_coordinate_grid(img)
-                img_with_grid.save("data/last_scan_grid.png")
+                img_with_grid = await asyncio.to_thread(self.draw_coordinate_grid, img)
+                await asyncio.to_thread(img_with_grid.save, "data/last_scan_grid.png")
                 # Send grid-drawn image to VLM
                 description = await self._analyze(img_with_grid)
             else:
@@ -236,11 +238,13 @@ class VisionEngine:
                 img = await loop.run_in_executor(None, ImageGrab.grab)
                 if img:
                     # Perform pixel-level change check on fallback image too (unless forced)
-                    if not force and not self._is_screen_changed(img):
-                        if self._cached_description:
-                            return self._cached_description, img
-                        return "Screen unchanged", None
-                    img.save("data/last_scan.png")
+                    if not force:
+                        is_changed = await asyncio.to_thread(self._is_screen_changed, img)
+                        if not is_changed:
+                            if self._cached_description:
+                                return self._cached_description, img
+                            return "Screen unchanged", None
+                    await asyncio.to_thread(img.save, "data/last_scan.png")
                     description = await self._analyze(img)
                     self._cached_description = description
                     return description, img

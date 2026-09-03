@@ -418,6 +418,10 @@ class UnifiedMemoryManager:
             self.save()
             self._last_save = now
 
+    async def async_save(self):
+        """Asynchronously persist all memory to disk on a worker thread."""
+        await asyncio.to_thread(self.save)
+
     def save(self):
         """Persist all memory to disk."""
         import os

@@ -73,15 +73,23 @@ class VisionContextBuffer:
         if len(self.entries) > self.max_entries:
             self.entries.pop(0)
 
-        # Persist to SQLite
+        # Persist to SQLite non-blockingly
+        def _persist():
+            try:
+                with sqlite3.connect(DB_PATH) as conn:
+                    conn.execute(
+                        "INSERT INTO visual_logs (timestamp, process_name, window_title, description, was_interesting) VALUES (?, ?, ?, ?, ?)",
+                        (now_ts, process_name, window_title, description.strip(), 1 if was_interesting else 0)
+                    )
+            except Exception as e:
+                logger.error(f"[AmbientVision] Failed to log observation to DB: {e}")
+
         try:
-            with sqlite3.connect(DB_PATH) as conn:
-                conn.execute(
-                    "INSERT INTO visual_logs (timestamp, process_name, window_title, description, was_interesting) VALUES (?, ?, ?, ?, ?)",
-                    (now_ts, process_name, window_title, description.strip(), 1 if was_interesting else 0)
-                )
-        except Exception as e:
-            logger.error(f"[AmbientVision] Failed to log observation to DB: {e}")
+            import asyncio
+            loop = asyncio.get_running_loop()
+            loop.run_in_executor(None, _persist)
+        except RuntimeError:
+            _persist()
 
     def query_recent_visuals(self, query: str = "", time_window_seconds: int = 7200) -> List[Dict]:
         """Query persistent visual memory by keyword and time window."""
@@ -112,6 +120,11 @@ class VisionContextBuffer:
             logger.error(f"[AmbientVision] Query failed: {e}")
             
         return results
+
+    async def async_query_recent_visuals(self, query: str = "", time_window_seconds: int = 7200) -> List[Dict]:
+        """Asynchronously query persistent visual memory on a worker thread."""
+        import asyncio
+        return await asyncio.to_thread(self.query_recent_visuals, query, time_window_seconds)
 
     def get_latest(self) -> Optional[Dict]:
         if self.entries:

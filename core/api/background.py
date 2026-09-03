@@ -70,12 +70,12 @@ async def process_queue_messages():
         await asyncio.sleep(1)
 
 async def memory_autosave_loop():
-    """Autosave memory every 60 seconds."""
+    """Autosave memory every 60 seconds without blocking the event loop."""
     while True:
         await asyncio.sleep(60)
         try:
             if hub.memory:
-                hub.memory.save()
+                await asyncio.to_thread(hub.memory.save)
                 logger.info("[Memory] Auto-saved to file.")
         except AttributeError as e:
             logger.error(f"Memory save attribute error: {e}")
@@ -85,12 +85,12 @@ async def memory_autosave_loop():
             logger.error(f"Memory autosave JSON error: {e}")
 
 async def knowledge_ingestion_loop():
-    """Ingest new knowledge documents every 5 minutes."""
+    """Ingest new knowledge documents every 5 minutes without blocking the event loop."""
     while True:
         await asyncio.sleep(300)
         try:
             if hub.rag and hub.rag.is_available():
-                hub.rag.refresh_index()
+                await asyncio.to_thread(hub.rag.refresh_index)
                 logger.info("[RAG] Knowledge index refreshed.")
         except AttributeError as e:
             logger.error(f"RAG attribute error: {e}")
