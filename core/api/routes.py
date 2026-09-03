@@ -34,15 +34,22 @@ _REDACTED_KEY_PATTERNS = {
     "TELEGRAM_TOKEN", "TWITCH_TOKEN", "SPOTIFY_CLIENT_SECRET", "TTS_KEY",
     "STT_KEY", "IMAGE_GEN_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY",
     "MISTRAL_API_KEY", "GROQ_API_KEY", "OPENROUTER_API_KEY", "EMAIL_PASSWORD",
-    "SECRET_KEY", "AUTH_TOKEN", "ACCESS_TOKEN", "REFRESH_TOKEN",
+    "SECRET_KEY", "AIKO_SECRET_KEY", "AIKO_MASTER_SECRET", "JWT_SECRET",
+    "AUTH_TOKEN", "ACCESS_TOKEN", "REFRESH_TOKEN",
 }
+_SENSITIVE_SUBSTRINGS = ("SECRET", "TOKEN", "PASSWORD", "PASSWD", "CREDENTIAL", "PRIVATE")
 
 def _redact_secrets(data: dict) -> dict:
     """Recursively redact sensitive credentials in configuration payloads."""
     safe = {}
     for k, v in data.items():
         k_upper = str(k).upper()
-        if k_upper in _REDACTED_KEY_PATTERNS or k_upper.endswith(("_SECRET", "_TOKEN", "_PASSWORD", "_PASSWD", "_API_KEY")):
+        is_sensitive = (
+            k_upper in _REDACTED_KEY_PATTERNS
+            or any(sub in k_upper for sub in _SENSITIVE_SUBSTRINGS)
+            or k_upper.endswith(("_API_KEY", "_SECRET_KEY", "_PRIVATE_KEY", "_AUTH_KEY"))
+        )
+        if is_sensitive:
             safe[k] = f"{str(v)[:4]}...***" if v else ""
         elif isinstance(v, dict):
             safe[k] = _redact_secrets(v)
