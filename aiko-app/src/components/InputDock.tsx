@@ -20,6 +20,8 @@ export function InputDock() {
   const [pendingFiles, setPendingFiles] = useState<{url: string, filename: string, type: string}[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   
+  // Granular Zustand selectors ensure InputDock only re-renders when relevant state
+  // (such as isThinking or isListening) changes, ignoring streaming text and amplitude ticks
   const sendMessage = useNeuralStore((s) => s.sendMessage);
   const isThinking = useNeuralStore((s) => s.isThinking);
   const isListening = useNeuralStore((s) => s.isListening);

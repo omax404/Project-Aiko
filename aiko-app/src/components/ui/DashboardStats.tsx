@@ -22,6 +22,8 @@ export function DashboardStats({
   avatarScale, setAvatarScale, amplitude: propAmplitude, chemicals, isCompact
 }: DashboardStatsProps) {
   const apiConfig = useNeuralStore(state => state.apiConfig);
+  // High-frequency lip-sync amplitude is subscribed locally here rather than in App.tsx;
+  // this prevents the entire window (chat tree, sidebar, status bar) from re-evaluating at 60 FPS
   const storeAmplitude = useNeuralStore(state => state.amplitude);
   const amplitude = propAmplitude !== undefined ? propAmplitude : storeAmplitude;
   const width = isCompact ? 160 : 320;

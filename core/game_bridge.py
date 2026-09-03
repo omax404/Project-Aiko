@@ -1,9 +1,12 @@
 """
-Game Integration Bridge Architecture for Aiko Desktop
-──────────────────────────────────────────────────────────
-Provides an extensible plugin-based control interface for game integrations.
-Third-party games, server connectors, RCON clients, or bot frameworks implement
-the abstract `GameBridge` interface and register into the `GameManager` singleton.
+Game Integration Bridge for Aiko
+─────────────────────────────────────────────────────────────
+Provides an extensible abstract base class (GameBridge) and a 
+centralized manager (GameManager) for connecting Aiko to live 
+game servers (e.g., via RCON, WebSockets, or custom game APIs).
+
+Third-party integrations can register their bridges dynamically
+via `game_manager.register_game(CustomBridge())`.
 """
 import logging
 import asyncio
@@ -15,13 +18,7 @@ logger = logging.getLogger("GameBridge")
 
 
 class GameBridge(ABC):
-    """
-    Abstract base class for game integrations.
-
-    Subclasses must implement asynchronous methods for lifecycle management
-    (`connect`, `disconnect`), bidirectional command execution (`send_command`),
-    and state inspection (`get_state`).
-    """
+    """Abstract base class for game integrations."""
     
     def __init__(self, name: str):
         self.name = name

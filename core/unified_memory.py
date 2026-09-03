@@ -419,7 +419,11 @@ class UnifiedMemoryManager:
             self._last_save = now
 
     async def async_save(self):
-        """Asynchronously persist all memory to disk on a worker thread."""
+        """
+        Asynchronously persist all memory partitions to disk on a worker thread.
+        Prevents file locking, JSON serialization, and filesystem I/O from blocking
+        the asyncio event loop during background autosaves.
+        """
         await asyncio.to_thread(self.save)
 
     def save(self):

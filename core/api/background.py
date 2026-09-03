@@ -75,6 +75,8 @@ async def memory_autosave_loop():
         await asyncio.sleep(60)
         try:
             if hub.memory:
+                # Memory serialization performs file locking and disk I/O;
+                # offloading to a worker thread prevents blocking concurrent chat WebSockets
                 await asyncio.to_thread(hub.memory.save)
                 logger.info("[Memory] Auto-saved to file.")
         except AttributeError as e:
@@ -90,6 +92,8 @@ async def knowledge_ingestion_loop():
         await asyncio.sleep(300)
         try:
             if hub.rag and hub.rag.is_available():
+                # ChromaDB vector computation and index updates are heavy CPU/IO bound tasks;
+                # offload to worker thread to maintain smooth 60 FPS system responsiveness
                 await asyncio.to_thread(hub.rag.refresh_index)
                 logger.info("[RAG] Knowledge index refreshed.")
         except AttributeError as e:

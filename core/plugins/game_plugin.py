@@ -19,11 +19,8 @@ class GamePlugin(AikoPlugin):
         return True
 
     def get_tools(self) -> List[Dict[str, Any]]:
-        """
-        Dynamically return OpenAI/ElizaOS function definitions based on registered games.
-        If no games are currently registered in game_manager, returns an empty list
-        to prevent unnecessary LLM context token consumption.
-        """
+        # Expose game tools dynamically only when integrations are registered.
+        # If no game bridges are installed, returns [] to prevent token bloat in LLM context.
         available = game_manager.get_available_games()
         if not available:
             return []
@@ -59,13 +56,11 @@ class GamePlugin(AikoPlugin):
         ]
 
     async def execute_tool(self, tool_name: str, arguments: Dict[str, Any]) -> str:
-        """Execute a game tool call requested by the agent brain."""
         if tool_name == "connect_game":
             game = arguments.get("game", "").lower()
             success = await game_manager.connect_game(game)
             return f"Successfully connected to {game}" if success else f"Failed to connect to {game}"
             
-        # Support both current generic command and legacy game tool names
         if tool_name in ("game_command", "game", "minecraft_command", "factorio_command"):
             cmd = arguments.get("command", "")
             result = await game_manager.send_to_active(cmd)
@@ -74,7 +69,6 @@ class GamePlugin(AikoPlugin):
         return f"Unknown tool: {tool_name}"
 
     def get_context(self) -> Optional[str]:
-        """Inject active game connection state into system context."""
         if game_manager.active_game:
             return f"Currently connected to: {game_manager.active_game.capitalize()}"
         return None

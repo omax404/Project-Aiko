@@ -202,7 +202,7 @@ class VisionEngine:
             if img is None:
                 raise Exception("Unable to capture screen.")
 
-            # Perform pixel-level change detection check in worker thread (unless forced)
+            # Offload CPU-heavy pixel-level change detection to worker thread to prevent event-loop stutter
             if not force:
                 is_changed = await asyncio.to_thread(self._is_screen_changed, img)
                 if not is_changed:
@@ -213,15 +213,15 @@ class VisionEngine:
                     return "Screen unchanged", None
             
             logger.info("[Vision] Screen changed. VLM cache MISS. Querying VLM provider.")
-            # Save the clean capture for visual preview/debugging asynchronously
+            # Disk I/O & PNG compression are offloaded to avoid 50-150ms event-loop freezes
             os.makedirs("data", exist_ok=True)
             await asyncio.to_thread(img.save, "data/last_scan.png")
             
-            # Draw interactive grid overlay if enabled (gives model precise coordinate targets)
+            # Draw interactive coordinate grid overlay asynchronously if configured
             if config.get("VISION_GRID_OVERLAY", True):
                 img_with_grid = await asyncio.to_thread(self.draw_coordinate_grid, img)
                 await asyncio.to_thread(img_with_grid.save, "data/last_scan_grid.png")
-                # Send grid-drawn image to VLM
+                # Send grid-drawn image to VLM provider
                 description = await self._analyze(img_with_grid)
             else:
                 description = await self._analyze(img)
@@ -232,12 +232,12 @@ class VisionEngine:
             
         except Exception as scan_err:
             logger.error(f"Scan Error: {scan_err}")
-            # Final fallback to PIL ImageGrab if everything fails
+            # Graceful fallback: attempt standard PIL ImageGrab if DXCAM/GPU grab fails
             try:
                 from PIL import ImageGrab
                 img = await loop.run_in_executor(None, ImageGrab.grab)
                 if img:
-                    # Perform pixel-level change check on fallback image too (unless forced)
+                    # Check fallback image change detection in thread pool as well
                     if not force:
                         is_changed = await asyncio.to_thread(self._is_screen_changed, img)
                         if not is_changed:
@@ -250,6 +250,7 @@ class VisionEngine:
                     return description, img
             except Exception as grab_err:
                 logger.error(f"ImageGrab fallback failed: {grab_err}")
+            # Retain scan_err explicitly to avoid Python 3 except-scope unbinding (UnboundLocalError)
             return f"My visual sensors are a bit blurry, Master... {scan_err}", None
 
 

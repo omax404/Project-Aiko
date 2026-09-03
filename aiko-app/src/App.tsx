@@ -34,6 +34,9 @@ function extractHtmlCode(text: string): string | null {
 
 /* ── Main App ────────────────────────────────────────────── */
 function App() {
+  // Note: `amplitude` is intentionally excluded from this top-level store hook.
+  // Consuming 30-60Hz audio amplitude here would trigger full viewport re-renders.
+  // Instead, it is scoped exclusively inside DashboardStats.tsx for the avatar canvas.
   const {
     messages, streamingContent, connect, activeSessionId, sessions,
     isThinking, triggerPurge, loadSessions, fetchBridgeStatus, fetchSettings,

@@ -73,7 +73,8 @@ class VisionContextBuffer:
         if len(self.entries) > self.max_entries:
             self.entries.pop(0)
 
-        # Persist to SQLite non-blockingly
+        # Persist observation to SQLite non-blockingly:
+        # Avoids holding SQLite table locks or blocking the main asyncio event loop on disk fsync
         def _persist():
             try:
                 with sqlite3.connect(DB_PATH) as conn:
@@ -86,9 +87,11 @@ class VisionContextBuffer:
 
         try:
             import asyncio
+            # Schedule DB write on default thread executor if loop is running
             loop = asyncio.get_running_loop()
             loop.run_in_executor(None, _persist)
         except RuntimeError:
+            # Fallback for direct synchronous callers when no loop is active
             _persist()
 
     def query_recent_visuals(self, query: str = "", time_window_seconds: int = 7200) -> List[Dict]:

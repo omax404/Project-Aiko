@@ -47,6 +47,8 @@ function sanitizeMarkdownContent(text: string): string {
   return cleaned.trim();
 }
 
+// Memoized to prevent re-render cascades across 50+ message bubbles when
+// high-frequency store updates occur (e.g. 60Hz TTS speech amplitude updates).
 export const ChatBubble = memo(function ChatBubble({ 
   id, 
   content, 
@@ -56,6 +58,8 @@ export const ChatBubble = memo(function ChatBubble({
   attachments,
   emotion: _emotion = "neutral"
 }: ChatBubbleProps) {
+  // Use granular atomic selectors for stable store actions.
+  // Destructuring `useNeuralStore()` directly causes every bubble to re-render on any store mutation.
   const deleteMessage = useNeuralStore((s) => s.deleteMessage);
   const retryMessage = useNeuralStore((s) => s.retryMessage);
   const branchChat = useNeuralStore((s) => s.branchChat);
