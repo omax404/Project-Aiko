@@ -405,12 +405,17 @@ async def handle_ws(req):
                         await broadcast_event("state", {"listening": False, "error": "Audio device unavailable"})
                 
                 elif m_type == "tool_response":
-                    req_id = data.get("request_id")
-                    approved = data.get("approved", False)
-                    if req_id in pending_tool_requests:
-                        fut = pending_tool_requests[req_id]
-                        if not fut.done():
-                            fut.set_result(approved)
+                    try:
+                        from core.api.schemas import ToolResponsePayload
+                        val = ToolResponsePayload(**data)
+                        req_id = val.request_id
+                        approved = val.approved
+                        if req_id in pending_tool_requests:
+                            fut = pending_tool_requests[req_id]
+                            if not fut.done():
+                                fut.set_result(approved)
+                    except Exception as val_err:
+                        logger.warning(f"Malformed tool_response payload: {val_err}")
                 
                 elif m_type == "vts_sync":
                     pass

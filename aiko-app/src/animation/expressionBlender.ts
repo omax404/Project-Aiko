@@ -19,18 +19,20 @@ export interface ExpressionPreset {
   eyeSmile?: number;      // 0.0 to 1.0
 }
 
+export const DEFAULT_EXPRESSION_PRESET: ExpressionPreset = {
+  name: 'neutral',
+  eyeOpenness: 0.95,
+  browTension: 0.0,
+  mouthCurve: 0.1,
+  mouthOpen: 0.0,
+  blush: 0.0,
+  headTiltX: 0.0,
+  headTiltY: 0.0,
+  headTiltZ: 0.0,
+};
+
 export const EXPRESSION_PRESETS: Record<string, ExpressionPreset> = {
-  neutral: {
-    name: 'neutral',
-    eyeOpenness: 0.95,
-    browTension: 0.0,
-    mouthCurve: 0.1,
-    mouthOpen: 0.0,
-    blush: 0.0,
-    headTiltX: 0.0,
-    headTiltY: 0.0,
-    headTiltZ: 0.0,
-  },
+  neutral: DEFAULT_EXPRESSION_PRESET,
 
   happy: {
     name: 'happy',
@@ -123,15 +125,15 @@ export const EXPRESSION_PRESETS: Record<string, ExpressionPreset> = {
 };
 
 export class ExpressionBlender {
-  private currentPreset: ExpressionPreset = EXPRESSION_PRESETS.neutral;
-  private targetPreset: ExpressionPreset = EXPRESSION_PRESETS.neutral;
+  private currentPreset: ExpressionPreset = DEFAULT_EXPRESSION_PRESET;
+  private targetPreset: ExpressionPreset = DEFAULT_EXPRESSION_PRESET;
   
   private blendProgress: number = 1.0;
   private blendDuration: number = 0.4; // 400ms cross-fade transition
   private intensity: number = 1.0;
 
   public setExpression(name: string, intensity: number = 1.0, durationMs: number = 400): void {
-    const preset = EXPRESSION_PRESETS[name.toLowerCase()] || EXPRESSION_PRESETS.neutral;
+    const preset = EXPRESSION_PRESETS[name.toLowerCase()] ?? DEFAULT_EXPRESSION_PRESET;
     if (this.targetPreset.name === preset.name && this.intensity === intensity) return;
 
     this.currentPreset = this.getBlendedPreset();

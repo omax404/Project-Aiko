@@ -59,7 +59,7 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
     loaded,
     isTalking,
     mouthAmplitude: amplitude,
-    spokenText: isThinking ? '' : (streamingContent || (messages.length > 0 ? messages[messages.length - 1].content : ''))
+    spokenText: isThinking ? '' : (streamingContent || messages[messages.length - 1]?.content || '')
   });
 
   const lastParsedTextRef = useRef('');
@@ -67,7 +67,7 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
   useEffect(() => {
     const latestText = isThinking 
       ? '' 
-      : (streamingContent || (messages.length > 0 ? messages[messages.length - 1].content : ''));
+      : (streamingContent || messages[messages.length - 1]?.content || '');
       
     if (!latestText || latestText === lastParsedTextRef.current) return;
     

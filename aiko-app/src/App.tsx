@@ -29,7 +29,7 @@ import beamsVideo from './assets/beams-bg.webm';
 
 function extractHtmlCode(text: string): string | null {
   const match = text.match(/```html([\s\S]*?)(?:```|$)/i);
-  return match ? match[1].trim() : null;
+  return match?.[1] ? match[1].trim() : null;
 }
 
 /* ── Main App ────────────────────────────────────────────── */
@@ -152,7 +152,7 @@ function App() {
   useEffect(() => {
     if (messages.length > lastMessageCount.current) {
       const lastMsg = messages[messages.length - 1];
-      if (lastMsg.role === 'assistant') {
+      if (lastMsg && lastMsg.role === 'assistant') {
         const text = lastMsg.content?.substring(0, 100) || 'Aiko responded';
         announce(`Aiko: ${text}`, 'polite');
       }

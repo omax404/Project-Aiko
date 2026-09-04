@@ -1,6 +1,6 @@
 """core/api/schemas.py
 Pydantic models for all API request/response validation.
-Zero breaking changes — these validate inputs but don't change the data structure.
+Zero breaking changes — these validate inputs and enforce strict contracts.
 """
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional, List, Dict, Any
@@ -13,9 +13,11 @@ class MessageRole(str, Enum):
 
 class ChatRequest(BaseModel):
     """Validate /api/chat requests."""
-    message: str = Field(..., min_length=1, max_length=10000, description="User message text")
+    message: str = Field(..., min_length=1, max_length=50000, description="User message text")
     user_id: str = Field(default="user", min_length=1, max_length=256, description="User identifier")
+    session_id: Optional[str] = Field(default=None, max_length=256, description="Target session ID")
     attachments: List[str] = Field(default=[], description="List of attachment URLs")
+    image_data: Optional[str] = Field(default=None, description="Optional base64 image data")
     
     @field_validator('message')
     @classmethod
@@ -33,11 +35,13 @@ class SettingsUpdate(BaseModel):
     persona: Optional[Dict[str, Any]] = None
     plugins: Optional[Dict[str, Any]] = None
     vision: Optional[Dict[str, Any]] = None
+    theme: Optional[str] = None
+    temperature: Optional[float] = Field(None, ge=0.0, le=2.0)
 
 class SessionRename(BaseModel):
     """Validate /api/sessions/rename requests."""
     id: str = Field(..., min_length=1, max_length=256, description="Session ID")
-    name: str = Field(..., min_length=1, max_length=128, description="New session name")
+    name: str = Field(..., min_length=1, max_length=200, description="New session name")
 
 class SessionPin(BaseModel):
     """Validate /api/sessions/pin requests."""
@@ -70,7 +74,6 @@ class LatexRenderRequest(BaseModel):
             raise ValueError("LaTeX snippet cannot be empty")
         return v.strip()
 
-
 class HealthResponse(BaseModel):
     """Response model for /health."""
     status: str
@@ -88,8 +91,8 @@ class StatusResponse(BaseModel):
 
 class WSChatMessage(BaseModel):
     """Validate WebSocket chat messages."""
-    type: str = Field(..., pattern="^(chat|speak|branch|ping|system|listen|vts_sync)$")
-    text: Optional[str] = Field(default=None, max_length=10000)
+    type: str = Field(..., pattern="^(chat|speak|branch|ping|system|listen|vts_sync|tool_response)$")
+    text: Optional[str] = Field(default=None, max_length=50000)
     user_id: Optional[str] = Field(default=None, max_length=256)
     session_id: Optional[str] = Field(default=None, max_length=256)
     attachments: Optional[List[str]] = Field(default=[])
@@ -98,12 +101,13 @@ class WSChatMessage(BaseModel):
     action: Optional[str] = Field(default=None)
     state: Optional[bool] = None
     interval: Optional[int] = Field(default=None, ge=10, le=3600)
+    request_id: Optional[str] = Field(default=None, max_length=256)
+    approved: Optional[bool] = None
 
 class SessionCreate(BaseModel):
     """Validate /api/sessions/create requests."""
-    id: str = Field(..., min_length=1, max_length=256, description="Session ID")
-    title: str = Field(default="New Conversation", min_length=1, max_length=128, description="Session title")
-
+    id: Optional[str] = Field(default=None, max_length=256, description="Session ID")
+    title: str = Field(default="New Conversation", min_length=1, max_length=200, description="Session title")
 
 class StateSyncEnvelope(BaseModel):
     """Validate structured state synchronization event messages."""
@@ -112,3 +116,7 @@ class StateSyncEnvelope(BaseModel):
     type: str = Field(..., description="Sync event type (e.g. biological_sync)")
     payload: Dict[str, Any] = Field(..., description="Structured sync payload")
 
+class ToolResponsePayload(BaseModel):
+    """Validate tool confirmation approval responses."""
+    request_id: str = Field(..., min_length=1, max_length=256)
+    approved: bool = Field(...)

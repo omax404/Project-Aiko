@@ -357,8 +357,11 @@ async function connectSocket() {
                 analyser.getByteTimeDomainData(dataArray);
                 let sum = 0;
                 for (let i = 0; i < dataArray.length; i++) {
-                  const val = (dataArray[i] - 128) / 128;
-                  sum += val * val;
+                  const byte = dataArray[i];
+                  if (byte !== undefined) {
+                    const val = (byte - 128) / 128;
+                    sum += val * val;
+                  }
                 }
                 const rms = Math.sqrt(sum / dataArray.length);
                 const amp = Math.min(1.0, rms * 15.0); // Boost for better visuals
