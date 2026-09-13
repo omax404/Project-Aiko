@@ -38,11 +38,19 @@ export function InputDock() {
     }
   }, [text]);
 
+  const isSendingRef = useRef(false);
+
   const handleSend = () => {
-    if ((!text.trim() && pendingFiles.length === 0) || isThinking) return;
-    sendMessage(text.trim(), pendingFiles.map(f => f.url));
+    if ((!text.trim() && pendingFiles.length === 0) || isThinking || isSendingRef.current) return;
+    isSendingRef.current = true;
+    const sendContent = text.trim();
+    const sendFiles = pendingFiles.map(f => f.url);
     setText("");
     setPendingFiles([]);
+    sendMessage(sendContent, sendFiles);
+    setTimeout(() => {
+      isSendingRef.current = false;
+    }, 400);
   };
 
   const handleAttach = () => {
@@ -207,10 +215,6 @@ export function InputDock() {
               onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSend();
-                }
-                if (e.key === 'Enter' && e.ctrlKey) {
                   e.preventDefault();
                   handleSend();
                 }

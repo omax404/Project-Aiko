@@ -612,6 +612,7 @@ export const useNeuralStore = create<NeuralState>()(
       },
 
       sendMessage: (content, attachments) => {
+        if (get().isThinking) return;
         const timestamp = new Date().toISOString();
         const userMsg: Message = { role: 'user', content, timestamp, attachments };
         const cleanedText = content.replace(/<emotion>.*?<\/emotion>/gi, '').trim();

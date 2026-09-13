@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { emit } from '@tauri-apps/api/event';
 import { Sidebar } from './components/Sidebar';
 import { OnboardingWizard } from './components/OnboardingWizard';
@@ -24,8 +24,6 @@ import { DashboardStats } from './components/ui/DashboardStats';
 import { WelcomeScreen } from './components/ui/WelcomeScreen';
 import { NeuralNode } from './components/ui/NeuralNode';
 import { ThinkingDots } from './components/ui/ThinkingDots';
-import { AmbientParticlesCanvas } from './components/ui/AmbientParticlesCanvas';
-import beamsVideo from './assets/beams-bg.webm';
 
 function extractHtmlCode(text: string): string | null {
   const match = text.match(/```html([\s\S]*?)(?:```|$)/i);
@@ -179,19 +177,6 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isSettingsOpen, isProjectOpen, isPurgeConfirmOpen, toggleSidebar]);
 
-  // Cursor-Follow Glow for Chat Panel
-  const chatMouseX = useMotionValue(0);
-  const chatMouseY = useMotionValue(0);
-  const chatSpringConfig = { stiffness: 120, damping: 20 };
-  const chatGlowX = useSpring(chatMouseX, chatSpringConfig);
-  const chatGlowY = useSpring(chatMouseY, chatSpringConfig);
-
-  const handleChatMouseMove = (e: React.MouseEvent<HTMLElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    chatMouseX.set(e.clientX - rect.left);
-    chatMouseY.set(e.clientY - rect.top);
-  };
-
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const uploadFile = useNeuralStore((s) => s.uploadFile);
   const sendMessage = useNeuralStore((s) => s.sendMessage);
@@ -328,32 +313,12 @@ function App() {
               id="main-content"
               tabIndex={-1}
               aria-label="Chat conversation"
-              onMouseMove={handleChatMouseMove}
               style={{
                 flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative',
                 background: 'var(--bg-base)'
               }}
               className="group/chat"
             >
-              {/* Beams Animated WebM Background */}
-              <video
-                autoPlay
-                loop
-                muted
-                playsInline
-                className="absolute inset-0 w-full h-full object-cover pointer-events-none opacity-50 z-0"
-                src={beamsVideo}
-              />
-              <div className="absolute inset-0 bg-black/20 pointer-events-none z-0" />
-              <AmbientParticlesCanvas />
-              <motion.div
-                className="absolute pointer-events-none rounded-full w-60 h-60 bg-[var(--acc-soft)] blur-3xl opacity-0 group-hover/chat:opacity-10 transition-opacity z-0"
-                style={{
-                  x: useTransform(chatGlowX, (v: number) => v - 120),
-                  y: useTransform(chatGlowY, (v: number) => v - 120),
-                }}
-              />
-
               {/* Messages */}
               <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar" style={{ padding: '24px 24px 0' }}>
                 <div style={{ maxWidth: 680, margin: '0 auto', display: 'flex', flexDirection: 'column', paddingBottom: 160 }}>

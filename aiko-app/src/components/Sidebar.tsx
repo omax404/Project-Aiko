@@ -4,7 +4,9 @@ import {
   Search,
   MoreVertical,
   Pin,
-  Edit2
+  Edit2,
+  Settings,
+  MessageCircle
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { clsx } from 'clsx';
@@ -274,17 +276,21 @@ export function Sidebar({ onOpenSettings }: { onOpenSettings: () => void }) {
       <div className="flex flex-col gap-1 pt-4 border-t border-[var(--b1)]">
         <button 
           onClick={onOpenSettings}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--t2)] hover:text-white hover:bg-[var(--bg-hover)] transition-all group"
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--t2)] hover:text-white hover:bg-[var(--bg-hover)] transition-all group cursor-pointer"
         >
-          <GothicButton icon="settings" size="sm" className="pointer-events-none group-hover:ring-1 group-hover:ring-[var(--acc)]" />
+          <div className="w-8 h-8 rounded-full border border-[#B8A1D9]/30 bg-[#3B2249]/60 flex items-center justify-center text-[#F3EAF9] group-hover:border-[var(--acc)] group-hover:ring-1 group-hover:ring-[var(--acc)] transition-all shrink-0">
+            <Settings size={14} />
+          </div>
           <span className="text-[11px] font-medium">Neural Config</span>
         </button>
 
         <button 
           onClick={() => window.open('https://discord.com', '_blank')}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--t2)] hover:text-white hover:bg-[var(--bg-hover)] transition-all group"
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--t2)] hover:text-white hover:bg-[var(--bg-hover)] transition-all group cursor-pointer"
         >
-          <GothicButton icon="discord" size="sm" className="pointer-events-none group-hover:ring-1 group-hover:ring-[var(--acc)]" />
+          <div className="w-8 h-8 rounded-full border border-[#B8A1D9]/30 bg-[#3B2249]/60 flex items-center justify-center text-[#F3EAF9] group-hover:border-[var(--acc)] group-hover:ring-1 group-hover:ring-[var(--acc)] transition-all shrink-0">
+            <MessageCircle size={14} />
+          </div>
           <span className="text-[11px] font-medium">Discord Community</span>
         </button>
       </div>

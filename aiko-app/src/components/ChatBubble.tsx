@@ -31,19 +31,43 @@ interface ChatBubbleProps {
 function sanitizeMarkdownContent(text: string): string {
   if (!text) return '';
   let cleaned = text.replace(/<emotion>.*?<\/emotion>/gi, '');
-  // 1. Convert [STICKER:xxx] tags to markdown images
-  cleaned = cleaned.replace(/\[STICKER\s*:\s*([^\]]+)\]/gi, (_, name) => {
-    const cleanName = name.trim().endsWith('.png') ? name.trim() : `${name.trim()}.png`;
-    return `![sticker](/stickers/${cleanName})`;
+
+  // 1. Convert [STICKER:xxx] or [mood:xxx] or [gesture:xxx] tags to markdown images
+  cleaned = cleaned.replace(/\[(STICKER|mood|gesture)\s*:\s*([^\]]+)\]/gi, (_, _type, name) => {
+    const cleanName = name.trim().replace(/\s+/g, '_');
+    const withExt = cleanName.endsWith('.png') ? cleanName : `${cleanName}.png`;
+    return `![sticker](/stickers/${withExt})`;
   });
-  // 2. Fix missing leading slash in ![alt](stickers/...)
+
+  // 2. Fix missing exclamation mark in sticker links: [mood](/stickers/...) -> ![mood](/stickers/...)
+  cleaned = cleaned.replace(/(?<!\!)\[(.*?)\]\s*\((\/?stickers\/.*?)\)/gi, '![$1]($2)');
+
+  // 3. Fix whitespace/newlines between ![alt] and (url): ![mood] \n (/stickers/...) -> ![mood](/stickers/...)
+  cleaned = cleaned.replace(/!\[(.*?)\]\s+\((.*?)\)/g, '![$1]($2)');
+
+  // 4. Fix any spaces inside sticker URLs and normalize paths (e.g. "/stickers/05_Crying_Comical. png" -> "/stickers/05_Crying_Comical.png")
+  cleaned = cleaned.replace(/!\[(.*?)\]\((\/?stickers\/[^\)]+)\)/gi, (_, alt, path) => {
+    let cleanPath = path.trim();
+    if (!cleanPath.startsWith('/')) cleanPath = '/' + cleanPath;
+    cleanPath = cleanPath.replace(/\s+/g, '');
+    if (!/\.(png|jpg|jpeg|gif|webp)$/i.test(cleanPath)) {
+      cleanPath += '.png';
+    }
+    return `![${alt || 'sticker'}](${cleanPath})`;
+  });
+
+  // 5. Fix missing leading slash in ![alt](stickers/...)
   cleaned = cleaned.replace(/!\[(.*?)\]\(stickers\/(.*?)\)/gi, '![$1](/stickers/$2)');
-  // 3. Fix [STICKER:xxx] inside image alt text
+
+  // 6. Fix [STICKER:xxx] inside image alt text
   cleaned = cleaned.replace(/!\[\[STICKER\s*:\s*([^\]]+)\]\]\((.*?)\)/gi, '![$1]($2)');
-  // 4. Strip stray markdown escapes that break rendering
+
+  // 7. Strip stray markdown escapes that break rendering
   cleaned = cleaned.replace(/\\([*_`~[\]()])/g, '$1');
-  // 5. Fix malformed image extensions like ".png" with a space before the dot
-  cleaned = cleaned.replace(/!\[(.*?)\]\((.*?)\s+\.(png|jpg|jpeg|gif|webp)\)/gi, '![$1]($2.$3)');
+
+  // 8. Fix malformed image extensions like ".png" with spaces before or after dot in any markdown image
+  cleaned = cleaned.replace(/!\[(.*?)\]\((.*?)\s*\.\s*(png|jpg|jpeg|gif|webp)\)/gi, '![$1]($2.$3)');
+
   return cleaned.trim();
 }
 

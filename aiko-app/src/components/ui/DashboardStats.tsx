@@ -1,6 +1,5 @@
 import { Window, getCurrentWindow } from '@tauri-apps/api/window';
-import { ExternalLink } from 'lucide-react';
-import { GothicButton } from '../GothicButton';
+import { ExternalLink, Heart } from 'lucide-react';
 import { Live2DAvatar } from '../Live2DAvatar';
 import { NeuralControlPanel } from '../NeuralControlPanel';
 import { useNeuralStore } from '../../store/useNeuralStore';
@@ -80,7 +79,9 @@ export function DashboardStats({
             className="bg-[var(--acc-soft)] border border-[var(--acc)] rounded-lg p-2 px-3 flex items-center justify-between hover:bg-[var(--acc)] hover:text-black transition-all group w-full text-left cursor-pointer"
           >
             <div className="flex items-center gap-2">
-              <GothicButton icon="rose" size="sm" className="pointer-events-none group-hover:ring-1 group-hover:ring-black" />
+              <div className="w-7 h-7 rounded-full border border-[var(--acc)]/40 bg-[#3B2249]/60 flex items-center justify-center text-[var(--acc)] group-hover:text-black group-hover:border-black transition-colors shrink-0">
+                <Heart size={13} className="fill-current" />
+              </div>
               <span className="text-[12px] uppercase font-bold tracking-widest text-[var(--acc)] group-hover:text-black">Mascot Mode</span>
             </div>
             <ExternalLink size={14} className="text-[var(--acc)] group-hover:text-black" />
