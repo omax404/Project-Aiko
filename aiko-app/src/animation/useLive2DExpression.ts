@@ -13,6 +13,7 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { mapEmotionToTargets, NeuromodulatorState } from './emotionMapper';
+import { resolveEmotionProfile } from './emotionProfile';
 import { IdleLayer } from './idleLayer';
 import { ExpressionBlender } from './expressionBlender';
 import { GestureController } from './gestureController';
@@ -36,18 +37,6 @@ const DEFAULT_CHEMISTRY: NeuromodulatorState = {
   oxytocin: 0.3,
   melatonin: 0.1,
 };
-
-function emotionPreset(emotion: string): string | null {
-  const normalized = emotion.trim().toLowerCase().replace(/[ _-]+/g, ' ');
-  if (!normalized || normalized === 'neutral' || normalized === 'calm') return null;
-  if (/happy|joy|excited|playful|curious|interested|amused/.test(normalized)) return 'happy';
-  if (/shy|embarrass|romantic|affection|flirt/.test(normalized)) return 'shy';
-  if (/sad|lonely|disappoint|grief/.test(normalized)) return 'sad';
-  if (/angry|frustrat|annoy|sarcastic|pout/.test(normalized)) return 'pouty';
-  if (/anxious|worried|scared|afraid|surpris|shock/.test(normalized)) return 'surprised';
-  if (/sleep|tired|bored/.test(normalized)) return 'sleepy';
-  return null;
-}
 
 export function useLive2DExpression(
   modelRef: React.RefObject<any>,
@@ -97,15 +86,15 @@ export function useLive2DExpression(
   // Use Aiko's semantic mood first; let chemistry gently shape a neutral state.
   useEffect(() => {
     const chemistry = emotionState || DEFAULT_CHEMISTRY;
-    const explicitMood = emotionPreset(emotion);
+    const explicitMood = resolveEmotionProfile(emotion).expression;
     const dopamine = chemistry.dopamine ?? 0.5;
     const serotonin = chemistry.serotonin ?? 0.5;
     const cortisol = chemistry.cortisol ?? 0.2;
     const adrenaline = chemistry.adrenaline ?? 0.1;
     const oxytocin = chemistry.oxytocin ?? 0.3;
     const preset = isThinking
-      ? 'sleepy'
-      : explicitMood || (
+      ? 'neutral'
+      : explicitMood !== 'neutral' ? explicitMood : (
         oxytocin > 0.75 ? 'shy'
           : adrenaline > 0.72 ? 'surprised'
             : dopamine > 0.76 ? 'happy'

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNeuralStore } from '../store/useNeuralStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useLive2DExpression } from '../animation/useLive2DExpression';
+import { resolveEmotionProfile } from '../animation/emotionProfile';
 
 interface Live2DAvatarProps {
   modelUrl: string;
@@ -49,11 +50,13 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
   const {
     chemicals: storeChemicals,
     streamingContent,
-    messages
+    messages,
+    isThinking: storeIsThinking,
   } = useNeuralStore(useShallow((state) => ({
     chemicals: state.chemicals,
     streamingContent: state.streamingContent,
-    messages: state.messages
+    messages: state.messages,
+    isThinking: state.isThinking,
   })));
   const currentChemicals = chemicals || storeChemicals;
 
@@ -79,77 +82,34 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
     requestMotion(modelRef.current, 'greet');
   };
 
-  const lastParsedTextRef = useRef('');
+  const wasThinkingRef = useRef(false);
+  const lastReactedReplyRef = useRef<string | null>(null);
+  const assistantAtRequestStartRef = useRef<string | null>(null);
 
+  // React once when a reply finishes. The backend's semantic emotion drives
+  // both the sustained expression (above) and this short, cooldown-limited gesture.
+  // Avoid lexical guesses from punctuation or arbitrary words in the reply text.
   useEffect(() => {
-    const latestText = isThinking 
-      ? '' 
-      : (streamingContent || messages[messages.length - 1]?.content || '');
-      
-    if (!latestText || latestText === lastParsedTextRef.current) return;
-    
-    // Scan for new [gesture:xxx] or [mood:xxx] tags
-    const tagRegex = /\[(gesture|mood):([a-zA-Z0-9_\-]+)\]/g;
-    let match;
-    const model = modelRef.current;
-    if (!model) return;
-    
-    const newContent = latestText.slice(lastParsedTextRef.current.length);
-    lastParsedTextRef.current = latestText;
-    
-    while ((match = tagRegex.exec(newContent)) !== null) {
-      const type = match[1];
-      const name = match[2];
-      if (!type || !name) continue;
-      
-      console.log(`[Live2D Autonomy] Parsed action tag: [${type}:${name}]`);
-      try {
-        if (type === 'gesture') {
-          if (name === 'wave' || name === 'nod' || name === 'point' || name === 'bow') {
-            playGesture(name === 'wave' ? 'greet' : 'nod');
-            requestMotion(model, 'greet');
-          } else {
-            playGesture(name);
-          }
-        } else if (type === 'mood') {
-          if (name === 'excited' || name === 'happy') {
-            triggerExpression('happy', 0.82, 700);
-          } else if (name === 'sad' || name === 'crying') {
-            triggerExpression('sad', 0.78, 700);
-          } else if (name === 'shy' || name === 'embarrassed') {
-            triggerExpression('shy', 0.82, 700);
-          } else {
-            triggerExpression(name, 0.78, 700);
-          }
-        }
-      } catch (err) {
-        console.warn(`[Live2D Autonomy] Failed to play tag [${type}:${name}]:`, err);
-      }
-    }
+    const wasThinking = wasThinkingRef.current;
+    wasThinkingRef.current = !!storeIsThinking;
+    const latestAssistant = [...messages].reverse().find((message) => message.role === 'assistant');
+    const latestAssistantKey = latestAssistant?.id || latestAssistant?.timestamp || null;
 
-    // === AIKO WILL: Semantic Gesture & Sentiment Mapping ===
-    const lowerText = newContent.toLowerCase();
-    
-    // Question triggers -> Curious head tilt / happy expression
-    if (lowerText.includes('?') || /\b(why|how|what|who|where|curious|wonder)\b/.test(lowerText)) {
-      triggerExpression('happy', 0.85);
-      playGesture('greet');
+    if (storeIsThinking) {
+      assistantAtRequestStartRef.current = latestAssistantKey;
+      return;
     }
-    // Surprise / Excitement triggers -> Perk up
-    else if (lowerText.includes('!') || /\b(wow|amazing|awesome|cool|oh|surprised|gasp)\b/.test(lowerText)) {
-      triggerExpression('surprised', 0.9);
-      playGesture('surprisedJolt');
-    }
-    // Agreement triggers -> Nod agree
-    else if (/\b(yes|yeah|agree|nod|indeed|exactly|correct|sure|alright)\b/.test(lowerText)) {
-      playGesture('nod');
-    }
-    // Affection triggers -> Shy hand to face
-    else if (/\b(love|cute|blush|hug|heart|shy|embarrassed|hehe|hihi)\b/.test(lowerText)) {
-      triggerExpression('shy', 0.9);
-      playGesture('handToFace');
-    }
-  }, [streamingContent, messages, isThinking, loaded, playGesture, triggerExpression]);
+    if (!wasThinking || storeIsThinking) return;
+
+    if (!latestAssistant) return;
+    const responseKey = latestAssistantKey;
+    if (!responseKey || lastReactedReplyRef.current === responseKey) return;
+    if (responseKey === assistantAtRequestStartRef.current) return;
+    lastReactedReplyRef.current = responseKey;
+
+    const profile = resolveEmotionProfile(latestAssistant.emotion || emotion);
+    if (profile.gesture) playGesture(profile.gesture);
+  }, [storeIsThinking, messages, emotion, playGesture]);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -330,7 +290,8 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
       if (isThinking) {
         requestMotion(model, 'thinking');
       } else {
-        const exprName = EMOTION_MAP[emotion] || 'idle';
+        const normalizedEmotion = emotion.toLowerCase().replace(/[_-]+/g, ' ');
+        const exprName = EMOTION_MAP[normalizedEmotion] || EMOTION_MAP[resolveEmotionProfile(emotion).expression] || 'idle';
         if (exprName === 'idle') {
           requestMotion(model, 'idle');
         } else {
