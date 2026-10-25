@@ -215,6 +215,9 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
         model.position.set(width / 2 + offsetX, height / 2 + offsetY);
 
         app.stage.addChild(model);
+        // The renderer starts before the asynchronous model load finishes. Paint
+        // once after insertion so the first visible frame does not stay blank.
+        app.renderer.render(app.stage);
 
         // Parameter updates and animation binding are handled in requestAnimationFrame via the hook!
         // The autonomous expression loop runs inside useLive2DExpression hook at 60fps!
@@ -276,9 +279,8 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
 
     model.scale.set(finalScale);
     
-    // Adjust vertical position based on scale and custom alignment offsets
-    const vOffset = height * (0.1 + (externalScale - 1) * 0.15);
-    model.position.set(width / 2 + offsetX, height / 2 + vOffset + offsetY);
+    // Keep the model centered in the visible companion viewport as it resizes.
+    model.position.set(width / 2 + offsetX, height / 2 + offsetY);
   }, [externalScale, loaded, width, height, offsetX, offsetY]);
 
   // Map emotions → Vivian's actual .exp3.json filenames

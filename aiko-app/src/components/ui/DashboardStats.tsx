@@ -43,12 +43,10 @@ export function DashboardStats({
           isTalking={isTalking}
           emotion={currentEmotion}
           width={width}
-          height={isCompact ? 300 : 560}
+          height={isCompact ? 300 : 480}
           scale={isCompact ? avatarScale * 0.65 : Math.min(avatarScale, 1.15)}
           amplitude={amplitude}
           chemicals={chemicals}
-          offsetX={35}
-          offsetY={50}
           interactive
         />
 
