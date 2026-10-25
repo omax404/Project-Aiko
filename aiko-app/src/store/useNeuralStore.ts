@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { resolveReplyEmotion } from '../animation/emotionProfile';
 
 export interface Message {
   role: 'user' | 'assistant' | 'system';
@@ -398,7 +399,7 @@ async function connectSocket() {
             const finalContent = isProactive
               ? (data.text || data.content || '').trim()
               : (store2.streamingContent.trim() || data.text || data.content || '');
-            const emotion = data.emotion || 'neutral';
+            const emotion = resolveReplyEmotion(finalContent, data.emotion);
             if (!finalContent) {
               // Clear streaming state even if content is empty
               useNeuralStore.setState({ streamingContent: '', streamingId: null, isThinking: false });
@@ -671,7 +672,7 @@ export const useNeuralStore = create<NeuralState>()(
             .then(r => r.json())
             .then(data => {
               const reply = data.response || data.text || '';
-              const emotion = data.emotion || 'neutral';
+              const emotion = resolveReplyEmotion(reply, data.emotion);
               if (!reply) return;
               const aiMsg: Message = {
                 role: 'assistant', content: reply, emotion,

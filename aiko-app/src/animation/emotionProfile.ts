@@ -22,3 +22,12 @@ export function resolveEmotionProfile(emotion: string | null | undefined): Emoti
   }
   return { expression: 'neutral' };
 }
+
+export function resolveReplyEmotion(text: string, explicitEmotion?: unknown): string {
+  const match = text.match(/<emotion>\s*([^<]+?)\s*<\/emotion>|\[mood:\s*([^\]]+?)\s*\]/i);
+  const taggedEmotion = (match?.[1] || match?.[2] || '').trim();
+  if (taggedEmotion) return taggedEmotion.toLowerCase();
+  return typeof explicitEmotion === 'string' && explicitEmotion.trim()
+    ? explicitEmotion.trim().toLowerCase()
+    : 'neutral';
+}
