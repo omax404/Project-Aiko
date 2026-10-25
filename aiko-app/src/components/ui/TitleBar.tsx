@@ -1,6 +1,6 @@
 import React from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { PanelLeft, ChevronLeft, ChevronRight, Minus, Square } from 'lucide-react';
+import { PanelLeft, Minus, Square } from 'lucide-react';
 import { GothicButton } from '../GothicButton';
 import { RotatingOrbital } from '../AnimatedIcons';
 
@@ -22,10 +22,10 @@ export function TitleBar({ sessionLabel, showAnimatedAssets, onSettings, onToggl
   return (
     <div
       data-tauri-drag-region
-      className="h-12 bg-[#0e0d0c] flex items-center justify-between shrink-0 border-b border-white/[0.04] select-none"
+      className="h-12 bg-[var(--bg-base)] flex items-center justify-between shrink-0 border-b border-white/[0.06] select-none"
       style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
     >
-      {/* Left: App icon buttons */}
+      {/* Left: Navigation */}
       <div className="flex items-center" style={noDrag}>
         <button
           onClick={onToggleSidebar}
@@ -35,24 +35,6 @@ export function TitleBar({ sessionLabel, showAnimatedAssets, onSettings, onToggl
         >
           <PanelLeft size={16} />
         </button>
-        <div className="flex">
-          <button
-            onClick={() => {}}
-            title="Back"
-            className="w-10 h-12 bg-transparent border-none cursor-pointer flex items-center justify-center text-white/[0.35] hover:bg-white/[0.07] hover:text-white/80 transition-all duration-100 shrink-0"
-            style={noDrag}
-          >
-            <ChevronLeft size={18} className="opacity-30" />
-          </button>
-          <button
-            onClick={() => {}}
-            title="Forward"
-            className="w-10 h-12 bg-transparent border-none cursor-pointer flex items-center justify-center text-white/[0.35] hover:bg-white/[0.07] hover:text-white/80 transition-all duration-100 shrink-0"
-            style={noDrag}
-          >
-            <ChevronRight size={18} className="opacity-30" />
-          </button>
-        </div>
       </div>
 
       {/* Center: drag region only */}
@@ -62,7 +44,7 @@ export function TitleBar({ sessionLabel, showAnimatedAssets, onSettings, onToggl
       >
         {showAnimatedAssets ? <RotatingOrbital /> : <div className="w-1.5 h-1.5 rounded-full bg-white/[0.08]" />}
         <span className="text-[11px] text-white/[0.15] font-medium tracking-[0.15em]">
-          AIKO — {sessionLabel}
+          Aiko · {sessionLabel}
         </span>
       </div>
 
@@ -73,12 +55,6 @@ export function TitleBar({ sessionLabel, showAnimatedAssets, onSettings, onToggl
           size="sm"
           onClick={onSettings}
           title="Settings"
-        />
-        <GothicButton
-          icon="discord"
-          size="sm"
-          onClick={() => window.open('https://discord.com', '_blank')}
-          title="Discord Community"
         />
         <span className="w-px h-4 bg-white/[0.06] mx-1 shrink-0" />
         <button

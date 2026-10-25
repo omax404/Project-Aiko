@@ -12,7 +12,7 @@
  */
 
 import { useEffect, useRef, useCallback } from 'react';
-import { NeuromodulatorState } from './emotionMapper';
+import { mapEmotionToTargets, NeuromodulatorState } from './emotionMapper';
 import { IdleLayer } from './idleLayer';
 import { ExpressionBlender } from './expressionBlender';
 import { GestureController } from './gestureController';
@@ -21,9 +21,32 @@ import { ParamBinder } from './paramBinder';
 
 export interface useLive2DExpressionOptions {
   loaded?: boolean;
+  isThinking?: boolean;
   isTalking?: boolean;
   mouthAmplitude?: number; // 0.0 to 1.0 speech amplitude
   spokenText?: string;     // Currently spoken text for vowel lip sync
+  emotion?: string;
+}
+
+const DEFAULT_CHEMISTRY: NeuromodulatorState = {
+  dopamine: 0.5,
+  serotonin: 0.5,
+  cortisol: 0.2,
+  adrenaline: 0.1,
+  oxytocin: 0.3,
+  melatonin: 0.1,
+};
+
+function emotionPreset(emotion: string): string | null {
+  const normalized = emotion.trim().toLowerCase().replace(/[ _-]+/g, ' ');
+  if (!normalized || normalized === 'neutral' || normalized === 'calm') return null;
+  if (/happy|joy|excited|playful|curious|interested|amused/.test(normalized)) return 'happy';
+  if (/shy|embarrass|romantic|affection|flirt/.test(normalized)) return 'shy';
+  if (/sad|lonely|disappoint|grief/.test(normalized)) return 'sad';
+  if (/angry|frustrat|annoy|sarcastic|pout/.test(normalized)) return 'pouty';
+  if (/anxious|worried|scared|afraid|surpris|shock/.test(normalized)) return 'surprised';
+  if (/sleep|tired|bored/.test(normalized)) return 'sleepy';
+  return null;
 }
 
 export function useLive2DExpression(
@@ -31,7 +54,8 @@ export function useLive2DExpression(
   emotionState: NeuromodulatorState | null,
   options: useLive2DExpressionOptions = {}
 ) {
-  const { loaded = false, isTalking = false, mouthAmplitude = 0 } = options;
+  const { loaded = false, isThinking = false, isTalking = false, mouthAmplitude = 0 } = options;
+  const emotion = options.emotion || 'neutral';
 
   const binderRef = useRef<ParamBinder | null>(null);
   const idleLayerRef = useRef(new IdleLayer());
@@ -47,9 +71,11 @@ export function useLive2DExpression(
   const smoothedAmplitudeRef = useRef(0);
   const isTalkingRef = useRef(isTalking);
   const rawMouthAmplitudeRef = useRef(mouthAmplitude);
+  const emotionStateRef = useRef<NeuromodulatorState | null>(emotionState);
 
   useEffect(() => { isTalkingRef.current = isTalking; }, [isTalking]);
   useEffect(() => { rawMouthAmplitudeRef.current = mouthAmplitude; }, [mouthAmplitude]);
+  useEffect(() => { emotionStateRef.current = emotionState; }, [emotionState]);
 
   // Interactive Mouse Cursor Tracking with Critically-Damped Easing
   useEffect(() => {
@@ -68,29 +94,28 @@ export function useLive2DExpression(
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  // Update expression from chemical state if provided
+  // Use Aiko's semantic mood first; let chemistry gently shape a neutral state.
   useEffect(() => {
-    if (!emotionState) return;
-    const dopamine = emotionState.dopamine || 0.5;
-    const serotonin = emotionState.serotonin || 0.5;
-    const cortisol = emotionState.cortisol || 0.2;
-    const adrenaline = emotionState.adrenaline || 0.1;
-    const oxytocin = emotionState.oxytocin || 0.3;
-
-    if (oxytocin > 0.65 || (dopamine > 0.6 && oxytocin > 0.5)) {
-      expressionBlenderRef.current.setExpression('shy', 0.85);
-    } else if (adrenaline > 0.65) {
-      expressionBlenderRef.current.setExpression('surprised', 0.85);
-    } else if (dopamine > 0.7) {
-      expressionBlenderRef.current.setExpression('happy', 0.9);
-    } else if (cortisol > 0.65) {
-      expressionBlenderRef.current.setExpression('pouty', 0.7);
-    } else if (serotonin < 0.25) {
-      expressionBlenderRef.current.setExpression('sad', 0.6);
-    } else {
-      expressionBlenderRef.current.setExpression('neutral', 0.5);
-    }
-  }, [emotionState]);
+    const chemistry = emotionState || DEFAULT_CHEMISTRY;
+    const explicitMood = emotionPreset(emotion);
+    const dopamine = chemistry.dopamine ?? 0.5;
+    const serotonin = chemistry.serotonin ?? 0.5;
+    const cortisol = chemistry.cortisol ?? 0.2;
+    const adrenaline = chemistry.adrenaline ?? 0.1;
+    const oxytocin = chemistry.oxytocin ?? 0.3;
+    const preset = isThinking
+      ? 'sleepy'
+      : explicitMood || (
+        oxytocin > 0.75 ? 'shy'
+          : adrenaline > 0.72 ? 'surprised'
+            : dopamine > 0.76 ? 'happy'
+              : cortisol > 0.78 ? 'pouty'
+                : serotonin < 0.2 ? 'sad'
+                  : 'neutral'
+      );
+    const intensity = preset === 'neutral' ? 0.58 : preset === 'sleepy' ? 0.52 : 0.78;
+    expressionBlenderRef.current.setExpression(preset, intensity, 650);
+  }, [emotionState, emotion, isThinking]);
 
   // CLEAN PUBLIC API EXPOSED TO CHAT / AI LOGIC LAYER
   const triggerExpression = useCallback((name: string, intensity: number = 1.0, durationMs: number = 400) => {
@@ -127,13 +152,15 @@ export function useLive2DExpression(
       lastTime = now;
 
       // 1. Layer 1: Procedural Idle & Breathing Calculations
+      const chemistry = emotionStateRef.current || DEFAULT_CHEMISTRY;
+      const mappedEmotion = mapEmotionToTargets(chemistry);
       const idleOutputs = idleLayerRef.current.update(
         dt,
-        3.5,
-        1.0,
-        emotionState?.cortisol || 0.2,
-        emotionState?.adrenaline || 0.1,
-        emotionState?.dopamine || 0.5,
+        mappedEmotion.blinkRate,
+        mappedEmotion.breathDepth,
+        chemistry.cortisol ?? 0.2,
+        chemistry.adrenaline ?? 0.1,
+        chemistry.dopamine ?? 0.5,
         smoothedAmplitudeRef.current
       );
 
@@ -180,7 +207,7 @@ export function useLive2DExpression(
 
     animFrameId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animFrameId);
-  }, [loaded, modelRef, emotionState]);
+  }, [loaded, modelRef]);
 
   return {
     triggerExpression,

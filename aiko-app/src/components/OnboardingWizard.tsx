@@ -1,192 +1,229 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useNeuralStore, getHubUrl } from '../store/useNeuralStore';
-import { Play, Key, User, HardDrive, Cloud, AlertCircle } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { useNeuralStore, getHubUrl, getAuthHeaders } from '../store/useNeuralStore';
+import { Check, ChevronLeft, ChevronRight, Cloud, HardDrive, KeyRound, Sparkles, UserRound } from 'lucide-react';
+
+type Provider = 'Ollama' | 'OpenRouter' | 'DeepSeek';
+
+const providers: { id: Provider; title: string; description: string; detail: string; icon: typeof HardDrive }[] = [
+  {
+    id: 'Ollama',
+    title: 'Run locally',
+    description: 'Your conversations stay on this computer.',
+    detail: 'Requires Ollama to be installed and running.',
+    icon: HardDrive,
+  },
+  {
+    id: 'OpenRouter',
+    title: 'Use OpenRouter',
+    description: 'Choose from models by several providers.',
+    detail: 'Uses your OpenRouter API key.',
+    icon: Cloud,
+  },
+  {
+    id: 'DeepSeek',
+    title: 'Use DeepSeek',
+    description: 'Connect directly to DeepSeek models.',
+    detail: 'Uses your DeepSeek API key.',
+    icon: Cloud,
+  },
+];
 
 export function OnboardingWizard() {
   const [step, setStep] = useState(1);
-  const [provider, setProvider] = useState<'Ollama' | 'OpenRouter' | 'DeepSeek' | null>(null);
+  const [provider, setProvider] = useState<Provider | null>(null);
   const [apiKey, setApiKey] = useState('');
   const [username, setUsername] = useState('');
   const [error, setError] = useState('');
-  
+  const [saving, setSaving] = useState(false);
   const updateApiConfig = useNeuralStore((s) => s.updateApiConfig);
-  // Assume hubUrl is known or we post to /api/settings if we can.
-  // Actually, since this is a React component, we can use the backend proxy or rely on `updateApiConfig` 
-  const hubUrl = getHubUrl();
 
   const handleComplete = async () => {
-    if (!username) { setError("I need to know what to call you!"); return; }
-    if (provider !== 'Ollama' && !apiKey) { setError("I need an API key to think!"); return; }
-    
-    try {
-      // 1. Tell backend to update config.json
-      const configPatch: any = { username, PROVIDER: provider };
-      if (provider === 'OpenRouter') configPatch.API_KEY = apiKey;
-      if (provider === 'DeepSeek') configPatch.DEEPSEEK_API_KEY = apiKey;
-      if (provider === 'Ollama') configPatch.PROVIDER = 'Ollama';
-      
-      try {
-        await fetch(`${hubUrl}/api/settings`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(configPatch)
-        });
-      } catch (e) {
-        console.warn("Backend not reachable for settings post, relying on UI store for now.");
-      }
+    const name = username.trim();
+    if (!provider) return;
+    if (!name) { setError('Add a name so Aiko knows what to call you.'); return; }
+    if (provider !== 'Ollama' && !apiKey.trim()) { setError('Enter an API key to connect this provider.'); return; }
 
-      // 2. Update local Zustand store
-      // We set a dummy key for Ollama to bypass the missing-key block
-      updateApiConfig({
-        provider: provider || 'OpenRouter',
-        apiKey: apiKey || 'local-ollama-bypass',
+    setSaving(true);
+    setError('');
+    try {
+      const configPatch: Record<string, string> = { username: name, PROVIDER: provider };
+      if (provider === 'OpenRouter') configPatch.API_KEY = apiKey.trim();
+      if (provider === 'DeepSeek') configPatch.DEEPSEEK_API_KEY = apiKey.trim();
+
+      const headers = await getAuthHeaders({ 'Content-Type': 'application/json' });
+      const response = await fetch(`${getHubUrl()}/api/settings`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(configPatch),
       });
-      
-    } catch (e) {
-      setError("Failed to save settings. Is the Neural Hub running?");
+      if (!response.ok) throw new Error(`Aiko could not save setup (HTTP ${response.status}).`);
+
+      // The hub owns provider configuration. Keep the UI in sync after it confirms the save.
+      updateApiConfig({ provider, apiKey: provider === 'Ollama' ? '' : apiKey.trim() });
+    } catch (cause) {
+      setError(cause instanceof Error
+        ? `${cause.message} Check that Aiko is running, then try again.`
+        : 'Aiko could not save setup. Check that Aiko is running, then try again.');
+    } finally {
+      setSaving(false);
     }
   };
 
   return (
-    <div className="flex-1 flex items-center justify-center bg-transparent backdrop-blur-md relative z-50 text-white/90">
-      <div className="absolute inset-0 pointer-events-none bg-black/60" />
-      
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="w-[500px] max-w-[90vw] p-8 rounded-2xl border border-white/10 bg-black/80 shadow-[0_0_50px_rgba(0,0,0,0.5)] z-10 glass-panel"
+    <div
+      className="fixed inset-x-0 bottom-0 top-12 z-[100] flex items-center justify-center overflow-y-auto bg-[#100d14] px-4 py-6 text-[var(--t1)]"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="setup-title"
+    >
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+        <div className="absolute -left-40 top-[-12rem] h-[34rem] w-[34rem] rounded-full bg-[var(--accent)]/[0.08] blur-[100px]" />
+        <div className="absolute -bottom-72 -right-24 h-[36rem] w-[36rem] rounded-full bg-[#73558b]/[0.12] blur-[120px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_15%,#100d14_80%)]" />
+      </div>
+
+      <motion.section
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="relative grid w-full max-w-5xl overflow-hidden rounded-3xl border border-white/[0.09] bg-[#15121a]/95 shadow-[0_28px_100px_rgba(0,0,0,0.45)] md:min-h-[570px] md:grid-cols-[0.85fr_1.15fr]"
       >
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-full bg-white/5 mx-auto flex items-center justify-center mb-4 neon-border glow-accent">
-            <Play size={28} className="text-accent ml-1" />
+        <aside className="relative flex flex-col justify-between overflow-hidden border-b border-white/[0.07] bg-white/[0.018] p-7 sm:p-10 md:border-b-0 md:border-r">
+          <div className="absolute -bottom-20 -left-20 h-64 w-64 rounded-full border border-[var(--accent)]/[0.10]" aria-hidden="true" />
+          <div className="absolute -bottom-10 -left-10 h-44 w-44 rounded-full border border-[var(--accent)]/[0.10]" aria-hidden="true" />
+          <div className="relative">
+            <div className="mb-12 flex items-center gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-2xl border border-[var(--accent)]/25 bg-[var(--accent)]/[0.10] text-[var(--accent)]">
+                <Sparkles size={18} />
+              </div>
+              <span className="text-sm font-semibold tracking-wide text-white">Aiko</span>
+            </div>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--accent)]">A good place to begin</p>
+            <h1 id="setup-title" className="max-w-sm text-3xl font-semibold leading-tight tracking-[-0.04em] text-white sm:text-4xl">
+              Make room for a companion that feels like yours.
+            </h1>
+            <p className="mt-5 max-w-sm text-sm leading-6 text-white/55">
+              Choose how Aiko thinks, then tell her what to call you. You can change these settings any time.
+            </p>
           </div>
-          <h2 className="text-3xl font-orbitron font-bold text-transparent bg-clip-text bg-gradient-to-r from-accent to-accent-glow">
-            Awaken Aiko
-          </h2>
-          <p className="text-white/50 mt-2 font-light">System initialization required.</p>
-        </div>
 
-        <AnimatePresence mode="wait">
-          {step === 1 && (
-            <motion.div
-              key="step1"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-6"
-            >
-              <div className="space-y-4">
-                <p className="text-sm text-white/70">How should I generate my thoughts?</p>
-                <div 
-                  className={`p-4 rounded-xl border cursor-pointer transition-all flex items-center gap-4 ${provider === 'Ollama' ? 'border-accent bg-accent/10 glow-accent' : 'border-white/10 hover:border-white/30 bg-white/5'}`}
-                  onClick={() => setProvider('Ollama')}
-                >
-                  <HardDrive size={24} className={provider === 'Ollama' ? 'text-accent' : 'text-white/40'} />
-                  <div>
-                    <h3 className="font-semibold text-white/90">Local (Ollama)</h3>
-                    <p className="text-xs text-white/50">Runs on your hardware. Private, requires strong GPU.</p>
-                  </div>
-                </div>
-                
-                <div 
-                  className={`p-4 rounded-xl border cursor-pointer transition-all flex items-center gap-4 ${provider === 'OpenRouter' ? 'border-accent bg-accent/10 glow-accent' : 'border-white/10 hover:border-white/30 bg-white/5'}`}
-                  onClick={() => setProvider('OpenRouter')}
-                >
-                  <Cloud size={24} className={provider === 'OpenRouter' ? 'text-accent' : 'text-white/40'} />
-                  <div>
-                    <h3 className="font-semibold text-white/90">Cloud (OpenRouter)</h3>
-                    <p className="text-xs text-white/50">API access to massive models (Claude, Qwen). Requires Key.</p>
-                  </div>
-                </div>
+          <div className="relative mt-8 flex items-center gap-3 text-xs text-white/45">
+            <span className={`grid h-7 w-7 place-items-center rounded-full border ${step === 1 ? 'border-[var(--accent)]/50 bg-[var(--accent)]/10 text-[var(--accent)]' : 'border-white/10 text-white/45'}`}>
+              {step > 1 ? <Check size={14} /> : '1'}
+            </span>
+            <span className={step === 1 ? 'text-white/80' : ''}>Choose a model</span>
+            <span className="h-px w-7 bg-white/10" />
+            <span className={`grid h-7 w-7 place-items-center rounded-full border ${step === 2 ? 'border-[var(--accent)]/50 bg-[var(--accent)]/10 text-[var(--accent)]' : 'border-white/10 text-white/45'}`}>2</span>
+            <span className={step === 2 ? 'text-white/80' : ''}>Make it yours</span>
+          </div>
+        </aside>
 
-                <div 
-                  className={`p-4 rounded-xl border cursor-pointer transition-all flex items-center gap-4 ${provider === 'DeepSeek' ? 'border-accent bg-accent/10 glow-accent' : 'border-white/10 hover:border-white/30 bg-white/5'}`}
-                  onClick={() => setProvider('DeepSeek')}
-                >
-                  <Cloud size={24} className={provider === 'DeepSeek' ? 'text-accent' : 'text-white/40'} />
-                  <div>
-                    <h3 className="font-semibold text-white/90">Cloud (DeepSeek)</h3>
-                    <p className="text-xs text-white/50">Direct connection to DeepSeek API. Requires Key.</p>
-                  </div>
-                </div>
+        <div className="relative flex flex-col justify-center p-6 sm:p-10 lg:p-12">
+          {step === 1 ? (
+            <div>
+              <h2 className="text-xl font-semibold text-white">Where should Aiko think?</h2>
+              <p className="mt-2 text-sm leading-6 text-white/50">Pick the setup that works for you. You can switch providers later.</p>
+              <div className="mt-7 grid gap-3">
+                {providers.map(({ id, title, description, detail, icon: Icon }) => {
+                  const selected = provider === id;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => { setProvider(id); setError(''); }}
+                      aria-pressed={selected}
+                      className={`group flex w-full items-start gap-4 rounded-2xl border p-4 text-left transition-colors ${selected ? 'border-[var(--accent)]/55 bg-[var(--accent)]/[0.09]' : 'border-white/[0.08] bg-white/[0.025] hover:border-white/20 hover:bg-white/[0.045]'}`}
+                    >
+                      <span className={`mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-xl ${selected ? 'bg-[var(--accent)]/15 text-[var(--accent)]' : 'bg-white/[0.05] text-white/55 group-hover:text-white/80'}`}>
+                        <Icon size={18} />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-medium text-white">{title}</span>
+                        <span className="mt-1 block text-sm text-white/55">{description}</span>
+                        <span className="mt-1.5 block text-xs text-white/35">{detail}</span>
+                      </span>
+                      <span className={`mt-1 grid h-5 w-5 shrink-0 place-items-center rounded-full border ${selected ? 'border-[var(--accent)] bg-[var(--accent)] text-[#17121d]' : 'border-white/15'}`}>
+                        {selected && <Check size={12} strokeWidth={3} />}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
-
-              <div className="flex justify-end pt-4">
-                <button 
-                  onClick={() => setStep(2)} 
+              <div className="mt-7 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setStep(2)}
                   disabled={!provider}
-                  className="px-6 py-2 rounded-lg bg-accent text-black font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-[0_0_15px_var(--acc)] transition-all"
+                  className="inline-flex h-11 items-center gap-2 rounded-xl bg-[var(--accent)] px-5 text-sm font-semibold text-[#17121d] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-35"
                 >
-                  Next
+                  Continue <ChevronRight size={16} />
                 </button>
               </div>
-            </motion.div>
-          )}
+            </div>
+          ) : (
+            <div>
+              <button type="button" onClick={() => { setStep(1); setError(''); }} className="mb-6 inline-flex items-center gap-1.5 text-xs text-white/45 transition hover:text-white/80">
+                <ChevronLeft size={14} /> Change model choice
+              </button>
+              <h2 className="text-xl font-semibold text-white">Aiko should call you…</h2>
+              <p className="mt-2 text-sm leading-6 text-white/50">A name or nickname is perfect. This stays on your Aiko setup.</p>
 
-          {step === 2 && (
-            <motion.div
-              key="step2"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-6"
-            >
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm text-white/70 mb-2 font-medium flex items-center gap-2">
-                    <User size={16} /> What should I call you?
+              <label htmlFor="setup-name" className="mb-2 mt-7 flex items-center gap-2 text-xs font-medium text-white/75">
+                <UserRound size={14} className="text-[var(--accent)]" /> Your name
+              </label>
+              <input
+                id="setup-name"
+                type="text"
+                autoComplete="nickname"
+                value={username}
+                onChange={(event) => { setUsername(event.target.value); setError(''); }}
+                onKeyDown={(event) => { if (event.key === 'Enter' && provider === 'Ollama') void handleComplete(); }}
+                className="h-12 w-full rounded-xl border border-white/10 bg-black/20 px-4 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-[var(--accent)]/55 focus:ring-2 focus:ring-[var(--accent)]/10"
+                placeholder="What do you go by?"
+              />
+
+              {provider !== 'Ollama' && (
+                <>
+                  <label htmlFor="setup-api-key" className="mb-2 mt-6 flex items-center gap-2 text-xs font-medium text-white/75">
+                    <KeyRound size={14} className="text-[var(--accent)]" /> {provider} API key
                   </label>
-                  <input 
-                    type="text" 
-                    value={username}
-                    onChange={(e) => { setUsername(e.target.value); setError(''); }}
-                    className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-accent transition-colors"
-                    placeholder="Your name or nickname"
+                  <input
+                    id="setup-api-key"
+                    type="password"
+                    autoComplete="off"
+                    spellCheck={false}
+                    value={apiKey}
+                    onChange={(event) => { setApiKey(event.target.value); setError(''); }}
+                    className="h-12 w-full rounded-xl border border-white/10 bg-black/20 px-4 font-mono text-sm text-white outline-none transition placeholder:text-white/25 focus:border-[var(--accent)]/55 focus:ring-2 focus:ring-[var(--accent)]/10"
+                    placeholder="Paste your API key"
                   />
+                  <p className="mt-2 text-xs leading-5 text-white/40">The key is saved in your local Aiko configuration and sent to the provider you selected.</p>
+                </>
+              )}
+
+              {provider === 'Ollama' && (
+                <div className="mt-5 rounded-xl border border-white/[0.07] bg-white/[0.025] p-3.5 text-xs leading-5 text-white/45">
+                  Before continuing, make sure Ollama is installed, running, and has at least one model downloaded.
                 </div>
+              )}
 
-                {provider !== 'Ollama' && (
-                  <div>
-                    <label className="block text-sm text-white/70 mb-2 font-medium flex items-center gap-2">
-                      <Key size={16} /> {provider} API Key
-                    </label>
-                    <input 
-                      type="password" 
-                      value={apiKey}
-                      onChange={(e) => { setApiKey(e.target.value); setError(''); }}
-                      className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-accent transition-colors font-mono"
-                      placeholder="sk-..."
-                    />
-                    <p className="text-xs text-white/40 mt-2">Stored securely in your local config.json.</p>
-                  </div>
-                )}
+              {error && <p role="alert" className="mt-5 rounded-xl border border-red-400/20 bg-red-400/[0.06] px-3.5 py-3 text-sm leading-5 text-red-200/90">{error}</p>}
 
-                {error && (
-                  <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-center gap-2">
-                    <AlertCircle size={16} /> {error}
-                  </div>
-                )}
-              </div>
-
-              <div className="flex justify-between pt-4">
-                <button 
-                  onClick={() => setStep(1)} 
-                  className="px-6 py-2 rounded-lg border border-white/10 text-white/70 hover:bg-white/5 transition-colors"
+              <div className="mt-7 flex items-center justify-between gap-4">
+                <p className="text-xs text-white/30">You can change providers later in Settings.</p>
+                <button
+                  type="button"
+                  onClick={() => void handleComplete()}
+                  disabled={saving}
+                  className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl bg-[var(--accent)] px-5 text-sm font-semibold text-[#17121d] transition hover:brightness-110 disabled:cursor-wait disabled:opacity-65"
                 >
-                  Back
-                </button>
-                <button 
-                  onClick={handleComplete}
-                  className="px-6 py-2 rounded-lg bg-accent text-black font-semibold hover:shadow-[0_0_15px_var(--acc)] transition-all"
-                >
-                  Complete Setup
+                  {saving ? 'Saving…' : 'Start with Aiko'} <ChevronRight size={16} />
                 </button>
               </div>
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
-      </motion.div>
+        </div>
+      </motion.section>
     </div>
   );
 }

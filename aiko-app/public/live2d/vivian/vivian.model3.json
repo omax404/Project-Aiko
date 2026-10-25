@@ -16,7 +16,18 @@
 			"vivian.textures/texture_10.png"
 		],
 		"Physics": "vivian.physics3.json",
-		"DisplayInfo": "vivian.cdi3.json"
+		"DisplayInfo": "vivian.cdi3.json",
+		"Motions": {
+			"idle": [
+				{ "File": "Scene1.motion3.json", "FadeInTime": 0.8, "FadeOutTime": 1.0 }
+			],
+			"greet": [
+				{ "File": "greet.motion3.json", "FadeInTime": 0.16, "FadeOutTime": 0.42 }
+			],
+			"thinking": [
+				{ "File": "thinking.motion3.json", "FadeInTime": 0.45, "FadeOutTime": 0.7 }
+			]
+		}
 	},
 	"Expressions": [
 		{ "Name": "伞关闭", "File": "伞关闭.exp3.json" },

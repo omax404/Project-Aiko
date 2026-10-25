@@ -28,9 +28,16 @@ interface ChatBubbleProps {
   attachments?: string[];
 }
 
-function sanitizeMarkdownContent(text: string): string {
+// Exported for unit tests — tests must exercise this implementation, not a copy.
+export function sanitizeMarkdownContent(text: string): string {
   if (!text) return '';
-  let cleaned = text.replace(/<emotion>.*?<\/emotion>/gi, '');
+  // Strip reasoning CONTENT first (tags alone would leak chain-of-thought),
+  // then any stray emotion/reasoning tags that remain.
+  let cleaned = text
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/<thought>[\s\S]*?<\/thought>/gi, '')
+    .replace(/<emotion>.*?<\/emotion>/gi, '')
+    .replace(/<\/?(emotion|think|thought)>/gi, '');
 
   // 1. Convert [STICKER:xxx] or [mood:xxx] or [gesture:xxx] tags to markdown images
   cleaned = cleaned.replace(/\[(STICKER|mood|gesture)\s*:\s*([^\]]+)\]/gi, (_, _type, name) => {
@@ -183,8 +190,8 @@ export const ChatBubble = memo(function ChatBubble({
           <div className={clsx(
             "relative transition-all duration-300 backdrop-blur-md shadow-lg",
             isUser 
-              ? "bg-[#B8A1D9] text-[#1A0F24] border border-[#B8A1D9]/40 rounded-[24px] rounded-tr-none p-5 px-6 font-medium shadow-[0_0_20px_rgba(184,161,217,0.25)] hover:shadow-[0_0_30px_rgba(184,161,217,0.4)]" 
-              : "bg-[#3B2249] text-[#F3EAF9] border border-[#B8A1D9]/20 rounded-[24px] rounded-tl-none p-5 px-6 shadow-[0_0_25px_rgba(184,161,217,0.15)] hover:border-[#B8A1D9]/40 hover:shadow-[0_0_30px_rgba(184,161,217,0.3)]"
+              ? "bg-[var(--accent)] text-[#17121d] border border-[var(--accent)]/30 rounded-[20px] rounded-tr-md p-4 px-5 font-medium"
+              : "bg-[var(--bg-surface)] text-[var(--t1)] border border-[var(--b1)] rounded-[20px] rounded-tl-md p-4 px-5"
           )}>
             <div className={clsx(
               "text-[15px] leading-[1.8] font-normal antialiased selectable markdown-content",

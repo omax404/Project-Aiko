@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 /* ── Spin slow animation for Live2D HUD ring ── */
@@ -9,13 +8,13 @@
 .animate-spin-slow { animation: spin-slow 12s linear infinite; }
 
 :root {
-  /* Soft Vampirism Lavender Design Tokens */
-  --color-lavender: #B8A1D9;
-  --color-plum: #3B2249;
-  --color-blush: #E8C4D8;
-  --color-eggplant: #1A0F24;
-  --color-moonlight: #F3EAF9;
-  --color-glow: rgba(184, 161, 217, 0.35);
+  /* Quiet plum and lavender palette */
+  --color-lavender: #bba6d8;
+  --color-plum: #211c28;
+  --color-blush: #e1d5ef;
+  --color-eggplant: #131117;
+  --color-moonlight: #f2edf7;
+  --color-glow: rgba(187, 166, 216, 0.24);
 
   /* Surfaces */
   --bg-base: var(--color-eggplant);
@@ -24,40 +23,40 @@
   --bg-surface: var(--color-plum);
   --bg-card: var(--color-plum);
   --bg-input: var(--color-plum);
-  --bg-hover: rgba(184, 161, 217, 0.08);
-  --bg-active: rgba(184, 161, 217, 0.15);
+  --bg-hover: rgba(187, 166, 216, 0.07);
+  --bg-active: rgba(187, 166, 216, 0.11);
 
   /* Text */
   --t1: var(--color-moonlight);
-  --t2: rgba(243, 234, 249, 0.85);
-  --t3: rgba(243, 234, 249, 0.60);
-  --t4: rgba(243, 234, 249, 0.40);
+  --t2: rgba(242, 237, 247, 0.82);
+  --t3: rgba(242, 237, 247, 0.58);
+  --t4: rgba(242, 237, 247, 0.36);
 
   /* Accent */
   --accent: var(--color-lavender);
   --acc: var(--color-lavender);
   --acc2: var(--color-blush);
-  --acc-soft: rgba(184, 161, 217, 0.12);
+  --acc-soft: rgba(187, 166, 216, 0.10);
   --acc-glow: var(--color-glow);
 
   /* Borders — 1px filigree accent at 20% opacity */
-  --b1: rgba(184, 161, 217, 0.20);
-  --b2: rgba(184, 161, 217, 0.25);
-  --b3: rgba(184, 161, 217, 0.40);
+  --b1: rgba(242, 237, 247, 0.075);
+  --b2: rgba(242, 237, 247, 0.12);
+  --b3: rgba(187, 166, 216, 0.32);
 
   /* Status */
-  --green: #B8A1D9;
-  --red: #E8C4D8;
+  --green: #55c995;
+  --red: #e9788b;
 
-  /* Fonts — Cormorant Garamond for Headers, Quicksand for Body */
-  --font-header: 'Cormorant Garamond', serif;
-  --font-body: 'Quicksand', sans-serif;
-  --font-ui: 'Quicksand', sans-serif;
-  --font-brand: 'Cormorant Garamond', serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  /* Use installed system fonts so the desktop stays polished offline. */
+  --font-header: 'Segoe UI', Inter, sans-serif;
+  --font-body: 'Segoe UI', Inter, sans-serif;
+  --font-ui: 'Segoe UI', Inter, sans-serif;
+  --font-brand: 'Segoe UI', Inter, sans-serif;
+  --font-mono: 'Cascadia Code', Consolas, monospace;
 
   /* Layout */
-  --sidebar-w: 260px;
+  --sidebar-w: 240px;
   --chat-max: 700px;
   --th: 38px;
   --nh: 48px;

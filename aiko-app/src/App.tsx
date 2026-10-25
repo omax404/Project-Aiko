@@ -69,6 +69,7 @@ function App() {
   })));
 
   const [activeArtifactCode, setActiveArtifactCode] = useState<string | null>(null);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
 
   useEffect(() => {
     if (streamingContent) {
@@ -108,7 +109,7 @@ function App() {
   };
 
   const activeSession = (sessions || []).find(s => s.id === activeSessionId);
-  const sessionLabel = activeSession?.title || 'New Session';
+  const sessionLabel = activeSession?.title || 'New chat';
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isProjectOpen, setIsProjectOpen] = useState(false);
   const [isPurgeConfirmOpen, setIsPurgeConfirmOpen] = useState(false);
@@ -124,7 +125,7 @@ function App() {
     document.documentElement.style.setProperty('--acc-glow', `${themeColor}40`);
 
     try { connect(getHubUrl()); } catch (e) { }
-    fetchSettings();
+    fetchSettings().finally(() => setSettingsLoaded(true));
     fetchBridgeStatus();
     loadSessions();
     const t = setInterval(() => {
@@ -265,7 +266,7 @@ function App() {
       />
 
       {/* Onboarding Overlay */}
-      {(!apiConfig.apiKey && apiConfig.provider !== 'Ollama') && (
+      {(settingsLoaded && !apiConfig.apiKey && apiConfig.provider !== 'Ollama') && (
         <div className="absolute inset-0 z-[100]">
           <OnboardingWizard />
         </div>
@@ -279,7 +280,7 @@ function App() {
           {isSidebarOpen && (
             <motion.div
               initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 280, opacity: 1 }}
+              animate={{ width: 240, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={{
                 type: 'spring',
@@ -295,7 +296,7 @@ function App() {
 
         {/* Dual pane container */}
         <div className="flex-1 flex overflow-hidden">
-          {/* Left Panel: houses the current Live2D avatar/Gothic-cyberpunk chat UI */}
+          {/* Conversation view */}
           <motion.div
             animate={{
               width: activeArtifactCode ? '40%' : '100%'
@@ -323,7 +324,13 @@ function App() {
               <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar" style={{ padding: '24px 24px 0' }}>
                 <div style={{ maxWidth: 680, margin: '0 auto', display: 'flex', flexDirection: 'column', paddingBottom: 160 }}>
                   {messages.length === 0 ? (
-                    <WelcomeScreen onRecall={loadSessions} />
+                    <WelcomeScreen
+                      onRecall={async () => {
+                        await loadSessions();
+                        if (!isSidebarOpen) toggleSidebar();
+                      }}
+                      onStartPrompt={sendMessage}
+                    />
                   ) : (
                     <>
                       <AnimatePresence mode="popLayout" initial={false}>

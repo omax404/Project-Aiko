@@ -22,6 +22,14 @@ interface Live2DAvatarProps {
   };
   offsetX?: number;
   offsetY?: number;
+  interactive?: boolean;
+}
+
+function requestMotion(model: any, name: string) {
+  try {
+    const motion = model?.motion?.(name);
+    if (motion && typeof motion.catch === 'function') motion.catch(() => {});
+  } catch (_) {}
 }
 
 export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
@@ -35,7 +43,8 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
   amplitude = 0,
   chemicals,
   offsetX = 0,
-  offsetY = 0
+  offsetY = 0,
+  interactive = false
 }) => {
   const {
     chemicals: storeChemicals,
@@ -57,10 +66,18 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
   // Hook driving autonomous expression physics, blink, saccade, breathing, boba, and vowel lip sync loops
   const { triggerExpression, playGesture } = useLive2DExpression(modelRef, currentChemicals, {
     loaded,
+    isThinking,
     isTalking,
     mouthAmplitude: amplitude,
+    emotion,
     spokenText: isThinking ? '' : (streamingContent || messages[messages.length - 1]?.content || '')
   });
+
+  const sayHello = () => {
+    triggerExpression('happy', 0.82, 600);
+    playGesture('greet');
+    requestMotion(modelRef.current, 'greet');
+  };
 
   const lastParsedTextRef = useRef('');
 
@@ -83,22 +100,26 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
     while ((match = tagRegex.exec(newContent)) !== null) {
       const type = match[1];
       const name = match[2];
+      if (!type || !name) continue;
       
       console.log(`[Live2D Autonomy] Parsed action tag: [${type}:${name}]`);
       try {
         if (type === 'gesture') {
           if (name === 'wave' || name === 'nod' || name === 'point' || name === 'bow') {
-            model.motion('Scene1');
+            playGesture(name === 'wave' ? 'greet' : 'nod');
+            requestMotion(model, 'greet');
           } else {
-            model.motion(name);
+            playGesture(name);
           }
         } else if (type === 'mood') {
           if (name === 'excited' || name === 'happy') {
-            model.expression('害羞');
+            triggerExpression('happy', 0.82, 700);
           } else if (name === 'sad' || name === 'crying') {
-            model.expression('哭');
+            triggerExpression('sad', 0.78, 700);
+          } else if (name === 'shy' || name === 'embarrassed') {
+            triggerExpression('shy', 0.82, 700);
           } else {
-            model.expression(name);
+            triggerExpression(name, 0.78, 700);
           }
         }
       } catch (err) {
@@ -128,13 +149,7 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
       triggerExpression('shy', 0.9);
       playGesture('handToFace');
     }
-  }, [streamingContent, messages, isThinking]);
-
-  useEffect(() => {
-    if (isThinking) {
-      triggerExpression('sleepy', 0.5);
-    }
-  }, [isThinking]);
+  }, [streamingContent, messages, isThinking, loaded, playGesture, triggerExpression]);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -204,8 +219,8 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
         // Parameter updates and animation binding are handled in requestAnimationFrame via the hook!
         // The autonomous expression loop runs inside useLive2DExpression hook at 60fps!
 
-        // Start idle motion
-        try { model.motion('idle'); } catch (_) {}
+        // The model manifest registers this group; keep its authored idle subtle and looping.
+        requestMotion(model, 'idle');
 
         setLoaded(true);
         console.log('[Live2D] ✅ Model loaded successfully:', modelUrl);
@@ -311,20 +326,18 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
 
     try {
       if (isThinking) {
-        model.motion('Scene1');
+        requestMotion(model, 'thinking');
       } else {
         const exprName = EMOTION_MAP[emotion] || 'idle';
         if (exprName === 'idle') {
-          // Clear previous expression and run idle motion
-          const expMgr = model.internalModel?.motionManager?.expressionManager;
-          if (expMgr) expMgr.restoreExpression();
-          model.motion('idle');
+          requestMotion(model, 'idle');
         } else {
-          model.expression(exprName);
+          const preset = exprName === '害羞' ? 'shy' : exprName === '哭' ? 'sad' : exprName === '黑脸' || exprName === '白眼' ? 'pouty' : 'surprised';
+          triggerExpression(preset, 0.78, 650);
         }
       }
     } catch (_) {}
-  }, [isThinking, emotion]);
+  }, [isThinking, emotion, triggerExpression]);
 
 
 
@@ -349,11 +362,21 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
         height,
         background: 'radial-gradient(circle at center, rgba(184,161,217,0.25) 0%, rgba(26,15,36,0) 70%)'
       }}
-      className="relative flex items-center justify-center pointer-events-none overflow-hidden"
+      className={`relative flex items-center justify-center overflow-hidden ${interactive ? 'pointer-events-auto cursor-pointer' : 'pointer-events-none'}`}
+      role={interactive ? 'button' : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      aria-label={interactive ? 'Say hello to Aiko' : undefined}
+      onClick={interactive ? sayHello : undefined}
+      onKeyDown={interactive ? (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          sayHello();
+        }
+      } : undefined}
     >
       <canvas
         ref={canvasRef}
-        className="pointer-events-none"
+        className={interactive ? 'pointer-events-auto' : 'pointer-events-none'}
         style={{ width: '100%', height: '100%', opacity: loaded ? 1 : 0, transition: 'opacity 0.5s ease' }}
       />
     </div>

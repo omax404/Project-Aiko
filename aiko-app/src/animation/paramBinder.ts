@@ -9,6 +9,17 @@
 import { ExpressionPreset } from './expressionBlender';
 import { IdleOutputs } from './idleLayer';
 
+const BOUND_PARAMETER_IDS = [
+  'ParamAngleX', 'PARAM_ANGLE_X', 'ParamAngleY', 'PARAM_ANGLE_Y', 'ParamAngleZ', 'PARAM_ANGLE_Z',
+  'ParamEyeLOpen', 'PARAM_EYE_L_OPEN', 'ParamEyeROpen', 'PARAM_EYE_R_OPEN',
+  'ParamEyeLSmile', 'ParamEyeRSmile', 'ParamEyeBallX', 'PARAM_EYE_BALL_X',
+  'ParamEyeBallY', 'PARAM_EYE_BALL_Y', 'ParamBrowLY', 'PARAM_BROW_L_Y', 'ParamBrowRY',
+  'ParamMouthForm', 'PARAM_MOUTH_FORM', 'ParamMouthOpenY', 'PARAM_MOUTH_OPEN_Y',
+  'ParamBodyAngleX', 'PARAM_BODY_ANGLE_X', 'ParamBodyAngleY', 'PARAM_BODY_ANGLE_Y',
+  'ParamBodyAngleZ', 'PARAM_BODY_ANGLE_Z', 'ParamBreath', 'PARAM_BREATH',
+  'ParamCheek', 'PARAM_CHEEK', 'Param149', 'Param150', 'Param144', 'Param145', 'Param146', 'Param148', 'Param132',
+];
+
 export interface ParameterMetadata {
   id: string;
   min: number;
@@ -30,21 +41,39 @@ export class ParamBinder {
 
     if (!model) return;
 
-    const params = model.internalModel?.parameters || [];
-    params.forEach((p: any) => {
-      if (p && typeof p.id === 'string') {
-        const id = p.id;
-        const lower = id.toLowerCase();
-        this.idMap.set(lower, id);
+    const coreModel = model.internalModel?.coreModel ?? model;
+    if (typeof coreModel.getParameterIndex === 'function') {
+      for (const id of BOUND_PARAMETER_IDS) {
+        try {
+          const index = coreModel.getParameterIndex(id);
+          if (typeof index !== 'number' || index < 0) continue;
 
-        this.metadata.set(id, {
-          id,
-          min: typeof p.min === 'number' ? p.min : -30,
-          max: typeof p.max === 'number' ? p.max : 30,
-          defaultValue: typeof p.defaultValue === 'number' ? p.defaultValue : 0
+          this.idMap.set(id.toLowerCase(), id);
+          this.metadata.set(id, {
+            id,
+            min: coreModel.getParameterMinimumValue?.(index) ?? -30,
+            max: coreModel.getParameterMaximumValue?.(index) ?? 30,
+            defaultValue: coreModel.getParameterDefaultValue?.(index) ?? 0,
+          });
+        } catch (_) {}
+      }
+    } else {
+      // Keep compatibility with model wrappers that expose parameter objects.
+      const params = model.internalModel?.parameters || [];
+      if (Array.isArray(params)) {
+        params.forEach((parameter: any) => {
+          if (!parameter || typeof parameter.id !== 'string') return;
+          const id = parameter.id;
+          this.idMap.set(id.toLowerCase(), id);
+          this.metadata.set(id, {
+            id,
+            min: typeof parameter.min === 'number' ? parameter.min : -30,
+            max: typeof parameter.max === 'number' ? parameter.max : 30,
+            defaultValue: typeof parameter.defaultValue === 'number' ? parameter.defaultValue : 0,
+          });
         });
       }
-    });
+    }
 
     console.log(`[ParamBinder] Registered ${this.idMap.size} Live2D parameters dynamically.`);
   }
@@ -67,6 +96,9 @@ export class ParamBinder {
     try {
       if (typeof coreModel.setParameterValueById === 'function') {
         coreModel.setParameterValueById(actualId, value);
+      } else if (typeof coreModel.getParameterIndex === 'function' && typeof coreModel.setParameterValueByIndex === 'function') {
+        const index = coreModel.getParameterIndex(actualId);
+        if (index >= 0) coreModel.setParameterValueByIndex(index, value);
       }
     } catch (_) {}
   }

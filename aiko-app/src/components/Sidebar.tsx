@@ -13,8 +13,6 @@ import { clsx } from 'clsx';
 import { useNeuralStore } from '../store/useNeuralStore';
 import { useShallow } from 'zustand/react/shallow';
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
-import { NeuralPulse } from './AnimatedIcons';
-import { GothicButton } from './GothicButton';
 
 
 interface SidebarItemProps {
@@ -140,9 +138,7 @@ export function Sidebar({ onOpenSettings }: { onOpenSettings: () => void }) {
     createNewSession,
     deleteSession,
     pinSession,
-    renameSession,
-    setEmotion: _setEmotion,
-    showAnimatedAssets
+    renameSession
   } = useNeuralStore(useShallow((state) => ({
     sessions: state.sessions,
     activeSessionId: state.activeSessionId,
@@ -151,9 +147,7 @@ export function Sidebar({ onOpenSettings }: { onOpenSettings: () => void }) {
     createNewSession: state.createNewSession,
     deleteSession: state.deleteSession,
     pinSession: state.pinSession,
-    renameSession: state.renameSession,
-    setEmotion: state.setEmotion,
-    showAnimatedAssets: state.showAnimatedAssets
+    renameSession: state.renameSession
   })));
   const [search, setSearch] = useState("");
 
@@ -193,12 +187,12 @@ export function Sidebar({ onOpenSettings }: { onOpenSettings: () => void }) {
       {/* Profile */}
       <div className="flex flex-col gap-4 px-1 py-4">
         <div className="flex items-center gap-3">
-          <GothicButton icon="rose" size="md" active className="pointer-events-none" />
+          <img src="/assets/illustrations/aiko-mark.svg" alt="" width="40" height="40" className="h-10 w-10 shrink-0" />
           <div className="flex flex-col">
-            <h1 className="text-sm font-bold text-[var(--t1)] brand-text uppercase tracking-wider">Aiko Core</h1>
+            <h1 className="text-sm font-semibold text-[var(--t1)] tracking-wide">Aiko</h1>
             <div className="flex items-center gap-1.5">
-              {showAnimatedAssets ? <NeuralPulse /> : <div className="w-1.5 h-1.5 rounded-full bg-[var(--acc)]/50" />}
-              <p className="text-[9px] text-[var(--acc)]/80 font-mono font-bold">Synchronized</p>
+              <div className="h-1.5 w-1.5 rounded-full bg-[var(--acc)]/70" />
+              <p className="text-[10px] text-[var(--t3)]">Your companion</p>
             </div>
           </div>
         </div>
@@ -217,7 +211,7 @@ export function Sidebar({ onOpenSettings }: { onOpenSettings: () => void }) {
         className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--acc)]/10 border border-[var(--acc)]/20 text-[11px] font-bold text-[var(--acc)] uppercase tracking-widest hover:bg-[var(--acc)]/20 transition-all"
       >
         <Plus size={14} />
-        New Neural Link
+        New chat
       </button>
 
       {/* Search */}
@@ -237,7 +231,7 @@ export function Sidebar({ onOpenSettings }: { onOpenSettings: () => void }) {
         
         {pinnedSessions.length > 0 && (
           <div className="flex flex-col gap-2">
-            <span className="text-[9px] font-bold text-[var(--t4)] uppercase tracking-[0.2em] px-3">Pinned Linkage</span>
+            <span className="text-[10px] font-medium text-[var(--t4)] px-3">Pinned</span>
             <div className="flex flex-col gap-1">
               {pinnedSessions.map(session => (
                 <SessionItem 
@@ -255,7 +249,7 @@ export function Sidebar({ onOpenSettings }: { onOpenSettings: () => void }) {
         )}
 
         <div className="flex flex-col gap-2">
-          <span className="text-[9px] font-bold text-[var(--t4)] uppercase tracking-[0.2em] px-3">Recent Memory Nodes</span>
+          <span className="text-[10px] font-medium text-[var(--t4)] px-3">Recent chats</span>
           <div className="flex flex-col gap-1">
             {unpinnedSessions.map(session => (
               <SessionItem 
@@ -278,17 +272,17 @@ export function Sidebar({ onOpenSettings }: { onOpenSettings: () => void }) {
           onClick={onOpenSettings}
           className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--t2)] hover:text-white hover:bg-[var(--bg-hover)] transition-all group cursor-pointer"
         >
-          <div className="w-8 h-8 rounded-full border border-[#B8A1D9]/30 bg-[#3B2249]/60 flex items-center justify-center text-[#F3EAF9] group-hover:border-[var(--acc)] group-hover:ring-1 group-hover:ring-[var(--acc)] transition-all shrink-0">
+          <div className="w-8 h-8 rounded-full border border-[var(--b2)] bg-[var(--bg-surface)] flex items-center justify-center text-[var(--t2)] group-hover:border-[var(--acc)] group-hover:ring-1 group-hover:ring-[var(--acc)] transition-all shrink-0">
             <Settings size={14} />
           </div>
-          <span className="text-[11px] font-medium">Neural Config</span>
+          <span className="text-[11px] font-medium">Settings</span>
         </button>
 
         <button 
           onClick={() => window.open('https://discord.com', '_blank')}
           className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--t2)] hover:text-white hover:bg-[var(--bg-hover)] transition-all group cursor-pointer"
         >
-          <div className="w-8 h-8 rounded-full border border-[#B8A1D9]/30 bg-[#3B2249]/60 flex items-center justify-center text-[#F3EAF9] group-hover:border-[var(--acc)] group-hover:ring-1 group-hover:ring-[var(--acc)] transition-all shrink-0">
+          <div className="w-8 h-8 rounded-full border border-[var(--b2)] bg-[var(--bg-surface)] flex items-center justify-center text-[var(--t2)] group-hover:border-[var(--acc)] group-hover:ring-1 group-hover:ring-[var(--acc)] transition-all shrink-0">
             <MessageCircle size={14} />
           </div>
           <span className="text-[11px] font-medium">Discord Community</span>
