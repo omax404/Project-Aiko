@@ -29,26 +29,23 @@ async def broadcast_event(e_type: str, data: dict):
     
     # Broadcast to WebSockets
     if ws_clients:
+        # Pair each client with its own send future. The previous implementation
+        # built `tasks` only for open clients but then zipped results against the
+        # *unfiltered* client list, so a closed client shifting the indices could
+        # mark a healthy connection dead (and leak the dead one) — killing live
+        # sockets nondeterministically under reconnects.
         dead = set()
-        tasks = []
-        for ws in ws_clients:
-            try:
-                if not ws.closed:
-                    tasks.append(ws.send_str(msg))
-            except (AttributeError, RuntimeError) as e:
-                logger.debug(f"Broadcast task creation error: {e}")
-                dead.add(ws)
-        
-        if tasks:
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-            active = [w for w in ws_clients if w not in dead]
-            for ws, result in zip(active, results):
-                if isinstance(result, (ConnectionResetError, ConnectionAbortedError, BrokenPipeError)):
-                    dead.add(ws)
-                elif isinstance(result, Exception):
+        active = [ws for ws in list(ws_clients) if not ws.closed]
+        if active:
+            results = await asyncio.gather(
+                *(ws.send_str(msg) for ws in active), return_exceptions=True
+            )
+            for ws, result in zip(active, results, strict=True):
+                if isinstance(result, Exception):
                     logger.debug(f"Broadcast send error: {result}")
                     dead.add(ws)
-        
+        dead.update(ws for ws in list(ws_clients) if ws.closed)
+
         if dead:
             ws_clients.difference_update(dead)
 

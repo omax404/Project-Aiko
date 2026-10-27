@@ -88,6 +88,7 @@ class StatusResponse(BaseModel):
     metrics: Dict[str, Any]
     rag_available: bool
     local_ip: Optional[str] = None
+    hub_port: Optional[int] = None
 
 class WSChatMessage(BaseModel):
     """Validate WebSocket chat messages."""

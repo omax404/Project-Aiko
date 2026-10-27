@@ -9,7 +9,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-C9A8D9.svg)](LICENSE)
 [![Python 3.10 - 3.12](https://img.shields.io/badge/Python-3.10--3.12-2A1B30.svg)](https://python.org)
 [![Architecture: Tier-0](https://img.shields.io/badge/Architecture-Tier--0_Production_Grade-C9A8D9.svg)](#-zero-trust-security--tier-0-architecture)
-[![Tests: 108 Passed](https://img.shields.io/badge/Tests-108_Passed_100%25-green.svg)](#-testing--verification)
+[![Tests: 98 backend + 12 frontend](https://img.shields.io/badge/Tests-98_backend_%2B_12_frontend-blue.svg)](#-testing--verification)
 [![Last Commit](https://img.shields.io/github/last-commit/omax404/Project-Aiko?color=C9A8D9)](https://github.com/omax404/Project-Aiko)
 [![Repo Size](https://img.shields.io/github/repo-size/omax404/Project-Aiko?color=C9A8D9)](https://github.com/omax404/Project-Aiko)
 
@@ -61,6 +61,16 @@ pip install -r requirements.txt
 python launch.py
 ```
 
+> **On Linux**, install the system packages PyAudio and OpenCV need before step 2:
+> `sudo apt-get update && sudo apt-get install -y portaudio19-dev libgl1 libglib2.0-0`
+
+> **On dependencies:** `requirements.txt` lists runtime dependencies with lower
+> bounds only — there is **no lockfile or hash pinning yet**, so a fresh install
+> resolves the newest compatible versions. A committed `requirements.lock`
+> (hashes included) is tracked work, not yet done. Development tooling
+> (`pytest`, `pytest-cov`, `pytest-asyncio`, `ruff`, `mypy`, `pre-commit`) lives in
+> the `dev` extra: `pip install -e ".[dev]"`.
+
 This starts the Neural Hub (port 8000), connects configured satellites (Discord/Telegram/Twitch), and opens the native Tauri desktop overlay.
 
 **To run or build the desktop UI separately:**
@@ -82,7 +92,7 @@ npm test              # Run Vitest test suite
 | **Emotions** | Static personality prompt | Neuromodulator engine (dopamine, serotonin, cortisol, adrenaline) across 22+ emotional attractors |
 | **Memory** | Ephemeral chat buffer | Unified Memory — episodic recall, semantic RAG, consolidation cycles, and encrypted file partitions |
 | **Voice** | Cloud API (ElevenLabs) | High-fidelity local **Pocket-TTS** with voice fingerprints, chunked synthesis, and 0 API cost |
-| **Vision** | None | Non-blocking multimodal vision (`moondream:latest`, MiniCPM-V) running offloaded at 7.6ms loop latency |
+| **Vision** | None | Non-blocking multimodal vision (`moondream:latest`, MiniCPM-V) with heavy inference offloaded off the event loop |
 | **Agency** | Reactive only | Autonomous proactive loop — decides when to speak, observe, reflect, and consolidate memories |
 | **Safety & Control** | Blind execution / None | Strict **Zero-Trust Human-in-the-Loop (HITL)** permission gate with no admin bypasses |
 | **Contracts & Types** | Loosely typed / any | **Ultra-strict TypeScript** (`noUncheckedIndexedAccess: true`), Zod client schemas, Pydantic v2 ingress |
@@ -152,7 +162,8 @@ Project Aiko is engineered to **Tier-0 Production Grade** security standards. Re
 - **Ultra-Strict TypeScript:** Desktop client compiles with `"strict": true` and `"noUncheckedIndexedAccess": true`.
 
 ### ⚡ Event-Loop Latency & Re-Render Isolation
-- **Backend Non-Blocking I/O:** Screen diffing, PNG compression, and SQLite logging run in thread pools via `asyncio.to_thread`. Event-loop latency averages **7.60ms (15.63ms p95)**.
+- **Backend Non-Blocking I/O:** Screen diffing, PNG compression, and SQLite logging run in thread pools via `asyncio.to_thread`, so they never block the event loop.
+  *No latency benchmark is checked into this repo, so no ms figures are quoted here. Any such number should come from a reproducible harness under `tests/`.*
 - **Frontend Isolation:** Message bubbles are wrapped in `React.memo` with granular Zustand selectors. Top-level window re-renders drop to **0** during voice playback.
 
 ---
@@ -172,13 +183,21 @@ Project Aiko is engineered to **Tier-0 Production Grade** security standards. Re
 
 ## 🧪 Testing & Verification
 
-Project Aiko includes a dual-engine automated test suite covering 108 tests with 100% pass rate:
+Project Aiko ships a dual-engine automated test suite: **98 backend tests** (97 pass, 1 skipped — a symlink-privilege skip on Windows) and **12 frontend Vitest tests**.
+
+| Suite | Command | Measured (2026-10-24) |
+|---|---|---|
+| Backend (pytest) | `pytest tests/` | 98 collected — **97 passed, 1 skipped**, ~33 s |
+| Backend coverage | `pytest tests/ --cov=core` | **27.5%** of `core/` |
+| Frontend (Vitest) | `cd aiko-app && npm test` | 12 tests |
+| Frontend types | `cd aiko-app && npx tsc --noEmit` | 0 errors |
+| Frontend bundle | `cd aiko-app && npm run build` | Vite production build |
 
 ```bash
-# 1. Run Python Backend Test Suite (98 tests)
+# 1. Run Python Backend Test Suite (98 tests; 97 pass, 1 skipped on Windows)
 pytest tests/
 
-# 2. Run Frontend Vitest Suite (10 tests)
+# 2. Run Frontend Vitest Suite (12 tests)
 cd aiko-app
 npm test
 
@@ -190,6 +209,19 @@ npx tsc --noEmit
 cd aiko-app
 npm run build
 ```
+
+### 🤖 Continuous Integration
+
+`.github/workflows/ci.yml` runs on every push to `main`/`develop` and on PRs to `main`:
+
+| Job | What it actually runs |
+|---|---|
+| `test-python` | Python 3.10/3.11/3.12 matrix. Installs PortAudio/OpenGL system packages, then `pip install -r requirements.txt`. Lint gate: `ruff check --select E9,F63,F7,F82` (fatal errors only — the full rule set is reported but non-gating). Tests: `pytest --cov=core --cov-fail-under=25`. |
+| `test-frontend` | `npm ci` → `npx tsc --noEmit` → `npm test` (Vitest) → `npm run build`. |
+| `security-scan` | `bandit -r core/ -lll` (HIGH severity findings fail the job), report uploaded as an artifact. |
+| `release` | Tag-driven (`v*`): builds the PyInstaller sidecar, then the Tauri MSI/NSIS bundles and attaches them to a GitHub release. |
+
+The coverage floor (`25`) is set just under the current measured 27.5% so the gate is honest, and is intended to ratchet upward as coverage grows. The `ruff` full-rule-set report and `ruff format --check` are non-gating until that backlog is cleared.
 
 ---
 

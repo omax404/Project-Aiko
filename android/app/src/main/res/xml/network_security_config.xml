@@ -1,11 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Aiko is a local-first app: the Android client talks to the user's own desktop
+    "Neural Hub" over the LAN (http/ws on a selected port in 8000-8049).
+
+    ACCEPTED RISK (documented, tracked as follow-up):
+    The hub currently serves plain HTTP, and Android's Network Security Config matches
+    hostnames/domain names only. It has no CIDR/subnet support, so the previous
+    <domain> entries "10.0.0.0/8", "192.168.0.0/16" and "172.16.0.0/12" matched no real
+    host and silently blocked the hub. Because the hub address is only known at pairing
+    time, cleartext must be allowed app-wide for the LAN link to work at all.
+    Mitigation today = the link only carries traffic between the phone and the user's
+    own machine, protected endpoints require Bearer auth, and pairing codes are one-use.
+    Follow-up: serve HTTPS/WSS
+    from the hub with a self-signed certificate pinned from the pairing QR, then flip
+    this base-config back to false (or add a domain-config for the paired host).
+-->
 <network-security-config>
-    <base-config cleartextTrafficPermitted="false" />
+    <base-config cleartextTrafficPermitted="true" />
     <domain-config cleartextTrafficPermitted="true">
+        <!-- Loopback and emulator host alias, kept for documentation and future tightening. -->
         <domain includeSubdomains="true">127.0.0.1</domain>
         <domain includeSubdomains="true">localhost</domain>
-        <domain includeSubdomains="true">10.0.0.0/8</domain>
-        <domain includeSubdomains="true">192.168.0.0/16</domain>
-        <domain includeSubdomains="true">172.16.0.0/12</domain>
     </domain-config>
 </network-security-config>

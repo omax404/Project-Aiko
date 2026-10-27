@@ -1,36 +1,7 @@
 import { describe, it, expect } from 'vitest';
-
-// Function under test (logic matching ChatBubble.tsx sanitizeMarkdownContent)
-function sanitizeMarkdownContent(text: string): string {
-  if (!text) return '';
-  let cleaned = text.replace(/<emotion>.*?<\/emotion>/gi, '');
-
-  cleaned = cleaned.replace(/\[(STICKER|mood|gesture)\s*:\s*([^\]]+)\]/gi, (_, _type, name) => {
-    const cleanName = name.trim().replace(/\s+/g, '_');
-    const withExt = cleanName.endsWith('.png') ? cleanName : `${cleanName}.png`;
-    return `![sticker](/stickers/${withExt})`;
-  });
-
-  cleaned = cleaned.replace(/(?<!\!)\[(.*?)\]\s*\((\/?stickers\/.*?)\)/gi, '![$1]($2)');
-  cleaned = cleaned.replace(/!\[(.*?)\]\s+\((.*?)\)/g, '![$1]($2)');
-
-  cleaned = cleaned.replace(/!\[(.*?)\]\((\/?stickers\/[^\)]+)\)/gi, (_, alt, path) => {
-    let cleanPath = path.trim();
-    if (!cleanPath.startsWith('/')) cleanPath = '/' + cleanPath;
-    cleanPath = cleanPath.replace(/\s+/g, '');
-    if (!/\.(png|jpg|jpeg|gif|webp)$/i.test(cleanPath)) {
-      cleanPath += '.png';
-    }
-    return `![${alt || 'sticker'}](${cleanPath})`;
-  });
-
-  cleaned = cleaned.replace(/!\[(.*?)\]\(stickers\/(.*?)\)/gi, '![$1](/stickers/$2)');
-  cleaned = cleaned.replace(/!\[\[STICKER\s*:\s*([^\]]+)\]\]\((.*?)\)/gi, '![$1]($2)');
-  cleaned = cleaned.replace(/\\([*_`~[\]()])/g, '$1');
-  cleaned = cleaned.replace(/!\[(.*?)\]\((.*?)\s*\.\s*(png|jpg|jpeg|gif|webp)\)/gi, '![$1]($2.$3)');
-
-  return cleaned.trim();
-}
+// Import the REAL implementation (exported from ChatBubble) instead of
+// re-declaring a copy — a local copy already drifted from production once.
+import { sanitizeMarkdownContent } from '../components/ChatBubble';
 
 describe('ChatBubble Markdown & Tag Sanitizer', () => {
   it('converts [STICKER:xxx] tags to markdown image syntax', () => {
@@ -66,5 +37,60 @@ describe('ChatBubble Markdown & Tag Sanitizer', () => {
     const output = sanitizeMarkdownContent(input);
     expect(output).toContain('print("hello")');
     expect(output).toContain('$x^2 + y^2 = z^2$');
+  });
+
+  it('strips <think>...</think> reasoning CONTENT, not just the tags', () => {
+    const input = '<think>hidden chain of thought</think>Hello Master!';
+    const output = sanitizeMarkdownContent(input);
+    expect(output).toBe('Hello Master!');
+    expect(output).not.toContain('hidden chain of thought');
+    expect(output).not.toContain('<think>');
+  });
+
+  it('strips multi-line <thought> reasoning blocks', () => {
+    const input = 'A<thought>step 1\nstep 2\nstep 3</thought>B';
+    const output = sanitizeMarkdownContent(input);
+    expect(output).toBe('AB');
+    expect(output).not.toContain('step 2');
+  });
+
+  it('removes unclosed <emotion>/<think> tags without eating visible text', () => {
+    const output = sanitizeMarkdownContent('<emotion>happy Hello <think>still here');
+    expect(output).not.toContain('<emotion>');
+    expect(output).not.toContain('<think>');
+    expect(output).toContain('Hello');
+  });
+
+  it('never turns sticker/reasoning tags into images from stripped content', () => {
+    const input = '<think>[STICKER:hidden_sticker]</think>Visible';
+    const output = sanitizeMarkdownContent(input);
+    expect(output).toBe('Visible');
+    expect(output).not.toContain('/stickers/');
+  });
+
+  it('leaves raw javascript: image markdown untouched (react-markdown URL transform owns that)', () => {
+    const input = '![x](javascript:alert(1))';
+    const output = sanitizeMarkdownContent(input);
+    // The sanitizer must not rewrite/mask URLs; react-markdown's
+    // defaultUrlTransform strips non-http(s)/relative protocols later.
+    expect(output).toBe(input);
+    expect(output).not.toContain('/stickers/');
+  });
+
+  it('pins malicious sticker payloads to a relative /stickers/ path', () => {
+    const output = sanitizeMarkdownContent('[STICKER: javascript:alert]');
+    expect(output).toContain('![sticker](/stickers/javascript:alert.png)');
+    // Must not produce a raw javascript: image destination.
+    expect(output).not.toMatch(/!\[[^\]]*\]\(javascript:/);
+  });
+
+  it('adds the .png extension exactly once for sticker tags', () => {
+    const output = sanitizeMarkdownContent('[STICKER: 02_Happy.png]');
+    expect(output).toBe('![sticker](/stickers/02_Happy.png)');
+    expect(output).not.toContain('.png.png');
+  });
+
+  it('trims surrounding whitespace from the final markdown', () => {
+    expect(sanitizeMarkdownContent('  Hello  ')).toBe('Hello');
   });
 });

@@ -44,7 +44,7 @@ class LatexEngine:
             
             # Run pdflatex (non-interactive) with timeout
             process = await asyncio.create_subprocess_exec(
-                "pdflatex", "-interaction=nonstopmode", f"-output-directory={self.output_dir}", filepath,
+                "pdflatex", "-interaction=nonstopmode", "-no-shell-escape", f"-output-directory={self.output_dir}", filepath,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
@@ -85,7 +85,7 @@ class LatexEngine:
 
             # Compile to PDF with timeout
             process = await asyncio.create_subprocess_exec(
-                "pdflatex", "-interaction=nonstopmode", f"-output-directory={self.output_dir}", tex_path,
+                "pdflatex", "-interaction=nonstopmode", "-no-shell-escape", f"-output-directory={self.output_dir}", tex_path,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )

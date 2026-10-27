@@ -25,7 +25,9 @@ from core.api.routes import (
     handle_purge, handle_update_settings, handle_reload_settings, handle_get_settings,
     handle_upload, handle_project_structure, handle_latex_render,
     handle_latex_image, handle_create_session, handle_export_memories,
-    handle_webrtc_offer, handle_local_token, handle_email_send,
+    handle_webrtc_offer, handle_local_token, handle_bot_token, handle_private_upload,
+    handle_mobile_pair_code, handle_mobile_pair_exchange,
+    handle_private_tts_audio, handle_email_send,
     handle_email_inbox, handle_email_settings
 )
 from core.api.websocket import handle_ws
@@ -147,14 +149,14 @@ chat_rate_limits = {}
 async def rate_limit_middleware(request, handler):
     """
     Rate limiting middleware to prevent abuse.
-    - Exempts /status, /health, /ws, /token
+    - Exempts /status, /health, /ws, /token, /bot-token
     - Limits /api/chat to 10 requests per minute per IP
     - Limits other /api/ to 60 requests per minute per IP
     """
     path = request.path
     
     # Exempt paths
-    if path in ['/status', '/health', '/ws', '/token']:
+    if path in ['/status', '/health', '/ws', '/token', '/bot-token']:
         return await handler(request)
         
     # Only rate limit /api/ routes
@@ -221,7 +223,6 @@ async def on_startup(app):
     hub.emotion_engine = EmotionEngine()
     
     # 5. Voice
-    tts_url = config.get("TTS_URL", "")
     hub.voice_engine = VoiceEngine()
     hub.voice_engine.enabled = config.get("TTS_ENABLED", True)
     hub.hearing_engine = HearingEngine()
@@ -280,7 +281,7 @@ async def on_startup(app):
             "proactive": True
         })
     hub.autonomous_agent.attach(brain=hub.brain, callback=autonomous_callback)
-    hub.autonomous_agent.enable()
+    hub.autonomous_agent.mute()
     
     # 16. Startup Manager
     hub.startup_manager = startup_manager
@@ -308,7 +309,7 @@ async def on_startup(app):
     logger.info("   Access: http://localhost:8000")
     logger.info("   Dashboard: /")
     logger.info("   Status: /status")
-    logger.info("   WebSocket: /ws?token=<local_token>")
+    logger.info("   WebSocket: /ws (authenticate in the first data frame)")
     logger.info("="*40 + "\n")
     
     # 20. Start background tasks
@@ -345,7 +346,7 @@ def build_hub_app() -> web.Application:
     assets_dir.mkdir(parents=True, exist_ok=True)
     stickers_dir.mkdir(parents=True, exist_ok=True)
 
-    app.router.add_static('/uploads', uploads_dir, name='uploads')
+    app.router.add_get('/uploads/{filename}', handle_private_upload)
     app.router.add_static('/assets', assets_dir, name='assets')
     app.router.add_static('/stickers', stickers_dir, name='stickers')
     
@@ -353,6 +354,7 @@ def build_hub_app() -> web.Application:
     app.router.add_get('/status', handle_status)
     app.router.add_get('/health', handle_health)
     app.router.add_get('/token', handle_local_token)  # loopback-only token endpoint
+    app.router.add_get('/bot-token', handle_bot_token)
     app.router.add_get('/ws', handle_ws)
     
     # Protected API routes (require JWT Bearer token)
@@ -377,12 +379,14 @@ def build_hub_app() -> web.Application:
     app.router.add_post('/api/cards/mint', handle_mint_card)
     app.router.add_post('/api/cards/showcase', handle_set_showcase_card)
     app.router.add_post('/api/webrtc/offer', handle_webrtc_offer)
+    app.router.add_post('/api/mobile/pair-code', handle_mobile_pair_code)
+    app.router.add_post('/api/mobile/pair/exchange', handle_mobile_pair_exchange)
     app.router.add_post('/api/email/send', handle_email_send)
     app.router.add_get('/api/email/inbox', handle_email_inbox)
     app.router.add_post('/api/email/settings', handle_email_settings)
     
     # TTS static audio
-    app.router.add_static('/api/tts/audio', BASE / 'data' / 'voices', name='tts_audio')
+    app.router.add_get('/api/tts/audio/{filename}', handle_private_tts_audio)
     
     # Startup / cleanup
     app.on_startup.append(on_startup)
@@ -401,9 +405,28 @@ def build_hub_app() -> web.Application:
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(name)s: %(message)s')
+
+    # SECURITY: aiohttp's access logger writes the full request line, and the
+    # WebSocket handshake is authenticated via `?token=<JWT>` (browsers cannot
+    # set headers on WS upgrades). Without this filter every hub token would be
+    # persisted in plaintext to the console/log files. Redact it in place.
+    import re as _re
+
+    class _RedactTokenFilter(logging.Filter):
+        _TOKEN_RE = _re.compile(r'(?i)(token=)[^&\s"]+')
+
+        def filter(self, record):
+            if isinstance(record.msg, str):
+                record.msg = self._TOKEN_RE.sub(r'\1[REDACTED]', record.msg)
+            return True
+
+    access_logger = logging.getLogger("aiohttp.access")
+    access_logger.addFilter(_RedactTokenFilter())
+
     app = build_hub_app()
     
     start_port = int(os.environ.get("AIKO_PORT", 8000))
+    bind_host = os.environ.get("AIKO_BIND_HOST", "0.0.0.0")
     import socket
     port = start_port
     
@@ -411,7 +434,7 @@ if __name__ == '__main__':
     for p in range(start_port, start_port + 50):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             try:
-                s.bind(('127.0.0.1', p))
+                s.bind((bind_host, p))
                 port = p
                 break
             except OSError:
@@ -431,7 +454,9 @@ if __name__ == '__main__':
         logger.warning(f"Could not persist active port to port.json: {e}")
 
     logger.info(f" [Hub] Binding to port: {port}")
-    # SECURITY: Bind to loopback only. Never use 0.0.0.0 — it exposes
-    # the entire API (chat, files, process kill) to the local network.
-    web.run_app(app, host='127.0.0.1', port=port)
+    # The mobile pairing flow needs LAN reachability. All API routes require a
+    # bearer token except for a one-use high-entropy pairing code; set
+    # AIKO_BIND_HOST=127.0.0.1 to disable LAN access on this machine.
+    logger.info(f" [Hub] Listening on {bind_host}:{port}")
+    web.run_app(app, host=bind_host, port=port, access_log=access_logger)
 

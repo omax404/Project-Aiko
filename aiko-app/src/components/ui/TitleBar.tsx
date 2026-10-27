@@ -15,7 +15,7 @@ export function TitleBar({ sessionLabel, showAnimatedAssets, onSettings, onToggl
   const isTauri = !!(window as any).__TAURI__;
   const minimize = () => isTauri ? getCurrentWindow().minimize().catch(console.error) : undefined;
   const maximize = () => isTauri ? getCurrentWindow().toggleMaximize().catch(console.error) : undefined;
-  const close = () => isTauri ? getCurrentWindow().close().catch(console.error) : window.close();
+  const close = () => isTauri ? getCurrentWindow().hide().catch(console.error) : window.close();
 
   const noDrag = { WebkitAppRegion: 'no-drag' } as React.CSSProperties;
 

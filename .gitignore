@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.egg-info/
 .venv/
 env/
 venv/
@@ -57,6 +58,17 @@ nul
 scratch/perchance_*.png
 scratch/test_*.py
 scratch/inspect_*.py
+
+# Test / tooling artifacts
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+bandit-report.json
+pytest-of-*/
 
 .agents/
 *.salive

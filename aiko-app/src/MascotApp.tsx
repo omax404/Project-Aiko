@@ -3,6 +3,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Live2DAvatar } from './components/Live2DAvatar';
 import { useNeuralStore, getHubUrl } from './store/useNeuralStore';
+import { useShallow } from 'zustand/react/shallow';
 import { Home, X, MessageCircle, Send, Volume2, VolumeX } from 'lucide-react';
 import { Window } from '@tauri-apps/api/window';
 import ReactMarkdown from 'react-markdown';
@@ -23,10 +24,22 @@ const MASCOT_W = 300;
 const MASCOT_H = 420;
 
 export default function MascotApp() {
+  // Field selectors: a whole-store subscription here re-rendered the mascot
+  // (and its Live2D canvas wrapper) on every unrelated store mutation.
   const {
     connect, isThinking, isTalking, currentEmotion, amplitude,
     sendMessage, streamingContent, messages, fetchBridgeStatus
-  } = useNeuralStore();
+  } = useNeuralStore(useShallow((s) => ({
+    connect: s.connect,
+    isThinking: s.isThinking,
+    isTalking: s.isTalking,
+    currentEmotion: s.currentEmotion,
+    amplitude: s.amplitude,
+    sendMessage: s.sendMessage,
+    streamingContent: s.streamingContent,
+    messages: s.messages,
+    fetchBridgeStatus: s.fetchBridgeStatus,
+  })));
 
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');

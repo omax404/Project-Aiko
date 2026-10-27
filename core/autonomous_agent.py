@@ -73,7 +73,7 @@ class AutonomousAgent:
         self._last_user_activity: float = time.time()
         self._total_cycles: int = 0
         self._session_memory: List[str] = []  # her own notes to self
-        self._muted: bool = False              # silence proactive messages when muted
+        self._muted: bool = True              # silence proactive messages by default
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -290,8 +290,16 @@ class AutonomousAgent:
 
     def _say(self, text: str, emotion: str = "happy"):
         """Send a proactive message to the chat UI (shows up as Aiko speaking)."""
-        if self._muted or not self.callback:
+        from core.config_manager import config
+        if self._muted or not config.get("PROACTIVE_SPEECH", False) or not self.callback:
             return
+
+        import re
+        text = re.sub(r'<emotion>.*?</emotion>', '', text, flags=re.IGNORECASE).strip()
+        text = re.sub(r'</?emotion>', '', text, flags=re.IGNORECASE).strip()
+        if not text:
+            return
+
         async def _dispatch():
             try:
                 if asyncio.iscoroutinefunction(self.callback):

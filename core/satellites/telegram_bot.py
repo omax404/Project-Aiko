@@ -30,7 +30,8 @@ if not TOKEN:
         user_settings_path = BASE_DIR / "user_settings.json"
         if user_settings_path.exists():
             settings = json.loads(user_settings_path.read_text(encoding="utf-8"))
-            TOKEN = settings.get("plugins", {}).get("telegram_token", "")
+            from core.config_manager import decrypt_string
+            TOKEN = decrypt_string(settings.get("plugins", {}).get("telegram_token", ""))
     except Exception:
         pass
 raw_master_id = os.getenv("MASTER_ID", "0").strip()
@@ -38,7 +39,22 @@ try:
     MASTER_ID = int(raw_master_id) if raw_master_id.isdigit() else 0
 except ValueError:
     MASTER_ID = 0
-HUB_URL = "http://127.0.0.1:8000"
+def load_hub_port() -> str:
+    """Read the active port from data/port.json (hub may bind 8000–8049)."""
+    try:
+        port_file = BASE_DIR / "data" / "port.json"
+        if port_file.exists():
+            data = json.loads(port_file.read_text(encoding="utf-8"))
+            active_port = data.get("port")
+            if active_port:
+                return str(active_port)
+    except (OSError, ValueError, TypeError, KeyError) as e:
+        logger.warning(f"Could not load active port from port.json: {e}")
+    return os.getenv("AIKO_PORT", "8000")
+
+
+PORT = load_hub_port()
+HUB_URL = f"http://127.0.0.1:{PORT}"
 _cached_token = None
 
 async def _get_auth_header() -> dict:
@@ -47,20 +63,10 @@ async def _get_auth_header() -> dict:
     if _cached_token:
         return {"Authorization": f"Bearer {_cached_token}"}
     
-    # 1. Try reading local_token.txt directly
-    token_file = BASE_DIR / "data" / "local_token.txt"
-    if token_file.exists():
-        try:
-            _cached_token = token_file.read_text(encoding="utf-8").strip()
-            if _cached_token:
-                return {"Authorization": f"Bearer {_cached_token}"}
-        except Exception:
-            pass
-
-    # 2. Fetch from /token loopback endpoint
+    # Satellites receive a scoped, non-admin token; never read the desktop token file.
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(f"{HUB_URL}/token", timeout=5) as resp:
+            async with session.get(f"{HUB_URL}/bot-token?bot=telegram", timeout=5) as resp:
                 if resp.status == 200:
                     data = await resp.json()
                     _cached_token = data.get("token")

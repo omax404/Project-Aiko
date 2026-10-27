@@ -175,6 +175,11 @@ export const platforms = [
     detail: "Live2D overlay · Ctrl+Alt+A",
   },
   { name: "REST API", status: "Live", detail: "Neural Hub · port 8000" },
+  {
+    name: "Android App",
+    status: "Preview",
+    detail: "In repo · Kotlin · Compose · Room · WebRTC",
+  },
 ] as const;
 
 export const providers = [
@@ -210,8 +215,8 @@ export const roadmap = [
     status: "upcoming" as const,
   },
   {
-    title: "Mobile App",
-    description: "iOS & Android companion experience",
+    title: "iOS App",
+    description: "Mobile companion experience on iPhone and iPad",
     status: "upcoming" as const,
   },
   {

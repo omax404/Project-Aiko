@@ -19,15 +19,15 @@ class TestSecurityManager:
         assert token.startswith("Bearer ")
         assert len(token) > 50
     
-    def test_is_admin_master_user(self):
-        """Master user ID should always be admin."""
+    def test_is_admin_user_id_cannot_grant_admin(self):
+        """Client supplied user IDs never grant administrative access."""
         os.environ["MASTER_ID"] = "123456789"
-        assert policy_engine.is_admin("123456789") is True
+        assert policy_engine.is_admin("123456789") is False
     
-    def test_is_admin_admin_ids(self):
-        """Users in ADMIN_IDS env should be admin."""
+    def test_is_admin_admin_ids_cannot_grant_admin(self):
+        """Environment identity strings cannot replace a verified token claim."""
         os.environ["ADMIN_IDS"] = "111,222,333"
-        assert policy_engine.is_admin("222") is True
+        assert policy_engine.is_admin("222") is False
     
     def test_is_admin_not_admin(self):
         """Random user should not be admin."""
@@ -114,7 +114,8 @@ class TestHITLPermissionGate:
     @pytest.mark.asyncio
     @patch("core.api.websocket.request_tool_permission")
     @patch("subprocess.Popen")
-    async def test_tool_permission_gate_approved(self, mock_popen, mock_request_permission):
+    @patch("os.startfile", create=True)
+    async def test_tool_permission_gate_approved(self, mock_startfile, mock_popen, mock_request_permission):
         """Should execute command if user approves."""
         mock_request_permission.return_value = True
         from core.infrastructure.tools.executor import AgentExecutor
@@ -127,12 +128,15 @@ class TestHITLPermissionGate:
             await executor.execute_tools(brain, "[OPEN: calc.exe]", observations, images_data, "admin_user")
 
         assert any("Successfully requested OS to open" in obs for obs in observations)
-        mock_popen.assert_called_once()
+        # Windows opens the target through ShellExecute (os.startfile, which does
+        # not invoke cmd.exe); POSIX spawns through subprocess.Popen.
+        assert mock_popen.called or mock_startfile.called
 
     @pytest.mark.asyncio
     @patch("core.api.websocket.request_tool_permission")
     @patch("subprocess.Popen")
-    async def test_tool_permission_gate_denied(self, mock_popen, mock_request_permission):
+    @patch("os.startfile", create=True)
+    async def test_tool_permission_gate_denied(self, mock_startfile, mock_popen, mock_request_permission):
         """Should block execution if user denies."""
         mock_request_permission.return_value = False
         from core.infrastructure.tools.executor import AgentExecutor
@@ -146,3 +150,4 @@ class TestHITLPermissionGate:
 
         assert any("[TOOL_BLOCKED]" in obs or "not approved" in obs for obs in observations)
         mock_popen.assert_not_called()
+        mock_startfile.assert_not_called()

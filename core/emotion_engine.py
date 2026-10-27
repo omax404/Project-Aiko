@@ -149,22 +149,22 @@ class EmotionEngine:
 
     def process_text(self, text: str) -> None:
         """Extract tags and spike chemicals appropriately."""
-        matches = re.findall(r'<emotion>(.*?)</emotion>', text, re.IGNORECASE)
+        matches = re.findall(r'<emotion>(.*?)</emotion>', text, re.IGNORECASE | re.DOTALL)
         found_emotions = []
         
         if matches:
             tags = matches[-1].lower().replace(',', ' ').split()
             logger.info(f" [EmotionEngine] Detected RAW TAGS from LLM: {tags}")
-            for tag in tags:
-                for em in EMOTION_MAP.keys():
-                    if em in tag or tag in em:
-                        found_emotions.append(em)
+            found_emotions = [tag for tag in tags if tag in EMOTION_MAP]
                         
         if not found_emotions:
             text_lower = text.lower()
-            for em in EMOTION_MAP.keys():
-                if em in text_lower:
+            for em in sorted(EMOTION_MAP, key=len, reverse=True):
+                phrase = re.escape(em).replace(r"\ ", r"\s+")
+                if re.search(rf"(?<!\w){phrase}(?!\w)", text_lower):
                     found_emotions.append(em)
+
+        found_emotions = list(dict.fromkeys(found_emotions))
         
         if not found_emotions:
             found_emotions = ["neutral"]

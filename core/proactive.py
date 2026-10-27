@@ -61,7 +61,8 @@ class ProactiveAgent:
         self.voice = voice
         self.obsidian = obsidian
         self.active = False
-        self.interval = 12  # Screen observation interval: scans screen every 12s
+        self.speech_enabled = False
+        self.interval = 180  # Default to idle interval
         self.last_consolidation = date.today()
         self.last_greeting_date = None
         self.last_greeting_hour = -1
@@ -106,11 +107,11 @@ class ProactiveAgent:
                 now = datetime.now()
 
                 # REM Sleep & Memory Consolidation (The "Dream" System)
-                if self._is_safe_for_dream_cycle(now):
+                from core.config_manager import config
+                if config.get("DREAM_MEMORY_ENABLED", True) and self._is_safe_for_dream_cycle(now):
                     logger.info("[Proactive] Entering REM Sleep... Consolidating memories.")
                     try:
                         mem = get_unified_memory()
-                        from core.config_manager import config
                         uid = config.get("username", "master")
                         history = mem.get_history(uid, limit=100)
                         await memory_consolidator.consolidate(history)
@@ -175,7 +176,18 @@ class ProactiveAgent:
             self.last_greeting_hour = 0
 
     async def _send_proactive(self, text: str, emotion: str = "neutral") -> None:
-        """Broadcast a proactive message to the UI and speak it."""
+        """Broadcast a proactive message to the UI and speak it (if proactive speech enabled)."""
+        from core.config_manager import config
+        if not getattr(self, "speech_enabled", False) and not config.get("PROACTIVE_SPEECH", False):
+            logger.info(f"[Proactive] Proactive speech suppressed: '{text[:40]}...'")
+            return
+
+        import re
+        text = re.sub(r'<emotion>.*?</emotion>', '', text, flags=re.IGNORECASE).strip()
+        text = re.sub(r'</?emotion>', '', text, flags=re.IGNORECASE).strip()
+        if not text:
+            return
+
         logger.info(f"[Proactive] Sending: {text[:50]}")
         if self._broadcast:
             await self._broadcast("chat_end", {
@@ -262,11 +274,7 @@ class ProactiveAgent:
                     "If you know the song/artist, comment on it. Otherwise just vibe."
                 )
                 # Reactions are silent
-                self.brain.suppress_speech = True
-                try:
-                    comment = await self.brain.ask_raw(prompt)
-                finally:
-                    self.brain.suppress_speech = False
+                comment = await self.brain.ask_raw(prompt)
                 
                 if comment and len(comment.strip()) > 3:
                     from core.persona import detect_emotion
@@ -276,6 +284,15 @@ class ProactiveAgent:
 
     async def tick(self) -> None:
         """Single proactive cycle — observe screen and comment if interesting."""
+        # Gate BEFORE any work: screen capture, VLM analysis and a full ReAct
+        # chat are expensive; previously the speech-disabled check sat at the
+        # end of this method, so every cycle paid the full cost and discarded
+        # the result (R-15/D-2).
+        from core.config_manager import config
+        if not getattr(self, "speech_enabled", False) and not config.get("PROACTIVE_SPEECH", False):
+            logger.debug("[Proactive] Proactive speech disabled; skipping observation cycle.")
+            return
+
         if getattr(self, "is_ticking", False):
             logger.info("[Proactive] Screen scan already in progress, skipping concurrent run.")
             return
@@ -331,25 +348,33 @@ class ProactiveAgent:
             
             # Proactive scan comments should trigger TTS if they are not silent,
             # but we suppress speech during chat processing to handle the text stream.
-            self.brain.suppress_speech = True
-            try:
-                chat_res = await self.brain.chat(prompt, user_id=uid, save_input=False)
-                comment = chat_res[0] if isinstance(chat_res, tuple) else chat_res
-                emotion = chat_res[1] if isinstance(chat_res, tuple) and len(chat_res) > 1 else "neutral"
-            finally:
-                self.brain.suppress_speech = False
+            chat_res = await self.brain.chat(
+                prompt, user_id=uid, save_input=False, suppress_audio=True
+            )
+            comment = chat_res[0] if isinstance(chat_res, tuple) else chat_res
+            emotion = chat_res[1] if isinstance(chat_res, tuple) and len(chat_res) > 1 else "neutral"
 
             # 4. If she decides to comment (not '...'), save it to memory, broadcast, and vocalize
+            from core.config_manager import config
+            if not getattr(self, "speech_enabled", False) and not config.get("PROACTIVE_SPEECH", False):
+                return
+
             if comment and "..." not in comment and len(comment.strip()) > 5:
                 if any(err_kw in comment.lower() for err_kw in ["unreachable", "returned an error", "taking too long to think", "couldn't connect"]):
                     logger.warning(f"[Proactive] Suppressed LLM error comment from chat history: {comment}")
                     return
 
+                import re
+                clean_comment = re.sub(r'<emotion>.*?</emotion>', '', comment, flags=re.IGNORECASE).strip()
+                clean_comment = re.sub(r'</?emotion>', '', clean_comment, flags=re.IGNORECASE).strip()
+                if not clean_comment:
+                    return
+
                 # Save only assistant response to chat history (no fake user messages)
-                self.brain.memory.add_message(uid, "assistant", comment)
+                self.brain.memory.add_message(uid, "assistant", clean_comment)
                 
                 # Vocalize proactive message (broadcasts + TTS)
-                await self._send_proactive(comment, emotion)
+                await self._send_proactive(clean_comment, emotion)
 
         except (OSError, ValueError, RuntimeError) as e:
             logger.error(f"[Proactive] Tick error: {e}")
@@ -358,7 +383,7 @@ class ProactiveAgent:
 
     async def _check_inner_monologue(self, now: datetime) -> None:
         """Trigger an internal thought if chemicals are high and we are idle."""
-        if self.active: return # Don't think out loud if we are already doing screen observations
+        if not self.active: return # Idle monologue is only scheduled during active proactive mode.
         
         # Check if idle (last greeting or interaction was a while ago)
         # For simulation purposes, we'll check chemical thresholds
@@ -392,8 +417,12 @@ class ProactiveAgent:
                 
                 if comment and len(comment.strip()) > 5:
                     from core.persona import detect_emotion
-                    emotion = detect_emotion(comment)
-                    await self._send_proactive(comment, emotion)
+                    import re
+                    clean_comment = re.sub(r'<emotion>.*?</emotion>', '', comment, flags=re.IGNORECASE).strip()
+                    clean_comment = re.sub(r'</?emotion>', '', clean_comment, flags=re.IGNORECASE).strip()
+                    if clean_comment:
+                        emotion = detect_emotion(clean_comment)
+                        await self._send_proactive(clean_comment, emotion)
             else:
                 logger.debug(f" [Proactive] Aiko had a silent thought: {trigger}")
 
@@ -402,13 +431,15 @@ class ProactiveAgent:
         self.active = state
         logger.info(f"[Proactive] Active: {self.active}")
         if self.active and (not was_active or force_tick):
-            # If we just activated, trigger a tick soon after connection settles
-            try:
-                loop = asyncio.get_running_loop()
-                loop.create_task(self._trigger_immediate_tick())
-            except RuntimeError:
-                # No running loop yet during hub boot phase
-                pass
+            from core.config_manager import config
+            if config.get("PROACTIVE_ENABLED", False) or getattr(self, "speech_enabled", False):
+                # If activated and enabled, trigger a tick soon after connection settles
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(self._trigger_immediate_tick())
+                except RuntimeError:
+                    # No running loop yet during hub boot phase
+                    pass
         return self.active
 
     async def _trigger_immediate_tick(self) -> None:

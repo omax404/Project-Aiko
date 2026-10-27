@@ -228,8 +228,9 @@ function App() {
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
+        className={`aiko-app-shell${activeArtifactCode ? ' has-artifact' : ''}`}
         style={{
-          width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column',
+          width: '100%', height: '100dvh', minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column',
           overflow: 'hidden', background: 'var(--bg-base)', color: 'var(--t1)',
           borderRadius: '24px', border: '1px solid rgba(255, 255, 255, 0.08)',
           boxShadow: '0 15px 35px rgba(0, 0, 0, 0.6)', position: 'relative'
@@ -273,7 +274,7 @@ function App() {
       )}
 
       {/* Body row */}
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+      <div className="aiko-workspace-row" style={{ display: 'flex', flex: 1, overflow: 'hidden', minHeight: 0 }}>
 
         {/* Left sidebar — animated collapse */}
         <AnimatePresence initial={false}>
@@ -287,6 +288,7 @@ function App() {
                 damping: 20 + (dynamicsIntensity / 10),
                 stiffness: 100 + (dynamicsIntensity / 2)
               }}
+              className="aiko-sidebar-shell"
               style={{ overflow: 'hidden', flexShrink: 0 }}
             >
               <Sidebar onOpenSettings={() => setIsSettingsOpen(true)} />
@@ -295,11 +297,11 @@ function App() {
         </AnimatePresence>
 
         {/* Dual pane container */}
-        <div className="flex-1 flex overflow-hidden">
+        <div className="aiko-main-panes flex-1 flex overflow-hidden">
           {/* Conversation view */}
           <motion.div
             animate={{
-              width: activeArtifactCode ? '40%' : '100%'
+              width: activeArtifactCode ? '42%' : '100%'
             }}
             transition={{
               type: 'spring',
@@ -307,7 +309,7 @@ function App() {
               stiffness: 120
             }}
             className="h-full flex overflow-hidden border-r border-white/[0.04]"
-            style={{ flexShrink: 0 }}
+            style={{ flex: '0 0 auto', minWidth: 0, flexShrink: 1 }}
           >
             {/* Chat area */}
             <main
@@ -447,14 +449,14 @@ function App() {
             {activeArtifactCode && (
               <motion.div
                 initial={{ width: 0, opacity: 0 }}
-                animate={{ width: '60%', opacity: 1 }}
+                animate={{ width: '58%', opacity: 1 }}
                 exit={{ width: 0, opacity: 0 }}
                 transition={{
                   type: 'spring',
                   damping: 25,
                   stiffness: 120
                 }}
-                className="h-full flex flex-col bg-[#141211] overflow-hidden"
+                className="aiko-artifact-pane h-full flex flex-col bg-[#141211] overflow-hidden"
               >
                 {/* Minimalist Dark Header */}
                 <div className="h-10 px-4 bg-[#0e0d0c] border-b border-white/[0.04] flex items-center justify-between shrink-0 select-none">

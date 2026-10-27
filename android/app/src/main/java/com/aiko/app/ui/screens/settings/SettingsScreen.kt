@@ -45,6 +45,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import org.json.JSONObject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -605,10 +606,19 @@ fun SettingsScreen(
                 onQrScanned = { result ->
                     qrScannerOpen = false
                     scope.launch {
-                        aikoPrefs.setDesktopUrl(result)
-                        aikoPrefs.setConnectionMode("Link to Desktop")
-                        aikoPrefs.setDesktopConnected(true)
-                        Toast.makeText(context, "Linked to $result!", Toast.LENGTH_SHORT).show()
+                        try {
+                            val pairing = JSONObject(result)
+                            val serverUrl = pairing.getString("server_url")
+                            val pairingCode = pairing.getString("pairing_code")
+                            chatRepository.pairWithDesktop(serverUrl, pairingCode)
+                            Toast.makeText(context, "Aiko Desktop paired successfully.", Toast.LENGTH_SHORT).show()
+                        } catch (error: Exception) {
+                            Toast.makeText(
+                                context,
+                                error.message ?: "This QR code could not pair with Aiko Desktop.",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
                     }
                 },
                 onClose = { qrScannerOpen = false }

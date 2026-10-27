@@ -67,31 +67,14 @@ class SecurityManager:
         """Check if JWT claims grant administrative / PC control privileges."""
         if not claims or not isinstance(claims, dict):
             return False
-        if claims.get("is_admin", False) is True:
-            return True
-        sub = claims.get("sub", "")
-        master_id = os.getenv("MASTER_ID", "")
-        if master_id and str(sub) == str(master_id):
-            return True
-        admin_ids_raw = os.getenv("ADMIN_IDS", "")
-        admin_ids = [uid.strip() for uid in admin_ids_raw.split(",") if uid.strip()]
-        return str(sub) in admin_ids
+        return claims.get("is_admin", False) is True
 
     def is_admin(self, user_id: str, is_admin_claim: bool = False) -> bool:
         """
         Check if the given user_id or context is authorized to execute PC commands.
-        Prioritizes verified JWT admin claims over unverified user_id strings.
+        Administrative access is granted only by an already verified token claim.
         """
         if is_admin_claim:
-            return True
-
-        master_id = os.getenv("MASTER_ID", "")
-        if master_id and str(user_id) == str(master_id):
-            return True
-
-        admin_ids_raw = os.getenv("ADMIN_IDS", "")
-        admin_ids = [uid.strip() for uid in admin_ids_raw.split(",") if uid.strip()]
-        if admin_ids and str(user_id) in admin_ids:
             return True
 
         return False

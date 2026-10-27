@@ -50,6 +50,7 @@ dependencies = [
     "anthropic>=0.5.0",
     "python-multipart>=0.0.6",
     "mempalace>=3.0.0",
+    "chromadb>=0.4.0",
     "pynacl>=1.5.0",
     "huggingface_hub>=0.16.0",
     "spotipy>=2.23.0",
@@ -101,6 +102,8 @@ exclude = ["tests*", "aiko-app*", "android*", "docs*", "assets*", "data*"]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+
+[tool.ruff.lint]
 select = [
     "E", "W", "F", "I", "N", "UP", "B", "C4", "SIM", "ARG",
 ]

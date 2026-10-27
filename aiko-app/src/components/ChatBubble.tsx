@@ -16,6 +16,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { useNeuralStore, getHubUrl } from '../store/useNeuralStore';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { useState, memo } from 'react';
 
 interface ChatBubbleProps {
@@ -229,6 +230,27 @@ export const ChatBubble = memo(function ChatBubble({
                     remarkPlugins={[remarkGfm, remarkMath]}
                     rehypePlugins={[rehypeKatex]}
                     components={{
+                      a: ({ href, children, ...props }) => (
+                        <a
+                          {...props}
+                          href={href}
+                          target="_blank"
+                          rel="noreferrer noopener"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            if (href && /^(https?:|mailto:)/i.test(href)) {
+                              if ((window as any).__TAURI__) {
+                                void openUrl(href).catch((error) => console.warn('[Aiko] Could not open link:', error));
+                              } else {
+                                window.open(href, '_blank', 'noopener,noreferrer');
+                              }
+                            }
+                          }}
+                          className="text-[var(--accent)] underline underline-offset-2 hover:opacity-80"
+                        >
+                          {children}
+                        </a>
+                      ),
                       img: ({ node, src, alt, ...props }) => {
                         if (!src) return null;
                         const hubUrl = getHubUrl();

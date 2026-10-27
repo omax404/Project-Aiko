@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Save, X, Settings, User, Palette, Brain, Volume2, Eye, Plug, Smartphone } from 'lucide-react';
-import { useNeuralStore, getHubUrl } from '../store/useNeuralStore';
+import { Save, X, Settings, User, Palette, Brain, Volume2, Eye, Plug, Smartphone, Moon, Plus, Trash2 } from 'lucide-react';
+import { useNeuralStore, getHubUrl, getAuthHeaders, resolveHubUrl } from '../store/useNeuralStore';
+import { QRCodeSVG } from 'qrcode.react';
 
 interface SettingsPanelProps {
   isOpen: boolean;
@@ -9,7 +10,6 @@ interface SettingsPanelProps {
 }
 
 const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI__;
-const HUB_URL = getHubUrl();
 
 async function loadSettingsFromBackend(): Promise<any> {
   if (isTauri) {
@@ -22,7 +22,9 @@ async function loadSettingsFromBackend(): Promise<any> {
     }
   }
   try {
-    const res = await fetch(`${HUB_URL}/api/settings`);
+    const hubUrl = await resolveHubUrl();
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${hubUrl}/api/settings`, { headers });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (e) {
@@ -41,9 +43,11 @@ async function saveSettingsToBackend(settings: any): Promise<void> {
       // Fall through to HTTP
     }
   }
-  const res = await fetch(`${HUB_URL}/api/settings`, {
+  const hubUrl = await resolveHubUrl();
+  const headers = await getAuthHeaders({ 'Content-Type': 'application/json' });
+  const res = await fetch(`${hubUrl}/api/settings`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(settings),
   });
   if (!res.ok) {
@@ -64,7 +68,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, o
       avatar_scale: 1.0,
       dynamics_intensity: 80,
       show_animated_assets: true
-    }
+    },
+    memory: { dream_enabled: true, instructions_enabled: true, instructions: [] as string[] }
   };
 
   const [settings, setSettings] = useState<any>(defaultSettings);
@@ -73,20 +78,63 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, o
   const [saveStatus, setSaveStatus] = useState<'idle' | 'ok' | 'err'>('idle');
   const [activeTab, setActiveTab] = useState('persona');
   const [localIp, setLocalIp] = useState<string>('');
+  const [localPort, setLocalPort] = useState<number>(Number(new URL(getHubUrl()).port || '8000'));
+  const [pairingQrData, setPairingQrData] = useState('');
+  const [pairingError, setPairingError] = useState('');
 
   useEffect(() => {
     if (isOpen) {
       loadSettings();
-      fetch(`${HUB_URL}/status`)
+      resolveHubUrl().then(hubUrl => fetch(`${hubUrl}/status`))
         .then(res => res.json())
         .then(data => {
           if (data && data.local_ip) {
             setLocalIp(data.local_ip);
           }
+          if (Number.isInteger(data?.hub_port) && data.hub_port > 0 && data.hub_port < 65536) {
+            setLocalPort(data.hub_port);
+          }
         })
         .catch(err => console.warn('Could not fetch status for local IP:', err));
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || activeTab !== 'mobile' || !localIp) {
+      setPairingQrData('');
+      setPairingError('');
+      return;
+    }
+
+    let cancelled = false;
+    const refreshPairingCode = async () => {
+      try {
+        const hubUrl = await resolveHubUrl();
+        const headers = await getAuthHeaders();
+        const response = await fetch(`${hubUrl}/api/mobile/pair-code`, { method: 'POST', headers });
+        if (!response.ok) throw new Error(response.status === 403 ? 'Open pairing from the native desktop app.' : `Pairing service returned ${response.status}.`);
+        const data = await response.json();
+        if (cancelled) return;
+        setPairingError('');
+        setPairingQrData(JSON.stringify({
+          server_url: `http://${localIp}:${localPort}`,
+          pairing_code: data.pairing_code,
+        }));
+      } catch (error) {
+        if (!cancelled) {
+          setPairingQrData('');
+          setPairingError(error instanceof Error ? error.message : 'Could not create a pairing code.');
+        }
+      }
+    };
+
+    void refreshPairingCode();
+    const timer = window.setInterval(() => void refreshPairingCode(), 150_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [isOpen, activeTab, localIp, localPort]);
 
   const loadSettings = async () => {
     setLoading(true);
@@ -99,7 +147,12 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, o
         persona: { ...prev.persona, ...(data.persona || {}) },
         plugins: { ...prev.plugins, ...(data.plugins || {}) },
         vision: { ...prev.vision, ...(data.vision || {}) },
-        appearance: { ...prev.appearance, ...(data.appearance || {}) }
+        appearance: { ...prev.appearance, ...(data.appearance || {}) },
+        memory: {
+          ...(prev.memory || defaultSettings.memory),
+          ...(data.memory || {}),
+          instructions: Array.isArray(data.memory?.instructions) ? data.memory.instructions.slice(0, 50) : (prev.memory?.instructions || defaultSettings.memory.instructions)
+        }
       }));
     } catch (e) {
       console.error('Failed to load settings:', e);
@@ -129,7 +182,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, o
       }
 
       try {
-        await fetch(`${HUB_URL}/api/settings/reload`, { method: 'POST' });
+        const hubUrl = await resolveHubUrl();
+        const headers = await getAuthHeaders();
+        await fetch(`${hubUrl}/api/settings/reload`, { method: 'POST', headers });
       } catch (_) {}
       setTimeout(() => {
         setSaveStatus('idle');
@@ -147,6 +202,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, o
 
   const tabs = [
     { id: 'persona', label: 'Persona' },
+    { id: 'memory', label: 'Memory' },
     { id: 'appearance', label: 'Appearance' },
     { id: 'llm', label: 'AI Model' },
     { id: 'tts', label: 'Voice' },
@@ -158,6 +214,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, o
   const getTabIcon = (id: string) => {
     switch (id) {
       case 'persona': return <User size={14} strokeWidth={1.8} />;
+      case 'memory': return <Brain size={14} strokeWidth={1.8} />;
       case 'appearance': return <Palette size={14} strokeWidth={1.8} />;
       case 'llm': return <Brain size={14} strokeWidth={1.8} />;
       case 'tts': return <Volume2 size={14} strokeWidth={1.8} />;
@@ -235,6 +292,37 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, o
                       aria-label="Custom Personality Injection"
                     />
                   </div>
+                </div>
+              )}
+
+              {activeTab === 'memory' && (
+                <div className="flex flex-col gap-5">
+                  <div>
+                    <h3 className="text-[16px] font-semibold text-[#f0ebe3] mb-1">Memory</h3>
+                    <p className="text-[12px] text-[#9a8f7e] leading-relaxed">Choose what Aiko keeps over time. Saved memory instructions are applied to her conversations.</p>
+                  </div>
+                  <label className="flex items-center justify-between gap-4 p-4 rounded-xl bg-[var(--bg-base)] border border-white/[0.06] cursor-pointer">
+                    <span className="flex items-start gap-3"><Moon size={16} className="mt-0.5 text-[var(--accent)]"/><span><span className="block text-[13px] font-medium text-[#f0ebe3]">Dream Memory</span><span className="block mt-1 text-[12px] text-[#9a8f7e]">Each night, Aiko consolidates recent chats into long-term memory while the computer is idle.</span></span></span>
+                    <input type="checkbox" className="w-4 h-4 accent-[var(--accent)]" checked={settings.memory?.dream_enabled ?? true} onChange={e => setSettings({...settings, memory: {...settings.memory, dream_enabled: e.target.checked}})} aria-label="Enable Dream Memory" />
+                  </label>
+                  <section className="p-4 rounded-xl bg-[var(--bg-base)] border border-white/[0.06]">
+                    <label className="flex items-center justify-between gap-4 cursor-pointer">
+                      <span><span className="block text-[13px] font-medium text-[#f0ebe3]">Memory Instructions</span><span className="block mt-1 text-[12px] text-[#9a8f7e]">Say “remember” in a chat to save a preference or instruction, up to 50.</span></span>
+                      <input type="checkbox" className="w-4 h-4 accent-[var(--accent)]" checked={settings.memory?.instructions_enabled ?? true} onChange={e => setSettings({...settings, memory: {...settings.memory, instructions_enabled: e.target.checked}})} aria-label="Enable Memory Instructions" />
+                    </label>
+                    <div className="mt-4 pt-3 border-t border-white/[0.08]">
+                      <div className="flex items-center justify-between mb-3"><span className="text-[12px] font-medium text-[#f0ebe3]">Saved Memory Instructions</span><span className="text-[11px] text-[#9a8f7e]">{settings.memory?.instructions?.length || 0} / 50</span></div>
+                      <div className="flex flex-col gap-2">
+                        {(settings.memory?.instructions || []).map((instruction: string, index: number) => (
+                          <div key={`${index}-${instruction}`} className="flex items-start gap-2">
+                            <textarea className="flex-1 min-h-10 bg-[#181612] border border-white/[0.06] rounded-lg p-2 text-[12px] text-[#f0ebe3] focus:border-[var(--accent)]/50 focus:outline-none resize-y" value={instruction} aria-label={`Memory instruction ${index + 1}`} onChange={e => { const instructions = [...settings.memory.instructions]; instructions[index] = e.target.value; setSettings({...settings, memory: {...settings.memory, instructions}}); }} />
+                            <button type="button" className="p-2 text-[#9a8f7e] hover:text-[#f87171]" aria-label={`Remove memory instruction ${index + 1}`} onClick={() => setSettings({...settings, memory: {...settings.memory, instructions: settings.memory.instructions.filter((_: string, i: number) => i !== index)}})}><Trash2 size={14}/></button>
+                          </div>
+                        ))}
+                        {(settings.memory?.instructions?.length || 0) < 50 && <button type="button" className="self-start flex items-center gap-1.5 text-[12px] text-[var(--accent)] hover:opacity-80" onClick={() => setSettings({...settings, memory: {...settings.memory, instructions: [...(settings.memory?.instructions || []), '']}})}><Plus size={14}/> Add instruction</button>}
+                      </div>
+                    </div>
+                  </section>
                 </div>
               )}
 
@@ -558,27 +646,25 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, o
                 <div className="flex flex-col gap-4 items-center text-center">
                   <h3 className="text-[16px] font-semibold text-[#f0ebe3] self-start text-left">Mobile Companion Link</h3>
                   <p className="text-[12px] text-[#9a8f7e] leading-relaxed self-start text-left">
-                    Scan this QR code using the Aiko Mobile App to instantly pair your phone with this desktop hub.
-                    Make sure both devices are connected to the same local Wi-Fi network.
+                    Scan this QR code in the Aiko Mobile App. Its one-use pairing code expires after three minutes; both devices must be on the same local network.
                   </p>
                   
-                  {localIp ? (
+                  {pairingQrData ? (
                     (() => {
-                      const activePort = new URL(HUB_URL).port || '8000';
                       return (
                         <div className="flex flex-col items-center gap-4 bg-white/[0.02] border border-white/[0.06] rounded-xl p-6 mt-4">
-                          <img 
-                            src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=http://${localIp}:${activePort}`} 
-                            alt="Pairing QR Code"
-                            className="w-48 h-48 rounded-lg border border-white/[0.1] bg-white p-2"
-                          />
+                          <div className="rounded-lg border border-white/[0.1] bg-white p-3">
+                            <QRCodeSVG value={pairingQrData} size={240} level="M" includeMargin />
+                          </div>
                           <div className="flex flex-col gap-1">
                             <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#5a5248]">Desktop Server Address</span>
-                            <span className="text-[13px] font-mono text-[var(--accent)] font-medium">http://{localIp}:{activePort}</span>
+                            <span className="text-[13px] font-mono text-[var(--accent)] font-medium">http://{localIp}:{localPort}</span>
                           </div>
                         </div>
                       );
                     })()
+                  ) : pairingError ? (
+                    <div className="p-8 text-[#f87171] text-[13px]">{pairingError}</div>
                   ) : (
                     <div className="p-8 text-[#5a5248] text-[13px]">
                       Fetching server local network address...

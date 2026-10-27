@@ -4,11 +4,13 @@ AIKO RAG MEMORY SYSTEM
 Long-term semantic memory using ChromaDB (Local) or SharedMemoryServer (Remote).
 """
 
+import json
 import os
 import uuid
 import time
 import requests
 import logging
+from pathlib import Path
 logger = logging.getLogger("RAG")
 try:
     from mempalace.searcher import search_memories
@@ -153,6 +155,9 @@ load_dotenv()
 
 # Configuration
 CHROMA_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "chroma_db")
+# Plaintext knowledge drop-box scanned by RAGMemorySystem.refresh_index()
+KNOWLEDGE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "knowledge")
+KNOWLEDGE_MANIFEST_NAME = ".rag_ingested.json"
 EMBEDDING_MODEL_NAME = "nomic-embed-text"
 OLLAMA_BASE_URL = "http://127.0.0.1:11434"
 # If this ENV is set, we talk to the server instead of opening the local DB
@@ -166,6 +171,7 @@ class RAGMemorySystem:
         self.collection = None
         self.ef = None  # Embedding Function
         self._initialized = False
+        self._init_attempted = False  # Memoizes the one lazy init attempt (see _ensure_initialized)
         self.remote_url = REMOTE_RAG_URL
         self.use_mempalace = os.getenv("USE_MEMPALACE", "false").lower() == "true" # Dynamic switch
         self.mempalace = MemPalaceRAG()
@@ -236,11 +242,27 @@ class RAGMemorySystem:
         except Exception as e:
             logger.error(f" [X] [RAG] Fatal DB Error: {e}")
         
-    def _ensure_initialized(self):
-        if self._initialized: return
+    def _ensure_initialized(self) -> None:
+        """Run the lazy initialization attempt at most once per process.
+
+        Init contract: `_initialize()` is blocking (ChromaDB import plus a
+        4 s worker-thread join) and is allowed to fail permanently, so the
+        attempt is memoized with `_init_attempted`. Startup code should prime
+        this from a worker thread (see core/api/background.py); after that,
+        per-turn `is_available()` calls are cheap and never re-pay the cost.
+        """
+        if self._initialized or self._init_attempted:
+            return
+        self._init_attempted = True
         self._initialize()
 
     def is_available(self) -> bool:
+        """True when semantic memory can be read/written.
+
+        Lazily triggers the single init attempt on first call, then relies on
+        the memoized flags so a failed ChromaDB/MemPalace init never repeats.
+        """
+        self._ensure_initialized()
         if not self._initialized:
             return False
         if self.remote_url: return True
@@ -342,6 +364,55 @@ class RAGMemorySystem:
             logger.error(f"Failed to ingest document {file_path}: {e}")
             return False
         return False
+
+    def refresh_index(self) -> int:
+        """Ingest new/changed plaintext docs from data/knowledge exactly once.
+
+        Scans `data/knowledge` for `.txt`/`.md` files and calls the existing
+        `ingest_document()` for any file whose mtime differs from the record in
+        `data/knowledge/.rag_ingested.json` (relpath -> mtime). Safe to call
+        periodically from a worker thread: no-op when memory is unavailable or
+        the directory is missing, returns the number of files ingested now.
+        """
+        if not self.is_available():
+            return 0
+
+        knowledge_dir = Path(KNOWLEDGE_DIR)
+        if not knowledge_dir.is_dir():
+            return 0
+
+        manifest_path = knowledge_dir / KNOWLEDGE_MANIFEST_NAME
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            if not isinstance(manifest, dict):
+                manifest = {}
+        except (OSError, json.JSONDecodeError):
+            manifest = {}
+
+        ingested = 0
+        for path in sorted(knowledge_dir.rglob("*")):
+            if not path.is_file() or path.suffix.lower() not in (".txt", ".md"):
+                continue
+            rel = path.relative_to(knowledge_dir).as_posix()
+            try:
+                mtime = path.stat().st_mtime
+            except OSError as e:
+                logger.warning(f"[RAG] Cannot stat knowledge file {rel}: {e}")
+                continue
+            if manifest.get(rel) == mtime:
+                continue
+            if self.ingest_document(str(path)):
+                manifest[rel] = mtime
+                ingested += 1
+
+        if ingested:
+            try:
+                manifest_path.write_text(
+                    json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8"
+                )
+            except OSError as e:
+                logger.warning(f"[RAG] Could not persist knowledge manifest: {e}")
+        return ingested
 
     def get_memory_count(self) -> int:
         self._ensure_initialized()

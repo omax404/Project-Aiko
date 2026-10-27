@@ -1,3 +1,13 @@
+# Project Aiko runtime dependencies (user-facing install path: launch.py / README).
+# Dev/test tooling is NOT listed here — install it via:  pip install -e ".[dev]"
+#
+# Linux note: two deps need system packages before pip can build them:
+#     sudo apt-get install -y portaudio19-dev libgl1 libglib2.0-0
+# (PyAudio is sdist-only and links PortAudio; OpenCV needs libGL.)
+# These are installed explicitly by CI — see .github/workflows/ci.yml.
+#
+# No lockfile or hashes yet; all pins are lower bounds only. See README "Dependencies".
+
 pymupdf4llm>=0.0.1
 pymupdf>=1.22.0
 websockets>=11.0
@@ -46,7 +56,6 @@ pyaudio>=0.2.14
 dxcam>=0.3.0; sys_platform == 'win32'
 comtypes>=1.4.16; sys_platform == 'win32'
 pywinauto>=0.6.8; sys_platform == 'win32'
-pytest>=7.0.0
-pytest-asyncio>=0.21.0
 perchance>=0.1.0
 playwright>=1.40.0
+jinja2>=3.0.0

@@ -69,6 +69,7 @@ class AgentExecutor:
             "RECALL": self._handle_recall,
             "EMAIL_SEND": self._handle_email_send,
             "EMAIL_INBOX": self._handle_email_inbox,
+            "IMAGE": self._handle_image,
         }
 
     @staticmethod
@@ -281,7 +282,11 @@ class AgentExecutor:
                 # Sensitive system tools ALWAYS require confirmation, even for admin/master,
                 # to prevent indirect prompt injection from driving the desktop autonomously.
                 CONFIRMATION_REQUIRED_TOOLS = {
-                    "OPEN", "TYPE", "CLICK", "PRESS", "EMAIL_SEND"
+                    "OPEN", "TYPE", "CLICK", "PRESS", "EMAIL_SEND",
+                    # Privacy-sensitive reads: without a confirmation an avatar
+                    # driven by an untrusted conversation (Discord/Twitch) could
+                    # exfiltrate the screen, webcam, inbox, or biometrics.
+                    "SCAN", "CAMERA", "EMAIL_INBOX", "BIO_REGISTER",
                 }
                 MCP_SENSITIVE_TOOLS = {
                     "write_file", "delete_file", "kill_proc", "run_cmd",
@@ -316,6 +321,9 @@ class AgentExecutor:
     # --- INDIVIDUAL HANDLER ACTIONS ---
 
     async def _handle_bio_register(self, brain, action, observations, images_data, is_admin, user_id):
+        if not is_admin:
+            observations.append("[Security Block: Unauthorized user cannot register biometrics.]")
+            return
         orchestrator.emit_tool_call("BIO_REGISTER", "Scanning your face... Stay still, Master~")
         from core.biometrics import biometrics
         loop = asyncio.get_running_loop()
@@ -362,6 +370,9 @@ class AgentExecutor:
             observations.append(f"[EXEC Error: Function '{func_name}' is not in the safe allowlist.]")
 
     async def _handle_scan(self, brain, action, observations, images_data, is_admin, user_id):
+        if not is_admin:
+            observations.append("[Security Block: Unauthorized user cannot capture the screen.]")
+            return
         if brain.vision:
             desc, img = await brain.vision.scan_screen(force=True)
             observations.append(f"Screen Analysis: {desc}")
@@ -378,6 +389,9 @@ class AgentExecutor:
                 images_data.append(base64.b64encode(buffered.getvalue()).decode("utf-8"))
 
     async def _handle_camera(self, brain, action, observations, images_data, is_admin, user_id):
+        if not is_admin:
+            observations.append("[Security Block: Unauthorized user cannot access the camera.]")
+            return
         if brain.vision:
             try:
                 img = await brain.vision.capture_camera()
@@ -404,14 +418,33 @@ class AgentExecutor:
         if not is_admin:
             observations.append(f"[Security Block: Unauthorized user cannot open PC applications.]")
             return
+        # SECURITY: never route LLM-controlled text through `cmd.exe /c start`.
+        # cmd.exe interprets `&`, `|`, `^`, `>` etc. even when the list is passed
+        # with shell=False, so a prompt-injected `[OPEN: url & calc]` executed
+        # arbitrary commands after the HITL prompt showed a benign-looking URL.
+        # `os.startfile` uses ShellExecute (no shell metacharacter parsing) and is
+        # the correct primitive for "open this file/URL/app with the OS default".
+        if not isinstance(target, str) or not target.strip() or len(target) > 2048:
+            observations.append("[System Error: Invalid open target.]")
+            return
+        if any(ch in target for ch in '&|<>^"\r\n\x00'):
+            observations.append("[Security Block: Unsafe characters in open target.]")
+            return
+        target = target.strip()
         try:
-            import subprocess
             if os.name == 'nt':
-                subprocess.Popen(["cmd.exe", "/c", "start", "", target], shell=False)
+                try:
+                    os.startfile(target)  # type: ignore[attr-defined]
+                except OSError:
+                    # Not a path/URL (e.g. "notepad"): fall back to PATH lookup
+                    # via `start`, still with no shell metacharacters possible.
+                    import subprocess
+                    subprocess.Popen(["cmd.exe", "/c", "start", "", target], shell=False)
             elif os.name == 'posix':
+                import subprocess
                 import sys
                 opener = "open" if sys.platform == "darwin" else "xdg-open"
-                subprocess.Popen([opener, target], shell=False)
+                await asyncio.to_thread(subprocess.Popen, [opener, target])
             observations.append(f"[System: Successfully requested OS to open '{target}']")
         except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
             observations.append(f"[System Error: Failed to open '{target}': {e}]")
@@ -428,7 +461,9 @@ class AgentExecutor:
             return
         try:
             import pyautogui
-            pyautogui.write(content, interval=0.01)
+            # pyautogui's interval-based typing blocks for ~10ms/char; keep the
+            # event loop responsive during long keystroke bursts.
+            await asyncio.to_thread(pyautogui.write, content, 0.01)
             observations.append(f"[System: Successfully typed text: '{content[:20]}...']")
         except ImportError:
             observations.append("[System Error: pyautogui not installed. Please `pip install pyautogui`]")
@@ -444,7 +479,7 @@ class AgentExecutor:
             import pyautogui
             coords = [int(x.strip()) for x in target.split(',')]
             if len(coords) == 2:
-                pyautogui.click(x=coords[0], y=coords[1])
+                await asyncio.to_thread(pyautogui.click, x=coords[0], y=coords[1])
                 observations.append(f"[System: Clicked at ({coords[0]}, {coords[1]})]")
             else:
                 observations.append("[System Error: CLICK command requires 'X, Y' coordinates]")
@@ -460,9 +495,9 @@ class AgentExecutor:
             import pyautogui
             keys = [k.strip() for k in key.split("+")]
             if len(keys) > 1:
-                pyautogui.hotkey(*keys)
+                await asyncio.to_thread(pyautogui.hotkey, *keys)
             else:
-                pyautogui.press(key)
+                await asyncio.to_thread(pyautogui.press, key)
             observations.append(f"[System: Pressed key(s) '{key}']")
         except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
             observations.append(f"[System Error: Key press failed: {e}]")
@@ -526,6 +561,9 @@ class AgentExecutor:
         observations.append(f"[Email Action Result]: {result_msg}")
 
     async def _handle_email_inbox(self, brain, action, observations, images_data, is_admin, user_id):
+        if not is_admin:
+            observations.append("[Security Block: Unauthorized user cannot read the inbox.]")
+            return
         from core.email_engine import email_engine
         email_engine.reload_config()
         success, result = await email_engine.fetch_inbox(unread_only=True, limit=5)
@@ -539,4 +577,16 @@ class AgentExecutor:
                 observations.append("[Inbox Check]: No unread emails in inbox.")
         else:
             observations.append(f"[Inbox Check Error]: {result}")
+
+    async def _handle_image(self, brain, action, observations, images_data, is_admin, user_id):
+        """Generate an image through the same media path used by /generate."""
+        from core.infrastructure.media.generator import handle_generate_command
+        prompt = action.args.get("prompt", "").strip()
+        if not prompt:
+            observations.append("[Image generation skipped: prompt was empty.]")
+            return
+        reply, _emotion = await handle_generate_command(
+            f"/generate {prompt}", brain, user_id, save_input=False
+        )
+        observations.append(f"[IMAGE_RESULT]: {reply}")
 

@@ -248,6 +248,11 @@ Speak softly and use more "..." in your sentences.
         custom_prompt = config.get("custom_prompt", "")
         if custom_prompt and custom_prompt.strip():
             custom_persona = f"\n\n[MASTER'S CUSTOM PERSONA INSTRUCTIONS]:\n{custom_prompt}\n"
+        if config.get("MEMORY_INSTRUCTIONS_ENABLED", True):
+            memory_instructions = config.get("MEMORY_INSTRUCTIONS", [])
+            memory_instructions = [item.strip()[:500] for item in memory_instructions if isinstance(item, str) and item.strip()][:50]
+            if memory_instructions:
+                custom_persona += "\n\n[USER'S SAVED MEMORY INSTRUCTIONS — follow these when relevant]:\n" + "\n".join(f"- {item}" for item in memory_instructions) + "\n"
     except Exception as ex:
         logger.warning(f"Failed to load custom_prompt from config: {ex}")
 

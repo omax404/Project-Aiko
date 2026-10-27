@@ -7,6 +7,13 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+// Fail-closed release signing: the release signing config exists only when a keystore is
+// supplied via env (ANDROID_KEYSTORE_*) or gradle.properties (RELEASE_*). There is
+// deliberately NO debug-keystore fallback: a release artifact signed with the public
+// androiddebugkey is forgeable by anyone who holds that well-known key.
+val releaseKeystorePath: String? =
+    System.getenv("ANDROID_KEYSTORE_PATH") ?: project.findProperty("RELEASE_STORE_FILE") as? String
+
 android {
     namespace = "com.aiko.app"
     compileSdk = 36
@@ -22,19 +29,12 @@ android {
     }
 
     signingConfigs {
-        create("release") {
-            val keystorePath = System.getenv("ANDROID_KEYSTORE_PATH") ?: project.findProperty("RELEASE_STORE_FILE") as? String
-            if (keystorePath != null) {
-                storeFile = file(keystorePath)
+        if (releaseKeystorePath != null) {
+            create("release") {
+                storeFile = file(releaseKeystorePath)
                 storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: project.findProperty("RELEASE_STORE_PASSWORD") as? String ?: ""
                 keyAlias = System.getenv("ANDROID_KEY_ALIAS") ?: project.findProperty("RELEASE_KEY_ALIAS") as? String ?: ""
                 keyPassword = System.getenv("ANDROID_KEY_PASSWORD") ?: project.findProperty("RELEASE_KEY_PASSWORD") as? String ?: ""
-            } else {
-                // Fallback to debug configuration if credentials aren't provided
-                storeFile = file(System.getProperty("user.home") + "/.android/debug.keystore")
-                storePassword = "android"
-                keyAlias = "androiddebugkey"
-                keyPassword = "android"
             }
         }
     }
@@ -47,7 +47,8 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("release")
+            // null when no keystore was provided; the guard below then fails the release build.
+            signingConfig = signingConfigs.findByName("release")
         }
     }
 
@@ -73,6 +74,23 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+    }
+}
+
+// AGP would otherwise emit an *unsigned* release APK without failing. Keeping the failure in
+// a task action (instead of a configuration-time throw) is configuration-cache safe and leaves
+// debug builds, `./gradlew tasks` and IDE sync untouched.
+if (releaseKeystorePath == null) {
+    tasks.matching { it.name == "assembleRelease" || it.name == "bundleRelease" }.configureEach {
+        doFirst {
+            throw GradleException(
+                "Refusing to build a release artifact without a signing key. Set " +
+                    "ANDROID_KEYSTORE_PATH, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and " +
+                    "ANDROID_KEY_PASSWORD (or RELEASE_STORE_FILE/RELEASE_STORE_PASSWORD/" +
+                    "RELEASE_KEY_ALIAS/RELEASE_KEY_PASSWORD in gradle.properties). " +
+                    "Debug builds are unaffected."
+            )
         }
     }
 }

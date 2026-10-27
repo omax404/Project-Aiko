@@ -4,17 +4,22 @@ HTTP REST API routes for Aiko Neural Hub.
 S+ grade: specific exception types, Pydantic validation, structured logging.
 """
 import os
+import re
 import json
 import mimetypes
 import logging
 import asyncio
+import hashlib
+import secrets
+import time
+import uuid
 from datetime import datetime
 from pathlib import Path
 from aiohttp import web
 import aiohttp
-import psutil
 
 from core.api.hub_state import hub
+from core.config_manager import config
 from core.api.broadcast import broadcast_event
 from core.api.schemas import (
     ChatRequest, SettingsUpdate, SessionRename, SessionPin,
@@ -39,6 +44,57 @@ _REDACTED_KEY_PATTERNS = {
 }
 _SENSITIVE_SUBSTRINGS = ("SECRET", "TOKEN", "PASSWORD", "PASSWD", "CREDENTIAL", "PRIVATE")
 
+# `_redact_secrets` masks secrets as "<up-to-4-char preview>...***". Anything the
+# client echoes back in that shape is the mask, not a real new value, so the
+# settings merge must keep the stored credential instead of overwriting it.
+_MASK_SUFFIX = "***"
+_pending_mobile_pairings: dict[str, int] = {}
+_SECRET_VALUE_RE = re.compile(
+    r'(?i)(sk-[A-Za-z0-9_\-]{16,}|ghp_[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}'
+    r'|xox[baprs]-[A-Za-z0-9\-]{10,}|AIza[0-9A-Za-z_\-]{20,}|AKIA[0-9A-Z]{16})'
+)
+
+
+def _mask_secret(value) -> str:
+    """Mask a scalar secret while keeping a short troubleshooting preview."""
+    if not value:
+        return ""
+    text = str(value)
+    return f"{text[:4]}...***"
+
+
+def _mask_embedded_secrets(text: str) -> str:
+    """Mask credential-shaped substrings inside otherwise non-sensitive values."""
+    return _SECRET_VALUE_RE.sub(lambda m: _mask_secret(m.group(0)), text)
+
+
+def _is_masked_value(value) -> bool:
+    """True when a settings value is a redaction mask rather than real input."""
+    return (
+        isinstance(value, str)
+        and value.endswith(_MASK_SUFFIX)
+        and len(value) <= 64
+    )
+
+
+def _encrypt_settings_tree(value, key: str = ""):
+    """Encrypt secret fields before settings reach persistent JSON storage."""
+    if isinstance(value, dict):
+        return {name: _encrypt_settings_tree(item, str(name)) for name, item in value.items()}
+    if isinstance(value, list):
+        return [_encrypt_settings_tree(item, key) for item in value]
+    if isinstance(value, str) and value and not _is_masked_value(value):
+        key_upper = key.upper()
+        sensitive = (
+            "SECRET" in key_upper or "TOKEN" in key_upper or "PASSWORD" in key_upper
+            or "API_KEY" in key_upper or key_upper.endswith(("_KEY", "_CREDENTIAL"))
+        )
+        if sensitive and not value.startswith(("dpapi:v2:", "fernet:v2:", "enc:")):
+            from core.config_manager import encrypt_string
+            return encrypt_string(value)
+    return value
+
+
 def _redact_secrets(data: dict) -> dict:
     """Recursively redact sensitive credentials in configuration payloads."""
     safe = {}
@@ -50,11 +106,20 @@ def _redact_secrets(data: dict) -> dict:
             or k_upper.endswith(("_API_KEY", "_SECRET_KEY", "_PRIVATE_KEY", "_AUTH_KEY"))
         )
         if is_sensitive:
-            safe[k] = f"{str(v)[:4]}...***" if v else ""
+            # Never stringify whole containers: their repr can leak values that
+            # the key-name heuristic alone would have hidden.
+            safe[k] = "***" if isinstance(v, (dict, list)) else _mask_secret(v)
         elif isinstance(v, dict):
             safe[k] = _redact_secrets(v)
         elif isinstance(v, list):
-            safe[k] = [_redact_secrets(item) if isinstance(item, dict) else item for item in v]
+            safe[k] = [
+                _redact_secrets(item) if isinstance(item, dict)
+                else _mask_embedded_secrets(item) if isinstance(item, str)
+                else item
+                for item in v
+            ]
+        elif isinstance(v, str):
+            safe[k] = _mask_embedded_secrets(v)
         else:
             safe[k] = v
     return safe
@@ -91,12 +156,21 @@ def get_local_ip() -> str:
             return "127.0.0.1"
 
 
-# Path where the startup token is stored
-_LOCAL_TOKEN_FILE = BASE / "data" / "local_token.txt"
+def get_hub_port() -> int:
+    """Return the active listener port selected by neural_hub.py."""
+    try:
+        with open(BASE / "data" / "port.json", encoding="utf-8") as port_file:
+            value = json.load(port_file).get("port")
+        return int(value)
+    except (OSError, json.JSONDecodeError, AttributeError, TypeError, ValueError):
+        try:
+            return int(os.environ.get("AIKO_PORT", 8000))
+        except ValueError:
+            return 8000
 
 
 async def handle_local_token(req):
-    """Return the local app JWT to the desktop frontend.
+    """Return a limited token for browser-based development clients.
 
     SECURITY: Only loopback addresses are allowed. Remote clients receive 403.
     This replaces the old subnet-bypass pattern with a proper local token handshake.
@@ -105,12 +179,73 @@ async def handle_local_token(req):
     if peer not in ("127.0.0.1", "::1", "localhost"):
         logger.warning(f"[Auth] /token request from non-loopback IP rejected: {peer}")
         return web.json_response({"error": "Forbidden"}, status=403)
+
+    # SECURITY: a reverse proxy running on loopback would make every remote
+    # client appear as 127.0.0.1, silently turning this endpoint into an
+    # unauthenticated admin-token dispenser. Refuse proxied requests outright:
+    # the desktop client always talks to the hub directly.
+    if any(req.headers.get(h) for h in ("X-Forwarded-For", "X-Real-IP", "Forwarded", "X-Forwarded-Host")):
+        logger.warning("[Auth] /token rejected: request carried proxy headers")
+        return web.json_response({"error": "Forbidden"}, status=403)
+
+    from core.api.auth import generate_token
+    return web.json_response({
+        "token": generate_token("local_browser", is_admin=False, expires_hours=1)
+    })
+
+
+async def handle_bot_token(req):
+    """Issue a short-lived, non-admin token for a local satellite integration."""
+    peer = req.remote or ""
+    if peer not in ("127.0.0.1", "::1", "localhost"):
+        return web.json_response({"error": "Forbidden"}, status=403)
+    if any(req.headers.get(h) for h in ("X-Forwarded-For", "X-Real-IP", "Forwarded", "X-Forwarded-Host")):
+        return web.json_response({"error": "Forbidden"}, status=403)
+    bot = req.query.get("bot", "").lower()
+    if bot not in {"discord", "telegram", "twitch"}:
+        return web.json_response({"error": "Unknown satellite"}, status=400)
+    from core.api.auth import generate_token
+    token = generate_token(f"satellite:{bot}", is_admin=False, expires_hours=1, token_type="satellite")
+    return web.json_response({"token": token})
+
+
+async def handle_mobile_pair_code(req):
+    """Create a short-lived, one-use code for an administrator-approved phone pairing."""
+    user = req.get("user", {})
+    if user.get("is_admin") is not True:
+        return web.json_response({"error": "Desktop administrator access required"}, status=403)
+
+    now = int(time.time())
+    for digest, expiry in list(_pending_mobile_pairings.items()):
+        if expiry <= now:
+            _pending_mobile_pairings.pop(digest, None)
+
+    code = secrets.token_urlsafe(24)
+    _pending_mobile_pairings[hashlib.sha256(code.encode("utf-8")).hexdigest()] = now + 180
+    return web.json_response({"pairing_code": code, "expires_at": now + 180})
+
+
+async def handle_mobile_pair_exchange(req):
+    """Exchange a one-use QR pairing code for a scoped, expiring mobile token."""
     try:
-        token = _LOCAL_TOKEN_FILE.read_text(encoding="utf-8").strip()
-        return web.json_response({"token": token})
-    except (OSError, IOError) as e:
-        logger.error(f"[Auth] Cannot read local token file: {e}")
-        return web.json_response({"error": "Token not ready"}, status=503)
+        payload = await req.json()
+        code = payload.get("pairing_code", "") if isinstance(payload, dict) else ""
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return web.json_response({"error": "Invalid pairing request"}, status=400)
+
+    if not isinstance(code, str) or not 20 <= len(code) <= 128:
+        return web.json_response({"error": "Invalid or expired pairing code"}, status=401)
+    digest = hashlib.sha256(code.encode("utf-8")).hexdigest()
+    expiry = _pending_mobile_pairings.pop(digest, 0)
+    if expiry <= int(time.time()):
+        return web.json_response({"error": "Invalid or expired pairing code"}, status=401)
+
+    from core.api.auth import generate_token
+    token = generate_token(
+        f"mobile:{uuid.uuid4().hex}", is_admin=False,
+        expires_hours=24 * 30, token_type="mobile"
+    )
+    return web.json_response({"token": token, "expires_hours": 24 * 30})
 
 
 async def handle_status(req):
@@ -144,12 +279,13 @@ async def handle_status(req):
             hub_name="Aiko Neural Hub v2",
             metrics=metrics,
             rag_available=rag_available,
-            local_ip=get_local_ip()
+            local_ip=get_local_ip(),
+            hub_port=get_hub_port()
         )
         return web.json_response(response.model_dump())
     except (AttributeError, TypeError) as e:
         logger.error(f"Status endpoint config error: {e}")
-        return web.json_response({"status": "online", "hub_name": "Aiko Neural Hub v2", "metrics": {}, "rag_available": False, "local_ip": "127.0.0.1"})
+        return web.json_response({"status": "online", "hub_name": "Aiko Neural Hub v2", "metrics": {}, "rag_available": False, "local_ip": "127.0.0.1", "hub_port": get_hub_port()})
 
 
 async def handle_health(req):
@@ -193,7 +329,10 @@ async def handle_create_session(req):
         return web.json_response({"error": f"Missing field: {e}"}, status=400)
 
     try:
-        uid = validated.id
+        # Session IDs are client-supplied and optional; generate one so we never
+        # create a history partition keyed by `None` (which serializes to "null"
+        # and collides across all anonymous sessions).
+        uid = validated.id or str(uuid.uuid4())
         hub.memory.history[uid] = []
         profile = hub.memory.get_profile(uid)
         profile["name"] = validated.title
@@ -289,10 +428,6 @@ async def handle_history(req):
             auth_user = user_payload.get("sub", "")
             is_admin = bool(user_payload.get("is_admin", False))
         
-        master_id = os.getenv("MASTER_ID", "")
-        if master_id and str(auth_user) == str(master_id):
-            is_admin = True
-        
         requested_uid = req.query.get("uid") or req.query.get("id")
         
         # If non-admin requests another user's history, reject with 403 Forbidden
@@ -327,10 +462,10 @@ def _sanitize_input(text: str) -> tuple[str, bool, str]:
     cleaned = text.replace('\x00', '').strip()
     cleaned = ''.join(c for c in cleaned if c == '\n' or ord(c) >= 32)
     
-    # Length cap
-    if len(cleaned) > 4000:
-        system_logger.warning(f"Input rejected: length {len(cleaned)} exceeds 4000 chars")
-        return cleaned[:4000], False, "Input exceeds maximum length of 4000 characters."
+    # Length cap (match API contract max_length=50000)
+    if len(cleaned) > 50000:
+        system_logger.info(f"Input truncated: length {len(cleaned)} exceeds 50000 chars")
+        cleaned = cleaned[:50000]
     
     # Injection detection
     is_blocked, confidence = policy_engine.detect_injection(cleaned)
@@ -359,11 +494,11 @@ async def handle_chat_api(req):
     user_payload = req.get("user") or {}
     auth_user = user_payload.get("sub", "")
     is_admin = bool(user_payload.get("is_admin", False))
-    master_id = os.getenv("MASTER_ID", "")
-    if master_id and str(auth_user) == str(master_id):
-        is_admin = True
-
-    chat_uid = auth_user if (auth_user and not is_admin) else (validated.user_id or auth_user or hub.user_id)
+    if user_payload.get("token_type") == "satellite" and auth_user.startswith("satellite:"):
+        # Partition upstream users inside the satellite's own identity namespace.
+        chat_uid = f"{auth_user}:{validated.user_id or 'anonymous'}"
+    else:
+        chat_uid = auth_user if (auth_user and not is_admin) else (validated.session_id or validated.user_id or auth_user or hub.user_id)
 
     # === SECURITY GATE ===
     from core.structured_logger import system_logger
@@ -412,11 +547,20 @@ async def handle_chat_api(req):
         await broadcast_event("state", {"thinking": False})
         await sync_star_office("idle", "Waiting for command...")
 
+        audio_url = None
+        if audio_filename:
+            from core.api.auth import sign_private_resource
+            expires, signature = sign_private_resource("tts", audio_filename)
+            audio_url = f"{req.scheme}://{req.host}/api/tts/audio/{audio_filename}?exp={expires}&sig={signature}"
+
         return web.json_response({
             "response": reply,
             "emotion": emotion,
             "gif_url": gif_url,
-            "audio_url": f"http://127.0.0.1:8000/api/tts/audio/{audio_filename}" if audio_filename else None,
+            # Derive from the actual request instead of hardcoding 8000: the hub
+            # binds the first free port in 8000..8049, so a static URL 404s on any
+            # other port (common when 8000 is already taken).
+            "audio_url": audio_url,
             "audio_path": os.path.join(os.getcwd(), "data", "voices", audio_filename) if audio_filename else None,
             "timestamp": datetime.now().isoformat()
         })
@@ -469,6 +613,20 @@ async def handle_update_settings(req):
     except (TypeError, ValueError) as e:
         return web.json_response({"error": f"Validation error: {e}"}, status=400)
 
+    # SECURITY: /api/settings accepts arbitrary nested settings (extra="allow").
+    # Validate the LLM endpoint before persisting it: otherwise a compromised
+    # client could point `llm.url` at an attacker host and the next chat request
+    # would send the user's API key and conversation there. Remote endpoints
+    # must be HTTPS (loopback HTTP stays allowed for Ollama/LM Studio).
+    _llm = (validated.model_dump(exclude_unset=True).get("llm") or {})
+    _llm_url = _llm.get("url") if isinstance(_llm, dict) else None
+    if isinstance(_llm_url, str) and _llm_url.strip():
+        try:
+            from core.utils import SecurityError, verify_connection_safety
+            verify_connection_safety(_llm_url.strip())
+        except SecurityError as sec_err:
+            return web.json_response({"error": str(sec_err)}, status=400)
+
     try:
         user_settings_path = BASE / "user_settings.json"
         existing = {}
@@ -480,21 +638,23 @@ async def handle_update_settings(req):
             except OSError as e:
                 logger.warning(f"Failed to read existing settings: {e}")
 
-        update_data = validated.dict(exclude_unset=True)
+        update_data = validated.model_dump(exclude_unset=True)
         for k, v in update_data.items():
             if isinstance(v, dict) and isinstance(existing.get(k), dict):
                 merged = {**existing[k]}
                 for sub_k, sub_v in v.items():
-                    is_redacted = isinstance(sub_v, str) and ("..." in sub_v or sub_v.endswith("*") or sub_v.endswith("********"))
-                    if not (is_redacted and sub_k in existing[k]):
+                    if not (_is_masked_value(sub_v) and sub_k in existing[k]):
                         merged[sub_k] = sub_v
                 existing[k] = merged
             else:
-                is_redacted = isinstance(v, str) and ("..." in v or v.endswith("*") or v.endswith("********"))
-                if not (is_redacted and k in existing):
+                if not (_is_masked_value(v) and k in existing):
                     existing[k] = v
 
-        user_settings_path.write_text(json.dumps(existing, indent=2, ensure_ascii=False), encoding="utf-8")
+        # Atomic replace: a crash mid-write must not truncate the user's settings.
+        tmp_path = user_settings_path.with_suffix(".json.tmp")
+        existing = _encrypt_settings_tree(existing)
+        tmp_path.write_text(json.dumps(existing, indent=2, ensure_ascii=False), encoding="utf-8")
+        os.replace(tmp_path, user_settings_path)
         hub.config.load()
         logger.info("[Settings] Saved and reloaded user_settings.json")
         return web.json_response({"status": "success"})
@@ -578,7 +738,9 @@ async def handle_upload(req):
         if not sanitized_stem:
             sanitized_stem = "upload"
 
-        filename = f"{sanitized_stem}_{int(datetime.now().timestamp())}{ext}"
+        # Random suffix keeps URLs hard to enumerate in addition to the signed
+        # access token used by the public media element.
+        filename = f"{sanitized_stem}_{uuid.uuid4().hex[:16]}{ext}"
 
         upload_path = BASE / "data" / "uploads"
         upload_path.mkdir(parents=True, exist_ok=True)
@@ -602,7 +764,9 @@ async def handle_upload(req):
                 f.write(chunk)
 
         logger.info(f"File uploaded safely: {filename} ({size} bytes)")
-        upload_url = f"{req.scheme}://{req.host}/uploads/{filename}"
+        from core.api.auth import sign_private_resource
+        expires, signature = sign_private_resource("upload", filename)
+        upload_url = f"{req.scheme}://{req.host}/uploads/{filename}?exp={expires}&sig={signature}"
         return web.json_response({
             "status": "success",
             "filename": filename,
@@ -615,6 +779,36 @@ async def handle_upload(req):
     except TypeError as e:
         logger.error(f"Upload multipart error: {e}")
         return web.json_response({"error": f"Invalid upload request: {e}"}, status=400)
+
+
+async def handle_private_upload(req):
+    filename = req.match_info.get("filename", "")
+    from core.api.auth import verify_private_resource
+    if not verify_private_resource("upload", filename, req.query.get("exp", ""), req.query.get("sig", "")):
+        return web.HTTPNotFound()
+    upload_dir = (BASE / "data" / "uploads").resolve()
+    candidate = (upload_dir / filename).resolve()
+    if upload_dir not in candidate.parents or not candidate.is_file():
+        return web.HTTPNotFound()
+    response = web.FileResponse(candidate)
+    response.headers["Cache-Control"] = "private, max-age=300"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+async def handle_private_tts_audio(req):
+    filename = req.match_info.get("filename", "")
+    from core.api.auth import verify_private_resource
+    if not verify_private_resource("tts", filename, req.query.get("exp", ""), req.query.get("sig", "")):
+        return web.HTTPNotFound()
+    audio_dir = (BASE / "data" / "voices").resolve()
+    candidate = (audio_dir / filename).resolve()
+    if audio_dir not in candidate.parents or not candidate.is_file():
+        return web.HTTPNotFound()
+    response = web.FileResponse(candidate)
+    response.headers["Cache-Control"] = "private, max-age=300"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
 
 
 async def handle_project_structure(req):
@@ -675,13 +869,24 @@ async def handle_latex_render(req):
 
 
 async def handle_latex_image(req):
+    """Serve a rendered LaTeX artifact, confined to the renderer output dir.
+
+    The filename comes from the URL path, so resolve it and verify containment:
+    a bare `os.path.join` would allow `..` traversal out of `data/latex`.
+    """
     try:
         filename = req.match_info['filename']
-        filepath = os.path.join(hub.latex.output_dir, filename)
-        if not os.path.exists(filepath):
+        output_dir = Path(hub.latex.output_dir).resolve()
+        candidate = (output_dir / filename).resolve()
+        if candidate != output_dir and output_dir not in candidate.parents:
+            logger.warning(f"[Latex] Blocked path traversal attempt: {filename!r}")
             return web.HTTPNotFound()
-        return web.FileResponse(filepath)
-    except KeyError:
+        if candidate.suffix.lower() not in ('.png', '.pdf'):
+            return web.HTTPNotFound()
+        if not candidate.is_file():
+            return web.HTTPNotFound()
+        return web.FileResponse(candidate)
+    except (KeyError, AttributeError):
         return web.HTTPNotFound()
     except (OSError, PermissionError) as e:
         logger.error(f"Latex image I/O error: {e}")
@@ -691,22 +896,31 @@ async def handle_latex_image(req):
 async def handle_export_memories(req):
     """Export RAG memories incrementally since a given timestamp."""
     try:
-        since_val = req.query.get("since", "0")
         try:
-            since = float(since_val)
+            since = float(req.query.get("since", "0"))
         except ValueError:
             return web.json_response({"error": "Invalid 'since' timestamp format"}, status=400)
+        try:
+            limit = max(1, min(int(req.query.get("limit", "2000")), 5000))
+        except ValueError:
+            return web.json_response({"error": "Invalid 'limit' parameter"}, status=400)
 
         memories = []
-        if hub.rag and hub.rag.is_available() and hasattr(hub.rag, "collection") and hub.rag.collection:
+        if hub.rag and hub.rag.is_available() and getattr(hub.rag, "collection", None):
             try:
-                results = hub.rag.collection.get()
-                if results and "documents" in results and results["documents"]:
+                # ChromaDB .get() is synchronous and can materialise the whole
+                # collection: keep it off the event loop and cap the response.
+                results = await asyncio.to_thread(hub.rag.collection.get)
+                if results and results.get("documents"):
                     docs = results["documents"]
-                    metas = results["metadatas"] or [{}] * len(docs)
-                    ids = results["ids"]
-                    for doc, meta, mem_id in zip(docs, metas, ids):
-                        ts = meta.get("timestamp", 0.0) if meta else 0.0
+                    metas = results.get("metadatas") or [{}] * len(docs)
+                    ids = results.get("ids") or [None] * len(docs)
+                    for doc, meta, mem_id in zip(docs, metas, ids, strict=False):
+                        raw_ts = (meta or {}).get("timestamp", 0.0) or 0.0
+                        try:
+                            ts = float(raw_ts)
+                        except (TypeError, ValueError):
+                            ts = 0.0
                         if ts >= since:
                             memories.append({
                                 "id": mem_id,
@@ -715,18 +929,21 @@ async def handle_export_memories(req):
                                 "confidence": float(meta.get("confidence", 1.0)) if meta else 1.0,
                                 "timestamp": int(ts * 1000)
                             })
+                            if len(memories) >= limit:
+                                break
             except Exception as db_err:
                 logger.error(f"Error querying memories for export: {db_err}")
-                return web.json_response({"error": f"Database query failed: {db_err}"}, status=500)
+                return web.json_response({"error": "Memory export failed"}, status=500)
         return web.json_response({"memories": memories})
     except Exception as e:
-        logger.error(f"Unhandled error in export memories: {e}")
-        return web.json_response({"error": str(e)}, status=500)
+        logger.exception(f"Unhandled error in export memories: {e}")
+        return web.json_response({"error": "Memory export failed"}, status=500)
 
 
 async def handle_webrtc_offer(req):
     """Handle WebRTC SDP offer from mobile client."""
     from aiortc import RTCPeerConnection, RTCSessionDescription
+    user_claims = req.get("user") or {}
     try:
         params = await req.json()
         offer = RTCSessionDescription(sdp=params["sdp"], type=params["type"])
@@ -755,6 +972,11 @@ async def handle_webrtc_offer(req):
                     m_type = data.get("type")
                     
                     if m_type == "chat":
+                        text = data.get("text", "")
+                        text, is_safe, reason = _sanitize_input(text if isinstance(text, str) else "")
+                        if not is_safe:
+                            channel.send(json.dumps({"type": "error", "code": "SECURITY_VIOLATION", "message": reason}))
+                            return
                         async def webrtc_sentence_callback(sentence, emotion="neutral", suppress_audio=False):
                             try:
                                 channel.send(json.dumps({
@@ -766,19 +988,13 @@ async def handle_webrtc_offer(req):
                             except Exception as ex:
                                 logger.error(f"Failed to send WebRTC chat token: {ex}")
                                 
-                        original_callback = hub.brain.on_sentence
-                        
-                        def _bridge(s, emotion="neutral", suppress_audio=False):
-                            try:
-                                loop = asyncio.get_running_loop()
-                                loop.create_task(webrtc_sentence_callback(s, emotion, suppress_audio))
-                            except Exception as ex:
-                                logger.error(f"WebRTC callback loop error: {ex}")
-                                
-                        hub.brain.on_sentence = _bridge
-                        
                         try:
-                            chat_res = await hub.brain.chat(data.get("text", ""), user_id=hub.user_id)
+                            chat_res = await hub.brain.chat(
+                                text,
+                                user_id=user_claims.get("sub", hub.user_id),
+                                on_sentence=webrtc_sentence_callback,
+                                is_admin=user_claims.get("is_admin") is True,
+                            )
                             reply = chat_res[0]
                             active_emotion = chat_res[1]
                             
@@ -795,8 +1011,6 @@ async def handle_webrtc_offer(req):
                                 "type": "error",
                                 "message": str(ex)
                             }))
-                        finally:
-                            hub.brain.on_sentence = original_callback
                             
                     elif m_type == "ping":
                         channel.send(json.dumps({"type": "pong"}))
@@ -829,27 +1043,10 @@ async def handle_webrtc_offer(req):
 # ============================================================
 
 async def handle_email_send(req):
-    """POST /api/email/send - Send an email via SMTP."""
-    try:
-        data = await req.json()
-        to_addr = data.get("to") or data.get("to_address") or ""
-        subject = data.get("subject", "No Subject")
-        body = data.get("body") or data.get("message") or ""
-        html = data.get("html")
-
-        if not to_addr or not body:
-            return web.json_response({"error": "Recipient 'to' and 'body' are required."}, status=400)
-
-        from core.email_engine import email_engine
-        email_engine.reload_config()
-        success, result_msg = await email_engine.send_email(to_addr, subject, body, html)
-
-        if success:
-            return web.json_response({"status": "success", "message": result_msg})
-        return web.json_response({"error": result_msg}, status=500)
-    except Exception as e:
-        logger.error(f"Email send endpoint failed: {e}")
-        return web.json_response({"error": str(e)}, status=500)
+    """Direct email sends are disabled; use the chat approval flow instead."""
+    return web.json_response({
+        "error": "Direct email sending is disabled. Ask Aiko in the desktop chat so the message can be reviewed and approved."
+    }, status=403)
 
 
 async def handle_email_inbox(req):

@@ -8,7 +8,6 @@ use tauri::{Manager, Listener};
 use serde_json;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
-use window_vibrancy::apply_mica;
 use tauri_plugin_global_shortcut::ShortcutState;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -38,7 +37,9 @@ fn maximize_window(app: tauri::AppHandle) {
 #[tauri::command]
 fn close_window(app: tauri::AppHandle) {
     if let Some(win) = app.get_webview_window("main") {
-        let _ = win.close();
+        // Keep the native window object alive so the tray can restore it and
+        // the Neural Hub does not become an invisible, unreachable process.
+        let _ = win.hide();
     }
 }
 
@@ -92,6 +93,16 @@ async fn get_user_settings() -> Result<String, String> {
     }
     // Return empty JSON object if not found
     Ok("{}".to_string())
+}
+
+/// Read the desktop-only owner token through Tauri IPC. Browser clients receive
+/// a limited token from /token and cannot ask the hub to disclose this secret.
+#[tauri::command]
+fn get_local_auth_token() -> Result<String, String> {
+    let root = find_project_root().ok_or_else(|| "Aiko data directory was not found".to_string())?;
+    std::fs::read_to_string(root.join("data").join("local_token.txt"))
+        .map(|token| token.trim().to_string())
+        .map_err(|e| format!("Could not read desktop token: {e}"))
 }
 
 #[tauri::command]
@@ -171,7 +182,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             log_error, minimize_window, maximize_window, close_window,
             check_hub_status, get_startup_status, get_process_status,
-            get_user_settings, save_user_settings
+            get_user_settings, save_user_settings, get_local_auth_token
         ])
         .setup(|app| {
             // ══════════════════════════════════════════════════════════
@@ -280,53 +291,31 @@ pub fn run() {
                 .build(app)?;
 
             // Global Shortcut: Ctrl+Alt+A to toggle visibility
-            app.handle().plugin(
-              tauri_plugin_global_shortcut::Builder::new()
-                .with_shortcut("ctrl+alt+a")?
-                .with_handler(|app, _shortcut, event| {
-                  if event.state == ShortcutState::Pressed {
-                    if let Some(win) = app.get_webview_window("main") {
-                        if win.is_visible().unwrap() {
-                            win.hide().unwrap();
-                        } else {
-                            win.show().unwrap();
-                            win.set_focus().unwrap();
-                        }
+            let shortcut_builder = tauri_plugin_global_shortcut::Builder::new()
+                .with_shortcut("ctrl+alt+a");
+            match shortcut_builder {
+                Ok(builder) => {
+                    let plugin = builder
+                        .with_handler(|app, _shortcut, event| {
+                            if event.state == ShortcutState::Pressed {
+                                if let Some(win) = app.get_webview_window("main") {
+                                    if win.is_visible().unwrap_or(false) {
+                                        let _ = win.hide();
+                                    } else {
+                                        let _ = win.show();
+                                        let _ = win.set_focus();
+                                    }
+                                }
+                            }
+                        })
+                        .build();
+                    if let Err(error) = app.handle().plugin(plugin) {
+                        // Another Aiko instance may already own the system-wide
+                        // hotkey. Keep this launch alive; the tray stays usable.
+                        eprintln!("[Aiko/Rust] Global shortcut unavailable: {error}");
                     }
-                  }
-                })
-                .build()
-            )?;
-
-            // Visual Effects & Boot Logic
-            println!("[Aiko/Rust] Looking for main window...");
-            if let Some(window) = app.get_webview_window("main") {
-                println!("[Aiko/Rust] MAIN WINDOW FOUND — applying settings");
-
-                // Force window visible immediately
-                println!("[Aiko/Rust] Calling show() + unminimize() + set_focus()...");
-                match window.show() {
-                    Ok(_) => println!("[Aiko/Rust] window.show() OK"),
-                    Err(e) => eprintln!("[Aiko/Rust] window.show() FAILED: {}", e),
                 }
-                match window.unminimize() {
-                    Ok(_) => println!("[Aiko/Rust] window.unminimize() OK"),
-                    Err(e) => eprintln!("[Aiko/Rust] window.unminimize() FAILED: {}", e),
-                }
-                match window.set_focus() {
-                    Ok(_) => println!("[Aiko/Rust] window.set_focus() OK"),
-                    Err(e) => eprintln!("[Aiko/Rust] window.set_focus() FAILED: {}", e),
-                }
-
-                // Listen for app-ready from frontend (re-show + focus)
-                let win_clone = window.clone();
-                app.listen("app-ready", move |_| {
-                    println!("[Aiko/Rust] Received app-ready event from frontend");
-                    let _ = win_clone.show();
-                    let _ = win_clone.set_focus();
-                });
-            } else {
-                eprintln!("[Aiko/Rust] CRITICAL: Main window NOT found! WebView2 failed to create window.");
+                Err(error) => eprintln!("[Aiko/Rust] Global shortcut configuration failed: {error}"),
             }
 
             Ok(())
@@ -334,7 +323,29 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app_handle, event| {
-            if let tauri::RunEvent::Exit = event {
+            if let tauri::RunEvent::Ready = event {
+                if let Some(window) = app_handle.get_webview_window("main") {
+                    match window.hwnd() {
+                        Ok(hwnd) => println!("[Aiko/Rust] Main HWND ready: {:?}", hwnd),
+                        Err(error) => eprintln!("[Aiko/Rust] Main HWND unavailable after Ready: {error}"),
+                    }
+                    if let Err(error) = window.show() {
+                        eprintln!("[Aiko/Rust] Main window show failed: {error}");
+                    }
+                    let _ = window.unminimize();
+                    if let Err(error) = window.set_focus() {
+                        eprintln!("[Aiko/Rust] Main window focus failed: {error}");
+                    }
+                    let win_clone = window.clone();
+                    app_handle.listen("app-ready", move |_| {
+                        println!("[Aiko/Rust] Received app-ready event from frontend");
+                        let _ = win_clone.show();
+                        let _ = win_clone.set_focus();
+                    });
+                } else {
+                    eprintln!("[Aiko/Rust] RunEvent::Ready — main window missing");
+                }
+            } else if let tauri::RunEvent::Exit = event {
                 if let Some(pm) = app_handle.try_state::<Arc<ProcessManager>>() {
                     println!("[Aiko/Rust] RunEvent::Exit triggered. Shutting down processes...");
                     pm.shutdown();

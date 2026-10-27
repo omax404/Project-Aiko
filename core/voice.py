@@ -243,10 +243,13 @@ class VoiceEngine:
             if _tts_failed or _tts_model is None:
                 return None
 
+            # Pocket-TTS reuses a single mutable model and voice state. Serialize
+            # inference across executor threads to avoid concurrent model calls.
+            _tts_lock.acquire()
             self.is_speaking = True
             try:
                 self.clear_old_cache()
-                filename = f"voice_{int(time.time() * 1000)}.wav"
+                filename = f"voice_{time.time_ns()}.wav"
                 target_path = os.path.join(self.output_dir, filename)
 
                 # Split into chunks for reliable TTS generation
@@ -295,10 +298,9 @@ class VoiceEngine:
                 # Broadcast amplitude data for lip-sync
                 if on_amplitude and audio_segments:
                     try:
-                        import asyncio
                         rms = float(np.sqrt(np.mean(full_audio.astype(np.float64) ** 2)))
                         amplitude = min(1.0, rms / 0.15)  # Normalize to 0-1
-                        loop_ref = asyncio.get_event_loop()
+                        loop_ref = loop
                         if asyncio.iscoroutinefunction(on_amplitude):
                             loop_ref.call_soon_threadsafe(asyncio.ensure_future, on_amplitude(amplitude))
                         else:
@@ -313,6 +315,7 @@ class VoiceEngine:
                 return None
             finally:
                 self.is_speaking = False
+                _tts_lock.release()
 
         filename = await loop.run_in_executor(None, _blocking_speak)
 

@@ -15,6 +15,27 @@ logger = logging.getLogger("Background")
 
 background_tasks = set()
 
+
+async def _supervise_loop(name, loop_factory):
+    """Restart a crashed background service loop after logging the failure."""
+    delay = 5
+    while True:
+        try:
+            await loop_factory()
+            logger.error("Background loop %s exited unexpectedly; restarting in %ss", name, delay)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Background loop %s crashed; restarting in %ss", name, delay)
+        await asyncio.sleep(delay)
+
+
+def _start_supervised(name, loop_factory):
+    task = asyncio.create_task(_supervise_loop(name, loop_factory), name=f"aiko:{name}")
+    background_tasks.add(task)
+    task.add_done_callback(background_tasks.discard)
+    return task
+
 async def process_queue_messages():
     """Process incoming messages from the queue."""
     while True:
@@ -87,20 +108,34 @@ async def memory_autosave_loop():
             logger.error(f"Memory autosave JSON error: {e}")
 
 async def knowledge_ingestion_loop():
-    """Ingest new knowledge documents every 5 minutes without blocking the event loop."""
+    """Ingest new knowledge documents every 5 minutes without blocking the event loop.
+
+    Also primes the lazy RAG init from a worker thread at startup, so the first
+    chat turn never pays the blocking ChromaDB init cost (RAG-01).
+    """
+    if hub.rag:
+        try:
+            await asyncio.to_thread(hub.rag._ensure_initialized)
+            logger.info("[RAG] Memory initialization attempt finished.")
+        except (AttributeError, OSError, RuntimeError, ValueError) as e:
+            logger.warning(f"[RAG] Initial memory initialization failed: {e}")
+
     while True:
         await asyncio.sleep(300)
         try:
-            if hub.rag and hub.rag.is_available():
+            if hub.rag:
                 # ChromaDB vector computation and index updates are heavy CPU/IO bound tasks;
                 # offload to worker thread to maintain smooth 60 FPS system responsiveness
-                await asyncio.to_thread(hub.rag.refresh_index)
-                logger.info("[RAG] Knowledge index refreshed.")
+                ingested = await asyncio.to_thread(hub.rag.refresh_index)
+                if ingested:
+                    logger.info(f"[RAG] Knowledge index refreshed ({ingested} document(s)).")
+                else:
+                    logger.debug("[RAG] Knowledge index unchanged.")
         except AttributeError as e:
             logger.error(f"RAG attribute error: {e}")
         except (OSError, PermissionError) as e:
             logger.error(f"RAG ingestion I/O error: {e}")
-        except (TypeError, KeyError) as e:
+        except (TypeError, KeyError, ValueError, RuntimeError) as e:
             logger.error(f"RAG data error: {e}")
 
 async def reminder_check_loop():
@@ -119,10 +154,14 @@ async def reminder_check_loop():
                         try:
                             if hub.voice_engine and hub.voice_engine.enabled:
                                 text_to_speak = f"Reminder: {reminder.get('text', '')}"
-                                async def broadcast_audio(filename: str):
+                                # B023: bind per-reminder text so the closure does
+                                # not see the next loop iteration's value.
+                                async def broadcast_audio(filename: str, _text: str = text_to_speak):
+                                    from core.api.auth import sign_private_resource
+                                    expires, signature = sign_private_resource("tts", filename)
                                     await broadcast_event("tts_audio", {
-                                        "url": f"/api/tts/audio/{filename}",
-                                        "text": text_to_speak
+                                        "url": f"/api/tts/audio/{filename}?exp={expires}&sig={signature}",
+                                        "text": _text
                                     })
                                 await hub.voice_engine.speak(
                                     text_to_speak,
@@ -154,47 +193,33 @@ async def start_background_tasks(app):
     logger.info("[Hub] Starting background tasks...")
     
     # Cache cleanup & GC
-    t_clean = asyncio.create_task(cache_cleanup_loop())
-    background_tasks.add(t_clean)
-    t_clean.add_done_callback(background_tasks.discard)
+    _start_supervised("cache_cleanup", cache_cleanup_loop)
     
     # Knowledge ingestion
-    t1 = asyncio.create_task(knowledge_ingestion_loop())
-    background_tasks.add(t1)
-    t1.add_done_callback(background_tasks.discard)
+    _start_supervised("knowledge_ingestion", knowledge_ingestion_loop)
     
     # Memory autosave
-    t2 = asyncio.create_task(memory_autosave_loop())
-    background_tasks.add(t2)
-    t2.add_done_callback(background_tasks.discard)
+    _start_supervised("memory_autosave", memory_autosave_loop)
     
     # Reminder check
-    t3 = asyncio.create_task(reminder_check_loop())
-    background_tasks.add(t3)
-    t3.add_done_callback(background_tasks.discard)
+    _start_supervised("reminder_check", reminder_check_loop)
     
     # Message queue processing (only if discord or telegram bots are enabled in configuration)
     from core.config_manager import config as aiko_config
     discord_enabled = aiko_config.get("PLUGINS_DISCORD_BOT", True)
     telegram_enabled = aiko_config.get("PLUGINS_TELEGRAM_BOT", True)
     if discord_enabled or telegram_enabled:
-        t4 = asyncio.create_task(process_queue_messages())
-        background_tasks.add(t4)
-        t4.add_done_callback(background_tasks.discard)
+        _start_supervised("message_queue", process_queue_messages)
     else:
         logger.info("[Hub] Message queue processing task skipped (both Discord and Telegram bot plugins are disabled).")
     
     # Biological broadcast (if emotion engine available)
     if hub.emotion_engine:
-        t5 = asyncio.create_task(_bio_broadcast(hub.emotion_engine))
-        background_tasks.add(t5)
-        t5.add_done_callback(background_tasks.discard)
+        _start_supervised("biological_broadcast", lambda: _bio_broadcast(hub.emotion_engine))
     
     # Proactive screen observation & vision loop
     if hub.proactive_agent:
-        t6 = asyncio.create_task(hub.proactive_agent.start_loop())
-        background_tasks.add(t6)
-        t6.add_done_callback(background_tasks.discard)
+        _start_supervised("proactive_agent", hub.proactive_agent.start_loop)
     
     logger.info(f"[Hub] {len(background_tasks)} background tasks started.")
 

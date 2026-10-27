@@ -2,13 +2,19 @@
 AikoBrain — thin orchestrator. Delegates all heavy work to infrastructure modules.
 """
 import asyncio
+import ipaddress
 import re
 import json
 import logging
 import os
+import socket
 import mimetypes
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Optional, Dict, List, Callable, Union
+from urllib.parse import urlparse
+
+import aiohttp
 from dotenv import load_dotenv
 
 from core.persona import get_persona_prompt, get_core_brain_prompt, detect_emotion
@@ -30,6 +36,40 @@ from core.eq_engine import eq_engine
 
 load_dotenv()
 logger = logging.getLogger("Brain")
+
+# Attachment security (SEC-04): attachments are client-supplied, so only files
+# inside data/uploads are readable and remote fetches are size-capped.
+_BASE_DIR = Path(__file__).resolve().parents[1]
+_UPLOADS_DIR = _BASE_DIR / "data" / "uploads"
+_MAX_REMOTE_ATTACHMENT_BYTES = 20 * 1024 * 1024
+
+
+def _is_public_http_url(url: str) -> bool:
+    """SSRF guard: True only for http(s) URLs whose host resolves to public IPs.
+
+    Blocks loopback/LAN/metadata targets so an untrusted chat participant cannot
+    make the hub fetch internal endpoints and feed the response to the LLM.
+    Blocking DNS is acceptable here because callers run this in a worker thread.
+    """
+    try:
+        parsed = urlparse(url)
+        if parsed.scheme not in ("http", "https") or not parsed.hostname:
+            return False
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+        infos = socket.getaddrinfo(parsed.hostname, port, proto=socket.IPPROTO_TCP)
+    except (OSError, ValueError):
+        return False
+    if not infos:
+        return False
+    for info in infos:
+        try:
+            addr = ipaddress.ip_address(str(info[4][0]).split("%", 1)[0])
+        except (ValueError, IndexError):
+            return False
+        if (addr.is_private or addr.is_loopback or addr.is_link_local
+                or addr.is_reserved or addr.is_multicast or addr.is_unspecified):
+            return False
+    return True
 
 STICKER_MAPPING = {
     # 01_Happy_Cheer.png
@@ -241,7 +281,6 @@ class AikoBrain:
         self.rag = rag_memory
         self.pc = pc_manager
         self.vision = vision_engine
-        self.suppress_speech = False
         
         self.model = config.get("MODEL_NAME", "deepseek-chat")
         self.vts = vts_connector
@@ -252,6 +291,7 @@ class AikoBrain:
         self.executor = AgentExecutor()
         
         self._message_count = 0
+        self._chat_lock = asyncio.Lock()
         self._reflective_state = ""
         self.using_fallback = False
         self.on_thinking = None
@@ -294,20 +334,53 @@ class AikoBrain:
 
         return self._cached_prompts[cache_key]
 
-    def _create_sentence_emitter(self, custom_cb=None):
+    def _create_sentence_emitter(self, custom_cb=None, suppress_audio: bool = False):
         target_cb = custom_cb or self.on_sentence
         if not target_cb:
             return None
+        reasoning_state = {"hidden": False}
+
+        def _visible_stream_text(fragment: str) -> str:
+            """Suppress private reasoning and executable tags before UI streaming."""
+            output = []
+            remaining = fragment
+            while remaining:
+                if reasoning_state["hidden"]:
+                    close_match = re.search(r"</(?:think|analysis|thought)\s*>", remaining, re.IGNORECASE)
+                    if not close_match:
+                        return ""
+                    remaining = remaining[close_match.end():]
+                    reasoning_state["hidden"] = False
+                    continue
+                open_match = re.search(r"<(?:think|analysis|thought)\s*>", remaining, re.IGNORECASE)
+                if not open_match:
+                    output.append(remaining)
+                    break
+                output.append(remaining[:open_match.start()])
+                remaining = remaining[open_match.end():]
+                reasoning_state["hidden"] = True
+
+            visible = "".join(output)
+            visible = re.sub(r"<emotion>.*?</emotion>", "", visible, flags=re.IGNORECASE | re.DOTALL)
+            visible = re.sub(
+                r"\[(?:OPEN|SCAN|TYPE|CLICK|PRESS|TASK|LATEX|GAME|EXEC|MCP|BIO_REGISTER|MUSIC|EMAIL_SEND|EMAIL_INBOX|WALLPAPER|WAIT|IMAGE|GIF|RECALL|VTS_BG|WEATHER|LETTER)\b[^\]]*\]",
+                "", visible, flags=re.IGNORECASE | re.DOTALL
+            )
+            return visible.strip()
+
         def _emitter(text: str):
             text = translate_stickers(text)
             if not text or text.startswith(("```", "{\"")):
                 return
+            text = _visible_stream_text(text)
+            if not text:
+                return
             try:
                 emotion = detect_emotion(text)
                 if asyncio.iscoroutinefunction(target_cb):
-                    asyncio.create_task(target_cb(text, emotion=emotion, suppress_audio=self.suppress_speech))
+                    asyncio.create_task(target_cb(text, emotion=emotion, suppress_audio=suppress_audio))
                 else:
-                    res = target_cb(text, emotion=emotion, suppress_audio=self.suppress_speech)
+                    res = target_cb(text, emotion=emotion, suppress_audio=suppress_audio)
                     if asyncio.iscoroutine(res):
                         asyncio.create_task(res)
             except Exception as e:
@@ -322,7 +395,21 @@ class AikoBrain:
 
     async def chat(self, message: str, user_id: str = "user", input_role: str = "user",
                    save_input: bool = True, initial_images: list = None,
-                   on_sentence: Any = None, is_admin: bool = False) -> tuple:
+                   on_sentence: Any = None, is_admin: bool = False,
+                   suppress_audio: bool = False) -> tuple:
+        """Serialize access to shared chat state across every API entry point."""
+        async with self._chat_lock:
+            return await self._chat_impl(
+                message, user_id=user_id, input_role=input_role,
+                save_input=save_input, initial_images=initial_images,
+                on_sentence=on_sentence, is_admin=is_admin,
+                suppress_audio=suppress_audio,
+            )
+
+    async def _chat_impl(self, message: str, user_id: str = "user", input_role: str = "user",
+                         save_input: bool = True, initial_images: list = None,
+                         on_sentence: Any = None, is_admin: bool = False,
+                         suppress_audio: bool = False) -> tuple:
         """
         Send message to LLM and get response with ReAct loop.
         """
@@ -338,9 +425,9 @@ class AikoBrain:
             if on_sentence:
                 try:
                     if asyncio.iscoroutinefunction(on_sentence):
-                        await on_sentence(text_reply, emotion, suppress_audio=self.suppress_speech)
+                        await on_sentence(text_reply, emotion, suppress_audio=suppress_audio)
                     else:
-                        on_sentence(text_reply, emotion, suppress_audio=self.suppress_speech)
+                        on_sentence(text_reply, emotion, suppress_audio=suppress_audio)
                 except Exception as e:
                     logger.error(f"Scoped sentence callback error: {e}")
             else:
@@ -368,9 +455,11 @@ class AikoBrain:
                 else:
                     file_context += f"\n[VISUAL_INPUT]: {len(processed_images)} image(s) attached."
 
-        # On-Demand Live Screen Analysis if user is asking about their screen
+        # On-Demand Live Screen Analysis if user is asking about their screen.
+        # SECURITY (SEC-01): only admins may trigger a live capture — satellite
+        # bots relay arbitrary remote users, who must not get the screen described.
         screen_triggers = ["screen", "look at my screen", "what am i doing", "what's on my screen", "what is on my screen", "see my screen", "can you see", "check my screen", "scan screen", "desktop", "my window", "active window", "look at this"]
-        if self.vision and any(st in message.lower() for st in screen_triggers):
+        if self.vision and is_admin and any(st in message.lower() for st in screen_triggers):
             try:
                 logger.info("[ChatEngine] User asked about screen. Performing on-demand live screen scan...")
                 live_desc, _ = await self.vision.scan_screen(force=True)
@@ -405,9 +494,11 @@ class AikoBrain:
 
         logger.info(f" [Brain] Started thinking for user {user_id}: {message[:50]}...")
 
-        for turn in range(5):
-            master_id = os.getenv("MASTER_ID", "")
-            is_master = not master_id or str(user_id).lower() in {"user", "master", "omax", "admin", "owner", master_id.lower()}
+        max_turns = 5
+        for turn in range(max_turns):
+            # Persona privileges follow the verified token claim only. User IDs
+            # are client supplied identifiers and must never grant owner access.
+            is_master = bool(is_admin)
             static_persona = self._get_cached_prompt(is_master) + "\n\n" + self._get_tools_prompt()
             
             dynamic_context = ""
@@ -455,12 +546,21 @@ class AikoBrain:
             if plugin_context:
                 messages.append({"role": "system", "content": f"[DYNAMIC_CONTEXT]:\n{plugin_context}"})
 
+            # Observations already folded into this prompt; anything beyond this
+            # count is produced by the tool pass below.
+            obs_count = len(observations)
+
             text = await self._call_llm(messages, self.model, images=images_data if images_data else None, apply_neuromodulators=True, emit_callback=on_sentence)
 
-            has_tool = any(tag in text.upper() for tag in [
-                "[OPEN:", "[SCAN]", "[TYPE:", "[CLICK:", "[PRESS:", "[TASK:", "[LATEX:",
-                "[GAME:", "[EXEC:", "[MCP:", "[BIO_REGISTER]", "[MUSIC:"
-            ])
+            actions = self.executor.parse_actions(text)
+            has_tool = any(
+                action.tool_name != "PLUGIN"
+                or any(
+                    item.get("function", {}).get("name", "").upper() == action.args.get("tag", "").upper()
+                    for item in self.plugins.get_all_tools()
+                )
+                for action in actions
+            )
             
             if not has_tool:
                 final_response = text
@@ -469,6 +569,28 @@ class AikoBrain:
 
             final_response = text
             await self._execute_tools(text, observations, images_data, user_id, is_admin=is_admin)
+
+            if turn == max_turns - 1:
+                # Final iteration used to execute tools and then return the
+                # tool-directive text without ever showing the model the
+                # results (side effects happened, user saw nothing). Give it
+                # one observation-only pass so a real answer is produced.
+                new_obs = observations[obs_count:]
+                if new_obs:
+                    messages.append({"role": "system", "content": "[OBSERVATIONS]:\n" + "\n".join(new_obs)})
+                    try:
+                        follow_up = await self._call_llm(
+                            messages, self.model,
+                            images=images_data if images_data else None,
+                            apply_neuromodulators=True,
+                            emit_callback=on_sentence,
+                        )
+                    except Exception as follow_err:
+                        logger.warning(f"[Brain] Final observation pass failed: {follow_err}")
+                        follow_up = None
+                    if follow_up:
+                        final_response = follow_up
+                break
 
         # Process emotion
         from .emotion_engine import emotion_engine
@@ -489,7 +611,7 @@ class AikoBrain:
         # Clean Tags
         cleaned_response = re.sub(r'<(think|emotion|thought|relevant_memory_context|current_visual_awareness|eq_signal)>.*?</\1>', '', final_response, flags=re.IGNORECASE | re.DOTALL)
         cleaned_response = re.sub(r'</?(think|emotion|thought|relevant_memory_context|current_visual_awareness|eq_signal)>', '', cleaned_response, flags=re.IGNORECASE)
-        cleaned_response = re.sub(r'\[(SCAN|MCP|TASK|BIO_REGISTER|GAME|OPEN|TYPE|CLICK|PRESS|WAIT|WALLPAPER|WEATHER|MUSIC|LETTER|VTS_BG|RECALL|LATEX|REFLECTIVE_STATE|GIF)[^\]]*?\]', '', cleaned_response, flags=re.IGNORECASE)
+        cleaned_response = re.sub(r'\[(SCAN|MCP|TASK|BIO_REGISTER|GAME|OPEN|TYPE|CLICK|PRESS|WAIT|WALLPAPER|WEATHER|MUSIC|LETTER|VTS_BG|RECALL|LATEX|REFLECTIVE_STATE|GIF|IMAGE|EMAIL_SEND|EMAIL_INBOX)[^\]]*?\]', '', cleaned_response, flags=re.IGNORECASE)
         cleaned_response = re.sub(r'\n{3,}', '\n\n', cleaned_response).strip()
         cleaned_response = translate_stickers(cleaned_response)
 
@@ -557,32 +679,60 @@ Use MCP tools whenever Master asks about his PC state, files, wants you to read/
         await self.executor.execute_tools(self, text, observations, images_data, user_id, is_admin=is_admin)
 
     async def _process_attachments(self, attachment_paths_or_urls: list) -> tuple:
-        """Process local file paths or URLs for vision/context."""
+        """Process uploaded files or public URLs for vision/context.
+
+        SECURITY (SEC-04): attachments are client-supplied. Only files contained
+        in `data/uploads` may be read (a prompt-injected model / remote user must
+        not turn this into an arbitrary local file read such as `.env`), and
+        remote URLs are SSRF-gated to public hosts and size-capped before their
+        content reaches the LLM.
+        """
         images = []
         context_parts = []
         import base64
 
         IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.tiff', '.avif'}
+        uploads_dir = _UPLOADS_DIR.resolve()
 
         for source in attachment_paths_or_urls:
             try:
                 content = None
-                filename = os.path.basename(source)
-                
-                if os.path.exists(source):
-                    with open(source, 'rb') as f:
+                filename = os.path.basename(str(source))
+
+                # 1. Uploaded file: resolve to data/uploads and require containment
+                #    (also catches symlinks pointing out of the uploads directory).
+                candidates = [uploads_dir / filename]
+                source_path = Path(str(source))
+                if not source_path.is_absolute():
+                    candidates.append(uploads_dir / source_path)
+                resolved_local = None
+                for candidate in candidates:
+                    try:
+                        resolved_candidate = candidate.resolve()
+                    except OSError:
+                        continue
+                    if resolved_candidate.is_relative_to(uploads_dir) and resolved_candidate.is_file():
+                        resolved_local = resolved_candidate
+                        break
+
+                if resolved_local is not None:
+                    with open(resolved_local, 'rb') as f:
                         content = f.read()
+                # 2. Remote attachment: public http(s) hosts only, capped read.
+                elif isinstance(source, str) and source.lower().startswith(("http://", "https://")):
+                    if not await asyncio.to_thread(_is_public_http_url, source):
+                        logger.warning(f"[Attachment] Blocked non-public attachment URL: {filename}")
+                        continue
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(source, timeout=aiohttp.ClientTimeout(total=30)) as resp:
+                            if resp.status == 200:
+                                content = await resp.content.read(_MAX_REMOTE_ATTACHMENT_BYTES + 1)
+                                if len(content) > _MAX_REMOTE_ATTACHMENT_BYTES:
+                                    logger.warning(f"[Attachment] Remote attachment exceeds size cap, skipped: {filename}")
+                                    content = None
                 else:
-                    local_upload_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "uploads", filename)
-                    if os.path.exists(local_upload_path):
-                        with open(local_upload_path, 'rb') as f:
-                            content = f.read()
-                    else:
-                        import aiohttp
-                        async with aiohttp.ClientSession() as session:
-                            async with session.get(source) as resp:
-                                if resp.status == 200:
-                                    content = await resp.read()
+                    logger.warning(f"[Attachment] Rejected attachment outside data/uploads: {filename}")
+                    continue
 
                 if not content: continue
 
@@ -610,7 +760,7 @@ Use MCP tools whenever Master asks about his PC state, files, wants you to read/
                         logger.warning(f"Failed to decode attachment text for {filename}: {e}")
                         context_parts.append(f"[File attached: {filename}]")
 
-            except (OSError, ValueError, TypeError) as e:
+            except (OSError, ValueError, TypeError, aiohttp.ClientError) as e:
                 logger.error(f"Attachment Error {source}: {e}")
 
         return images, "\n".join(context_parts)
@@ -621,7 +771,7 @@ Use MCP tools whenever Master asks about his PC state, files, wants you to read/
         MODEL = config.get("MODEL_NAME", model or "qwen3.5:cloud")
         API_KEY = config.get("API_KEY", "")
 
-        callback = self._create_sentence_emitter(emit_callback)
+        callback = self._create_sentence_emitter(emit_callback, suppress_audio=suppress_audio)
 
         if apply_neuromodulators:
             from core.emotion_engine import emotion_engine

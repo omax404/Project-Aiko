@@ -30,7 +30,8 @@ if not TOKEN:
         user_settings_path = BASE_DIR / "user_settings.json"
         if user_settings_path.exists():
             settings = json.loads(user_settings_path.read_text(encoding="utf-8"))
-            TOKEN = settings.get("plugins", {}).get("discord_token", "")
+            from core.config_manager import decrypt_string
+            TOKEN = decrypt_string(settings.get("plugins", {}).get("discord_token", ""))
     except Exception:
         pass
 raw_master_id = os.getenv("MASTER_ID", "0").strip()
@@ -38,8 +39,32 @@ try:
     MASTER_ID = int(raw_master_id) if raw_master_id.isdigit() else 0
 except ValueError:
     MASTER_ID = 0
-HUB_URL = "http://127.0.0.1:8000"
 _cached_token = None
+
+# Discord gateway client.
+# This definition was dropped in a satellite refactor, leaving every `@bot.event`
+# decorator below raising `NameError: name 'bot' is not defined` at import time —
+# the Discord satellite could never start. `message_content` is required to read
+# chat text; voice_states is required for the join/leave commands.
+intents = discord.Intents.default()
+intents.message_content = True
+intents.voice_states = True
+bot = commands.Bot(command_prefix="!", intents=intents)
+
+
+def _resolve_hub_url() -> str:
+    """Resolve the hub URL from data/port.json (the hub may bind 8000–8049)."""
+    try:
+        port = int(json.loads((BASE_DIR / "data" / "port.json").read_text(encoding="utf-8"))["port"])
+        if 1 <= port <= 65535:
+            return f"http://127.0.0.1:{port}"
+    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
+        pass
+    return "http://127.0.0.1:8000"
+
+
+HUB_URL = _resolve_hub_url()
+
 
 async def _get_auth_header() -> dict:
     """Retrieve loopback JWT token for Neural Hub communication."""
@@ -47,20 +72,10 @@ async def _get_auth_header() -> dict:
     if _cached_token:
         return {"Authorization": f"Bearer {_cached_token}"}
     
-    # 1. Try reading local_token.txt directly
-    token_file = BASE_DIR / "data" / "local_token.txt"
-    if token_file.exists():
-        try:
-            _cached_token = token_file.read_text(encoding="utf-8").strip()
-            if _cached_token:
-                return {"Authorization": f"Bearer {_cached_token}"}
-        except Exception:
-            pass
-
-    # 2. Fetch from /token loopback endpoint
+    # Satellites receive a scoped, non-admin token; never read the desktop token file.
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(f"{HUB_URL}/token", timeout=5) as resp:
+            async with session.get(f"{HUB_URL}/bot-token?bot=discord", timeout=5) as resp:
                 if resp.status == 200:
                     data = await resp.json()
                     _cached_token = data.get("token")

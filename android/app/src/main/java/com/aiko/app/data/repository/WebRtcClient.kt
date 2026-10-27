@@ -2,6 +2,8 @@ package com.aiko.app.data.repository
 
 import android.content.Context
 import android.util.Log
+import androidx.datastore.preferences.core.stringPreferencesKey
+import com.aiko.app.data.local.dataStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -9,6 +11,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
@@ -25,6 +28,13 @@ class WebRtcClient(
 ) {
     // Prevent Context leak by keeping application context reference
     private val appContext = context.applicationContext
+
+    private companion object {
+        // Must stay in sync with AikoPrefs.PreferencesKeys.AUTH_TOKEN (same DataStore file).
+        // Long-term fix: pass the token in from ChatRepository (whose write scope is outside
+        // this change) instead of reading the preference store from the transport class.
+        val AUTH_TOKEN_KEY = stringPreferencesKey("auth_token")
+    }
 
     // Structured coroutine lifecycle management
     private val job = SupervisorJob()
@@ -189,7 +199,32 @@ class WebRtcClient(
         }
     }
 
-    private fun sendOfferToServer(offerDesc: SessionDescription) {
+    /**
+     * Reads the hub bearer token provisioned at pairing time.
+     * Returns "" when the user has not paired yet (or on a corrupt preference file).
+     */
+    private suspend fun resolveAuthToken(): String = try {
+        appContext.dataStore.data.first()[AUTH_TOKEN_KEY].orEmpty()
+    } catch (e: Exception) {
+        Log.e("WebRtcClient", "Failed to read hub auth token: ${e.message}")
+        ""
+    }
+
+    private suspend fun sendOfferToServer(offerDesc: SessionDescription) {
+        // core/api/auth.py protects every /api/* route with a Bearer JWT, and
+        // /api/webrtc/offer is registered there, so an unauthenticated POST always 401s.
+        // Fail fast with an actionable error instead of attempting a request that cannot work.
+        val authToken = resolveAuthToken()
+        if (authToken.isBlank()) {
+            Log.e(
+                "WebRtcClient",
+                "No hub auth token provisioned; refusing to send an unauthenticated SDP offer. " +
+                    "Pair with the desktop hub (QR) so AikoPrefs.auth_token is stored."
+            )
+            _connectionState.value = PeerConnection.PeerConnectionState.FAILED
+            return
+        }
+
         val payload = JSONObject().apply {
             put("sdp", offerDesc.description)
             put("type", offerDesc.type.canonicalForm())
@@ -205,6 +240,7 @@ class WebRtcClient(
         val request = Request.Builder()
             .url(requestUrl)
             .post(requestBody)
+            .header("Authorization", "Bearer $authToken")
             .build()
 
         try {

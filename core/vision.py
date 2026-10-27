@@ -269,11 +269,11 @@ class VisionEngine:
             return f"Error analyzing file: {e}"
 
     async def analyze_base64(self, b64_str: str) -> str:
-        """Analyze a base64 encoded image string."""
+        """Analyze a base64 encoded image (routed through the configured provider)."""
         import base64
         try:
             image_data = base64.b64decode(b64_str)
-            img = Image.open(io.BytesIO(image_data))
+            img = Image.open(io.BytesIO(image_data)).convert("RGB")
             return await self._analyze(img)
         except (OSError, ValueError) as e:
             logger.error(f"Base64 Analysis Error: {e}")
@@ -484,18 +484,6 @@ class VisionEngine:
         except Exception as e:
             logger.error(f"[Vision] Local Vision Error ({vision_provider}): {e}")
             return "Visual sensors adjusting, Master."
-
-    async def analyze_base64(self, img_b64: str) -> str:
-        """Analyze a base64 encoded image using the VLM vision provider."""
-        try:
-            import base64
-            import io
-            image_data = base64.b64decode(img_b64)
-            image = Image.open(io.BytesIO(image_data)).convert("RGB")
-            return await self._analyze_ollama(image)
-        except Exception as e:
-            logger.error(f"[Vision] analyze_base64 failed: {e}")
-            return "Unable to analyze attached image."
 
     async def capture_camera(self) -> Image.Image:
         """Capture a frame from the default camera."""

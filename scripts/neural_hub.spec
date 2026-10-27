@@ -1,9 +1,22 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+# Resolve the entry script relative to this spec file so the build works on any
+# machine (CI runners, contributors) instead of only the path it was authored on.
+# PyInstaller injects SPECPATH when it executes a spec; fall back to this file's
+# directory when the spec is read/linted outside PyInstaller.
+from pathlib import Path
+
+_spec_dir = Path(globals().get("SPECPATH") or Path(__file__).resolve().parent)
+_repo_root = _spec_dir.parent
+_hub_script = _repo_root / "core" / "neural_hub.py"
+
+if not _hub_script.exists():
+    raise SystemExit(f"[spec] neural_hub entry script not found: {_hub_script}")
+
 
 a = Analysis(
-    ['C:\\Users\\ousmo\\.gemini\\antigravity\\scratch\\Aiko-desktop\\core\\neural_hub.py'],
-    pathex=[],
+    [str(_hub_script)],
+    pathex=[str(_repo_root)],
     binaries=[],
     datas=[],
     hiddenimports=[

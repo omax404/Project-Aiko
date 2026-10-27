@@ -32,8 +32,9 @@ if not TOKEN or not USERNAME or not CHANNEL:
         if user_settings_path.exists():
             settings = json.loads(user_settings_path.read_text(encoding="utf-8"))
             plugins = settings.get("plugins", {})
+            from core.config_manager import decrypt_string
             if not TOKEN:
-                TOKEN = plugins.get("twitch_token", "")
+                TOKEN = decrypt_string(plugins.get("twitch_token", ""))
             if not USERNAME:
                 USERNAME = plugins.get("twitch_username", "")
             if not CHANNEL:
@@ -67,17 +68,9 @@ async def _get_auth_header() -> dict:
     global _cached_token
     if _cached_token:
         return {"Authorization": f"Bearer {_cached_token}"}
-    token_file = BASE_DIR / "data" / "local_token.txt"
-    if token_file.exists():
-        try:
-            _cached_token = token_file.read_text(encoding="utf-8").strip()
-            if _cached_token:
-                return {"Authorization": f"Bearer {_cached_token}"}
-        except Exception:
-            pass
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(f"{HUB_URL}/token", timeout=5) as resp:
+            async with session.get(f"{HUB_URL}/bot-token?bot=twitch", timeout=5) as resp:
                 if resp.status == 200:
                     data = await resp.json()
                     _cached_token = data.get("token")

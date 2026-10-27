@@ -29,6 +29,7 @@ interface NeuralState {
   isListening: boolean;
   streamingContent: string;
   streamingId: string | null;
+  streamingSessionId: string | null;
   currentEmotion: string;
   isTalking: boolean;
   amplitude: number;
@@ -113,7 +114,29 @@ interface NeuralState {
 let socket: WebSocket | null = null;
 let reconnectTimer: any = null;
 let reconnectAttempts = 0;
-export const getHubUrl = (): string => {
+let thinkingWatchdog: ReturnType<typeof setTimeout> | null = null;
+
+function startThinkingWatchdog() {
+  if (thinkingWatchdog) clearTimeout(thinkingWatchdog);
+  thinkingWatchdog = setTimeout(() => {
+    if (useNeuralStore.getState().isThinking) {
+      // Do not fabricate a timeout message or release the send lock while the
+      // server turn is still running. Its chat_end/error or socket close owns
+      // the lifecycle; a slow model/tool call can legitimately exceed 45s.
+      console.warn('[Aiko] Still waiting for the active response; keeping its request state intact.');
+    }
+    thinkingWatchdog = null;
+  }, 45000);
+}
+
+function stopThinkingWatchdog() {
+  if (thinkingWatchdog) {
+    clearTimeout(thinkingWatchdog);
+    thinkingWatchdog = null;
+  }
+}
+
+function getConfiguredHubUrl(): string {
   if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
     if (!window.location.port || window.location.port !== '1422') {
       return window.location.origin;
@@ -124,15 +147,24 @@ export const getHubUrl = (): string => {
     return `http://127.0.0.1:${envPort}`;
   }
   return 'http://127.0.0.1:8000';
-};
+}
 
-let hubUrl = getHubUrl();
+let hubUrl = getConfiguredHubUrl();
+export const getHubUrl = (): string => hubUrl;
 let isConnecting = false;
 let globalAudioCtx: AudioContext | null = null;
 let wsToken: string | null = null;
 
-/** Fetch the local JWT from the backend's loopback-only /token endpoint. */
+/** Get the desktop owner token through Tauri IPC, or a limited browser token. */
 async function fetchLocalToken(): Promise<string | null> {
+  if (typeof window !== 'undefined' && !!(window as any).__TAURI__) {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      return await invoke<string>('get_local_auth_token');
+    } catch (e) {
+      console.warn('[Aiko] Could not retrieve desktop auth token:', e);
+    }
+  }
   try {
     const res = await fetch(`${hubUrl}/token`, { cache: 'no-store' });
     if (res.ok) {
@@ -148,6 +180,7 @@ async function fetchLocalToken(): Promise<string | null> {
 /** Exported helper to build Authorization headers with the local JWT token for API calls. */
 export async function getAuthHeaders(extraHeaders: Record<string, string> = {}): Promise<Record<string, string>> {
   if (!wsToken) {
+    hubUrl = await findActiveHubUrl();
     wsToken = await fetchLocalToken();
   }
   const headers: Record<string, string> = { ...extraHeaders };
@@ -159,14 +192,8 @@ export async function getAuthHeaders(extraHeaders: Record<string, string> = {}):
 
 function scheduleReconnect() {
   if (reconnectTimer) return;
-  const maxAttempts = 50;
-  if (reconnectAttempts >= maxAttempts) {
-    console.warn('[Aiko] Max reconnect attempts reached. Stopping auto-reconnection.');
-    useNeuralStore.setState({ bridgeStatus: { status: 'disconnected', latency: 0, lastSeen: new Date().toISOString() } });
-    return;
-  }
   const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
-  console.log(`[Aiko] Reconnecting in ${delay/1000}s... (Attempt ${reconnectAttempts + 1}/${maxAttempts})`);
+  console.log(`[Aiko] Reconnecting in ${delay/1000}s (attempt ${reconnectAttempts + 1})`);
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null;
     reconnectAttempts++;
@@ -174,9 +201,9 @@ function scheduleReconnect() {
   }, delay);
 }
 
-/** Probe local ports 8000–8010 to find where the Neural Hub backend is running. */
+/** Probe the supported Neural Hub port range and reuse the active endpoint. */
 async function findActiveHubUrl(): Promise<string> {
-  const defaultUrl = getHubUrl();
+  const defaultUrl = hubUrl || getHubUrl();
   
   // 1. Try configured default URL first
   try {
@@ -187,8 +214,8 @@ async function findActiveHubUrl(): Promise<string> {
     if (res.ok) return defaultUrl;
   } catch (_) {}
 
-  // 2. Loop through ports 8000 to 8010
-  for (let port = 8000; port <= 8010; port++) {
+  // 2. The hub may select any of the next 49 ports when its preferred port is busy.
+  for (let port = 8000; port < 8050; port++) {
     const candidate = `http://127.0.0.1:${port}`;
     if (candidate === defaultUrl) continue;
     try {
@@ -205,7 +232,18 @@ async function findActiveHubUrl(): Promise<string> {
   return defaultUrl;
 }
 
+export async function resolveHubUrl(): Promise<string> {
+  hubUrl = await findActiveHubUrl();
+  return hubUrl;
+}
+
 async function connectSocket() {
+  // Acquire the guard *before* any await: StrictMode double-mount or concurrent
+  // callers would otherwise both pass it while port discovery/token fetch runs,
+  // creating two sockets (the orphan keeps its handlers → duplicate events).
+  if (isConnecting) return;
+  isConnecting = true;
+
   if (reconnectTimer) {
     clearTimeout(reconnectTimer);
     reconnectTimer = null;
@@ -223,14 +261,17 @@ async function connectSocket() {
   if (!wsToken) {
     wsToken = await fetchLocalToken();
   }
-  const tokenParam = wsToken ? `?token=${encodeURIComponent(wsToken)}` : '';
-  const wsUrl = hubUrl.replace('http', 'ws') + '/ws' + tokenParam;
+  if (!wsToken) {
+    isConnecting = false;
+    return;
+  }
+  const wsUrl = hubUrl.replace('http', 'ws') + '/ws';
 
   if (socket) {
-    // Compare base URL only (strip ?token=... for comparison)
-    const baseUrl = socket.url.split('?')[0];
+    const baseUrl = socket.url;
     const targetBase = (hubUrl.replace('http', 'ws') + '/ws');
     if (baseUrl === targetBase && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+      isConnecting = false;
       return;
     }
     if (baseUrl !== targetBase) {
@@ -240,8 +281,6 @@ async function connectSocket() {
     }
   }
 
-  if (isConnecting) return;
-  isConnecting = true;
   try {
     socket = new WebSocket(wsUrl);
     
@@ -252,16 +291,17 @@ async function connectSocket() {
       isConnecting = false;
       reconnectAttempts = 0;
       useNeuralStore.setState({ bridgeStatus: { status: 'connected', latency: 0, lastSeen: new Date().toISOString() } });
+
+      // Authenticate in the first frame rather than embedding the JWT in the URL.
+      if (socket && wsToken) socket.send(JSON.stringify({ type: 'auth', token: wsToken }));
       
-      // Sync initial visionStreamActive state to backend
-      const active = useNeuralStore.getState().visionStreamActive;
-      console.log(`[Aiko] Syncing initial visionStreamActive state to backend: ${active}`);
+      // Keep proactive mode disabled by default so she only answers when asked
       if (socket) {
         socket.send(JSON.stringify({
           type: 'system',
           action: 'proactive_toggle',
-          state: active,
-          interval: active ? 45 : 180
+          state: false,
+          interval: 180
         }));
       }
 
@@ -277,16 +317,19 @@ async function connectSocket() {
       console.log('[Aiko] Neural Core Decoupled', event.code);
       isConnecting = false;
       clearInterval(heartbeatInterval);
+      stopThinkingWatchdog();
       // If the server rejected with 401 (Unauthorized), clear the cached token
       // so the next reconnect attempt fetches a fresh one.
       if (event.code === 1008 || event.code === 4001) {
         wsToken = null;
       }
-      useNeuralStore.setState({ bridgeStatus: { status: 'disconnected', latency: 0, lastSeen: new Date().toISOString() } });
+      useNeuralStore.setState({ bridgeStatus: { status: 'disconnected', latency: 0, lastSeen: new Date().toISOString() }, isThinking: false, streamingContent: '', streamingId: null, streamingSessionId: null });
       scheduleReconnect();
     };
 
     socket.onerror = () => {
+      stopThinkingWatchdog();
+      useNeuralStore.setState({ isThinking: false });
       socket?.close();
     };
     socket.onmessage = (event) => {
@@ -299,16 +342,21 @@ async function connectSocket() {
         const data = { ...raw, ...nestedData };
         switch (type) {
           case 'chat_start':
-            useNeuralStore.setState({ isThinking: true, streamingContent: '', streamingId: data.message_id || Date.now().toString() });
+            startThinkingWatchdog();
+            useNeuralStore.setState({ isThinking: true, streamingContent: '', streamingId: data.message_id || Date.now().toString(), streamingSessionId: data.session_id || null });
             break;
           // chat_chunk = explicit token stream (future)
           case 'chat_chunk':
+            if (data.session_id && data.session_id !== useNeuralStore.getState().activeSessionId) break;
             useNeuralStore.setState((s) => ({ streamingContent: s.streamingContent + (data.content || data.text || '') }));
             break;
           case 'chat_token': {
+            if (data.session_id && data.session_id !== useNeuralStore.getState().activeSessionId) break;
+            startThinkingWatchdog();
             const tokenText = data.token || data.text || '';
             useNeuralStore.setState((s) => {
-              const newContent = s.streamingContent + tokenText + ' ';
+              // Tokens are real sentence/chunk text — append verbatim, never inject separators.
+              const newContent = s.streamingContent + tokenText;
               let detectedEmotion = data.emotion || s.currentEmotion;
 
               // Pre-glint emotion extraction directly from token stream
@@ -318,21 +366,29 @@ async function connectSocket() {
                 if (rawTag) detectedEmotion = rawTag.toLowerCase();
               }
 
+              // Keep isThinking true: the request is still in flight until chat_end/error/close.
               return {
                 streamingContent: newContent,
-                isThinking: false,
                 currentEmotion: detectedEmotion
               };
             });
             break;
           }
           case 'tts_chunk':
-            useNeuralStore.setState({ isThinking: false });
+            // Do not clear isThinking here: TTS sentence chunks arrive while the
+            // assistant is still generating, and the send guard must stay armed.
             break;
           case 'tts_audio': {
+            // The dashboard is the single playback owner. The mascot window
+            // still receives amplitude/state events for lip sync but must not
+            // synthesize a second audible copy of every sentence.
+            if (window.location.search.includes('mascot')) break;
+            // The hub may bind 8000–8010 (and remote/mobile origins): resolve the
+            // base URL the same way the REST/WS paths do instead of hardcoding 8000.
+            // `hubUrl` holds the discovered port; getHubUrl() is the default fallback.
             const audioUrl = (data.url as string).startsWith('http')
               ? data.url
-              : `http://127.0.0.1:8000${data.url}`;
+              : `${hubUrl || getHubUrl()}${data.url}`;
             const audio = new Audio(audioUrl);
             audio.crossOrigin = "anonymous";
             
@@ -392,27 +448,50 @@ async function connectSocket() {
             break;
           }
           case 'chat_end': {
+            stopThinkingWatchdog();
             const store2 = useNeuralStore.getState();
             const isProactive = data.proactive === true;
-            // For proactive messages (no chat_start was sent), use the event's own text.
-            // For streamed messages, prefer accumulated streamingContent.
-            const finalContent = isProactive
-              ? (data.text || data.content || '').trim()
-              : (store2.streamingContent.trim() || data.text || data.content || '');
+            const responseSessionId = data.session_id || store2.streamingSessionId;
+            if (!isProactive && responseSessionId && store2.activeSessionId && responseSessionId !== store2.activeSessionId) {
+              const preview = String(data.text || data.content || '').trim().slice(0, 60);
+              useNeuralStore.setState((state) => ({
+                sessions: state.sessions.map((session) => session.id === responseSessionId
+                  ? { ...session, preview, lastActive: new Date().toISOString() }
+                  : session),
+                streamingContent: '',
+                streamingId: null,
+                streamingSessionId: null,
+                isThinking: false,
+              }));
+              break;
+            }
+            // The server's chat_end carries the authoritative, full reply. Prefer it
+            // over the client-side accumulation of sentence chunks (which can drop
+            // markdown structure), and only fall back to the stream when absent.
+            const serverContent = (typeof data.text === 'string' ? data.text : '')
+              || (typeof data.content === 'string' ? data.content : '');
+            const finalContent = serverContent.trim()
+              ? serverContent.trim()
+              : (isProactive ? '' : store2.streamingContent.trim());
             const emotion = resolveReplyEmotion(finalContent, data.emotion);
             if (!finalContent) {
               // Clear streaming state even if content is empty
-              useNeuralStore.setState({ streamingContent: '', streamingId: null, isThinking: false });
+              useNeuralStore.setState({ streamingContent: '', streamingId: null, streamingSessionId: null, isThinking: false });
               break;
             }
+            const cleanedContent = finalContent
+              .replace(/<think>[\s\S]*?<\/think>/gi, '')
+              .replace(/<thought>[\s\S]*?<\/thought>/gi, '')
+              .replace(/<emotion>.*?<\/emotion>/gi, '')
+              .replace(/<\/?(emotion|think|thought)>/gi, '')
+              .trim();
             const newMessage: Message = {
               role: 'assistant',
-              content: finalContent,
+              content: cleanedContent,
               emotion,
               timestamp: new Date().toISOString(),
               id: store2.streamingId || undefined
             };
-            const cleanedContent = finalContent.replace(/<emotion>.*?<\/emotion>/gi, '').trim();
             const previewText = cleanedContent.substring(0, 60).replace(/\n/g, ' ') + (cleanedContent.length > 60 ? '...' : '');
             useNeuralStore.setState((s) => {
               const updatedSessions = s.sessions.map((sess) => {
@@ -435,6 +514,7 @@ async function connectSocket() {
                 sessions: updatedSessions,
                 streamingContent: '',
                 streamingId: null,
+                streamingSessionId: null,
                 isThinking: false,
                 isTalking: false,
                 currentEmotion: emotion
@@ -493,12 +573,32 @@ async function connectSocket() {
                useNeuralStore.getState().sendMessage(sttText);
             }
             break;
+          case 'error': {
+            stopThinkingWatchdog();
+            const errDetail = data.message || data.detail || 'An error occurred during processing.';
+            console.warn('[Aiko] Server error event received:', errDetail);
+            useNeuralStore.setState((s) => ({
+              streamingContent: '',
+              streamingId: null,
+              isThinking: false,
+              messages: [
+                ...s.messages,
+                {
+                  role: 'system',
+                  content: `⚠️ ${errDetail}`,
+                  timestamp: new Date().toISOString()
+                }
+              ]
+            }));
+            break;
+          }
         }
       } catch (err) {
         console.error('[Aiko] Error parsing WebSocket message:', err);
       }
     };
   } catch (e) {
+    isConnecting = false;
     console.warn('[Aiko] WebSocket init failed:', e);
     scheduleReconnect();
   }
@@ -515,6 +615,7 @@ export const useNeuralStore = create<NeuralState>()(
       isListening: false,
       streamingContent: "",
       streamingId: null,
+      streamingSessionId: null,
       currentEmotion: "neutral",
       isTalking: false,
       amplitude: 0,
@@ -614,6 +715,8 @@ export const useNeuralStore = create<NeuralState>()(
 
       sendMessage: (content, attachments) => {
         if (get().isThinking) return;
+        const requestSessionId = get().activeSessionId;
+        startThinkingWatchdog();
         const timestamp = new Date().toISOString();
         const userMsg: Message = { role: 'user', content, timestamp, attachments };
         const cleanedText = content.replace(/<emotion>.*?<\/emotion>/gi, '').trim();
@@ -640,7 +743,8 @@ export const useNeuralStore = create<NeuralState>()(
             messages: updatedMessages,
             sessions: updatedSessions,
             isThinking: true,
-            streamingContent: ''
+            streamingContent: '',
+            streamingSessionId: requestSessionId
           };
         });
 
@@ -655,7 +759,7 @@ export const useNeuralStore = create<NeuralState>()(
           type: 'chat',
           text: content,
           attachments,
-          session_id: get().activeSessionId
+          session_id: requestSessionId
         });
 
         // Try WebSocket first — fall back to HTTP POST if socket not ready
@@ -667,18 +771,38 @@ export const useNeuralStore = create<NeuralState>()(
             fetch(`${hubUrl}/api/chat`, {
               method: 'POST',
               headers,
-              body: JSON.stringify({ message: content, user_id: 'master', attachments: attachments })
+              body: JSON.stringify({ message: content, user_id: 'master', session_id: requestSessionId, attachments: attachments })
             })
             .then(r => r.json())
             .then(data => {
+              stopThinkingWatchdog();
               const reply = data.response || data.text || '';
               const emotion = resolveReplyEmotion(reply, data.emotion);
-              if (!reply) return;
+              if (requestSessionId !== get().activeSessionId) {
+                set((state) => ({
+                  sessions: state.sessions.map((session) => session.id === requestSessionId
+                    ? { ...session, preview: reply.slice(0, 60), lastActive: new Date().toISOString() }
+                    : session),
+                  isThinking: false,
+                  streamingContent: '',
+                  streamingSessionId: null,
+                }));
+                return;
+              }
+              if (!reply) {
+                useNeuralStore.setState({ isThinking: false });
+                return;
+              }
+              const cleanedReply = reply
+                .replace(/<think>[\s\S]*?<\/think>/gi, '')
+                .replace(/<thought>[\s\S]*?<\/thought>/gi, '')
+                .replace(/<emotion>.*?<\/emotion>/gi, '')
+                .replace(/<\/?(emotion|think|thought)>/gi, '')
+                .trim();
               const aiMsg: Message = {
-                role: 'assistant', content: reply, emotion,
+                role: 'assistant', content: cleanedReply, emotion,
                 timestamp: new Date().toISOString()
               };
-              const cleanedReply = reply.replace(/<emotion>.*?<\/emotion>/gi, '').trim();
               const replyPreview = cleanedReply.substring(0, 60).replace(/\n/g, ' ') + (cleanedReply.length > 60 ? '...' : '');
               useNeuralStore.setState((s) => {
                 const updatedSessions = s.sessions.map((sess) => {
@@ -705,6 +829,7 @@ export const useNeuralStore = create<NeuralState>()(
               });
             })
             .catch(err => {
+              stopThinkingWatchdog();
               console.error('[Aiko] Both WS and HTTP failed:', err);
               const errMsg: Message = {
                 role: 'system',
@@ -861,10 +986,35 @@ export const useNeuralStore = create<NeuralState>()(
           session_id: state.activeSessionId
         });
 
+        // Failure path: without this, a dropped socket leaves isThinking=true
+        // forever and permanently disables the composer.
+        const failBranch = (reason: string) => {
+          stopThinkingWatchdog();
+          console.error(reason);
+          useNeuralStore.setState((s) => ({
+            isThinking: false,
+            streamingContent: '',
+            streamingId: null,
+            messages: [
+              ...s.messages,
+              {
+                role: 'system',
+                content: 'Neural Hub is offline. Start it with: python core/neural_hub.py',
+                timestamp: new Date().toISOString()
+              }
+            ]
+          }));
+        };
+
         if (socket && socket.readyState === WebSocket.OPEN) {
-          socket.send(payload);
+          startThinkingWatchdog();
+          try {
+            socket.send(payload);
+          } catch (err) {
+            failBranch(`[Aiko] Branch send failed: ${String(err)}`);
+          }
         } else {
-          console.error("[Aiko] WebSocket offline; branching only works via WS for now.");
+          failBranch("[Aiko] WebSocket offline; branching only works via WS for now.");
         }
       },
 
@@ -960,8 +1110,15 @@ export const useNeuralStore = create<NeuralState>()(
     }),
     {
       name: 'neural-storage',
+      version: 2,
+      migrate: (persistedState: any) => {
+        if (!persistedState || typeof persistedState !== 'object') return persistedState;
+        const { apiConfig: _discardedCredentials, ...safeState } = persistedState;
+        return safeState as NeuralState;
+      },
       partialize: (state) => ({ 
-        apiConfig: state.apiConfig,
+        // Provider credentials live in the backend settings store. Never copy
+        // them into browser localStorage, which is readable by injected JS.
         themeColor: state.themeColor,
         isSidebarOpen: state.isSidebarOpen,
         dynamicsIntensity: state.dynamicsIntensity,

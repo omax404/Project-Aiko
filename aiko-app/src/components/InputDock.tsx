@@ -214,6 +214,7 @@ export function InputDock() {
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => {
+                if (e.nativeEvent.isComposing) return;
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
                   handleSend();

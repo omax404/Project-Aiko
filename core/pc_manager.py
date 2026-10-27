@@ -6,8 +6,11 @@ Allows Aiko to interact with the user's files and applications.
 import os
 import shutil
 import subprocess
+import logging
 from pathlib import Path
 import getpass
+
+logger = logging.getLogger("PCManager")
 
 try:
     import send2trash

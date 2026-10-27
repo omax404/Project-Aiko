@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useNeuralStore } from '../store/useNeuralStore';
+import { useShallow } from 'zustand/react/shallow';
 import { Zap, Sparkles, BrainCircuit, Eye } from 'lucide-react';
 
 export function NeuralControlPanel() {
-  const store = useNeuralStore();
+  // Field selectors: this panel is always mounted next to the dashboard, so a
+  // whole-store subscription re-rendered it on every amplitude/chemical tick.
   const {
     chemicals,
     manualOverrideEnabled,
@@ -11,8 +13,43 @@ export function NeuralControlPanel() {
     updateChemicals,
     updateIntensityScalers,
     setManualOverrideEnabled,
-    toggleVisionStream
-  } = store;
+    toggleVisionStream,
+    jitterIntensity,
+    tearIntensity,
+    leanIntensity,
+    blushIntensity,
+    poutIntensity,
+    bobaIntensity,
+    oxytocinIntensity,
+    melatoninIntensity,
+  } = useNeuralStore(useShallow((s) => ({
+    chemicals: s.chemicals,
+    manualOverrideEnabled: s.manualOverrideEnabled,
+    visionStreamActive: s.visionStreamActive,
+    updateChemicals: s.updateChemicals,
+    updateIntensityScalers: s.updateIntensityScalers,
+    setManualOverrideEnabled: s.setManualOverrideEnabled,
+    toggleVisionStream: s.toggleVisionStream,
+    jitterIntensity: s.jitterIntensity,
+    tearIntensity: s.tearIntensity,
+    leanIntensity: s.leanIntensity,
+    blushIntensity: s.blushIntensity,
+    poutIntensity: s.poutIntensity,
+    bobaIntensity: s.bobaIntensity,
+    oxytocinIntensity: s.oxytocinIntensity,
+    melatoninIntensity: s.melatoninIntensity,
+  })));
+
+  const intensityScalers: Record<string, number> = {
+    jitterIntensity,
+    tearIntensity,
+    leanIntensity,
+    blushIntensity,
+    poutIntensity,
+    bobaIntensity,
+    oxytocinIntensity,
+    melatoninIntensity,
+  };
 
   const [activeTab, setActiveTab] = useState<'chemicals' | 'animations'>('chemicals');
 
@@ -157,7 +194,7 @@ export function NeuralControlPanel() {
         ) : (
           <>
             {scalerMeta.map(({ key, label, desc, step, max }) => {
-              const val = (store as any)[key] ?? 1.0;
+              const val = intensityScalers[key] ?? 1.0;
               return (
                 <div key={key} className="flex flex-col gap-1.5">
                   <div className="flex justify-between items-center">

@@ -41,6 +41,8 @@ import org.json.JSONObject
 import org.json.JSONArray
 import org.webrtc.PeerConnection
 import java.util.UUID
+import java.net.InetAddress
+import java.net.URI
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -182,9 +184,10 @@ class ChatRepository @Inject constructor(
     }
 
     /**
-     * Converts an HTTP URL to its WebSocket equivalent with auth token.
+     * Converts an HTTP URL to its WebSocket equivalent. Auth is sent in the
+     * first WebSocket frame so it cannot leak into request or proxy logs.
      */
-    private fun getWebSocketUrl(httpUrl: String, token: String = ""): String {
+    private fun getWebSocketUrl(httpUrl: String): String {
         val clean = httpUrl.trim()
         val noProto = when {
             clean.startsWith("http://") -> clean.substring(7)
@@ -193,8 +196,49 @@ class ChatRepository @Inject constructor(
         }
         val proto = if (clean.startsWith("https://")) "wss://" else "ws://"
         val base = if (noProto.endsWith("/")) noProto.dropLast(1) else noProto
-        val query = if (token.isNotEmpty()) "?token=$token" else ""
-        return "$proto$base/ws$query"
+        return "$proto$base/ws"
+    }
+
+    /** Redeem the desktop's short-lived QR code and persist the scoped phone token. */
+    suspend fun pairWithDesktop(serverUrl: String, pairingCode: String) = withContext(Dispatchers.IO) {
+        val baseUrl = serverUrl.trim().trimEnd('/')
+        val uri = runCatching { URI(baseUrl) }.getOrElse {
+            throw IllegalArgumentException("The pairing QR does not contain a valid desktop address.")
+        }
+        require((uri.scheme == "http" || uri.scheme == "https") && uri.host != null && uri.userInfo == null && uri.query == null && uri.fragment == null && uri.path.orEmpty().let { it.isEmpty() || it == "/" }) {
+            "The pairing QR does not contain a valid desktop address."
+        }
+        require(uri.host.matches(Regex("\\d{1,3}(\\.\\d{1,3}){3}"))) {
+            "Pairing QR must use the desktop's local IP address."
+        }
+        require(uri.host.split('.').all { octet -> (octet.toIntOrNull() ?: -1) in 0..255 }) {
+            "Pairing QR contains an invalid IP address."
+        }
+        val resolvedHost = InetAddress.getByName(uri.host)
+        require(resolvedHost.isSiteLocalAddress || resolvedHost.isLoopbackAddress || resolvedHost.isLinkLocalAddress) {
+            "Pairing is limited to a desktop on your local network."
+        }
+        require(uri.port in -1..65535) { "The pairing QR has an invalid port." }
+        val body = JSONObject().put("pairing_code", pairingCode)
+            .toString().toRequestBody("application/json".toMediaTypeOrNull())
+        val request = Request.Builder()
+            .url("$baseUrl/api/mobile/pair/exchange")
+            .post(body)
+            .build()
+
+        wsClient.newCall(request).execute().use { response ->
+            val responseText = response.body?.string().orEmpty()
+            if (!response.isSuccessful) {
+                val message = runCatching { JSONObject(responseText).optString("error") }.getOrNull()
+                throw IllegalStateException(message?.takeIf { it.isNotBlank() } ?: "Pairing failed (${response.code}).")
+            }
+            val token = JSONObject(responseText).optString("token")
+            check(token.isNotBlank()) { "The desktop returned an empty mobile token." }
+            aikoPrefs.setDesktopUrl(baseUrl)
+            aikoPrefs.setAuthToken(token)
+            aikoPrefs.setConnectionMode("Link to Desktop")
+            aikoPrefs.setDesktopConnected(true)
+        }
     }
 
     /**
@@ -237,16 +281,21 @@ class ChatRepository @Inject constructor(
         repositoryScope.launch(Dispatchers.IO) {
             try {
                 val token = aikoPrefs.authTokenFlow.first()
-                val wsUrl = getWebSocketUrl(serverUrl, token)
-                val requestBuilder = Request.Builder().url(wsUrl)
-                if (token.isNotEmpty()) {
-                    requestBuilder.addHeader("Authorization", "Bearer $token")
-                }
-                val request = requestBuilder.build()
+                val wsUrl = getWebSocketUrl(serverUrl)
+                val request = Request.Builder().url(wsUrl).build()
 
                 webSocket = wsClient.newWebSocket(request, object : okhttp3.WebSocketListener() {
                     override fun onOpen(webSocket: okhttp3.WebSocket, response: okhttp3.Response) {
-                        Log.i("ChatRepository", "WebSocket Connected to $wsUrl")
+                        if (token.isBlank() || !webSocket.send(JSONObject().apply {
+                                put("type", "auth")
+                                put("token", token)
+                            }.toString())) {
+                            Log.e("ChatRepository", "WebSocket auth frame could not be sent")
+                            webSocket.close(1008, "Authentication unavailable")
+                            isConnecting = false
+                            return
+                        }
+                        Log.i("ChatRepository", "WebSocket connected; auth frame sent")
                         isConnecting = false
                         reconnectDelay = 1000L
                     }

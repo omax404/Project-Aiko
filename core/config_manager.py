@@ -16,6 +16,20 @@ logger = logging.getLogger("Config")
 
 CONFIG_FILE = Path("data/config.json")
 
+
+def _as_bool(value, default: bool = False) -> bool:
+    """Coerce config values to bool without Python's `bool("false") is True` trap."""
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        return value.strip().lower() in ("1", "true", "yes", "on")
+    return default
+
+
 def normalize_llm_url(url: str) -> str:
     """Normalize OpenAI-compatible and Anthropic endpoints to correct suffixes."""
     normalized_url = url.strip()
@@ -40,39 +54,96 @@ import base64
 import uuid
 import sys
 import hashlib
+import secrets
 
-def _get_encryption_key() -> bytes:
-    """Derive a stable machine-specific encryption key."""
+
+def _legacy_encryption_key() -> bytes:
+    """Key for decrypting old `enc:` values during migration only."""
     unique_str = f"{uuid.getnode()}-{sys.platform}"
     return hashlib.sha256(unique_str.encode()).digest()
 
+
+def _dpapi(data: bytes, protect: bool) -> bytes:
+    """Use Windows Data Protection API, scoped to the current Windows user."""
+    import ctypes
+    from ctypes import wintypes
+
+    class DataBlob(ctypes.Structure):
+        _fields_ = [("cbData", wintypes.DWORD), ("pbData", ctypes.POINTER(ctypes.c_ubyte))]
+
+    source_buffer = ctypes.create_string_buffer(data)
+    source = DataBlob(len(data), ctypes.cast(source_buffer, ctypes.POINTER(ctypes.c_ubyte)))
+    output = DataBlob()
+    crypt = ctypes.WinDLL("crypt32", use_last_error=True)
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    crypt.CryptProtectData.argtypes = [ctypes.POINTER(DataBlob), wintypes.LPCWSTR, ctypes.POINTER(DataBlob), ctypes.c_void_p, ctypes.c_void_p, wintypes.DWORD, ctypes.POINTER(DataBlob)]
+    crypt.CryptProtectData.restype = wintypes.BOOL
+    crypt.CryptUnprotectData.argtypes = [ctypes.POINTER(DataBlob), ctypes.POINTER(wintypes.LPWSTR), ctypes.POINTER(DataBlob), ctypes.c_void_p, ctypes.c_void_p, wintypes.DWORD, ctypes.POINTER(DataBlob)]
+    crypt.CryptUnprotectData.restype = wintypes.BOOL
+    kernel.LocalFree.argtypes = [ctypes.c_void_p]
+    kernel.LocalFree.restype = ctypes.c_void_p
+    if protect:
+        ok = crypt.CryptProtectData(ctypes.byref(source), "Aiko config secret", None, None, None, 0x1, ctypes.byref(output))
+    else:
+        ok = crypt.CryptUnprotectData(ctypes.byref(source), None, None, None, None, 0x1, ctypes.byref(output))
+    if not ok:
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        return ctypes.string_at(output.pbData, output.cbData)
+    finally:
+        kernel.LocalFree(output.pbData)
+
+
+def _get_fernet_key() -> bytes:
+    """Create or read a random local fallback key on non-Windows systems."""
+    from cryptography.fernet import Fernet
+    key_path = CONFIG_FILE.parent / ".aiko_config_key"
+    key_path.parent.mkdir(parents=True, exist_ok=True)
+    if not key_path.exists():
+        key_path.write_bytes(Fernet.generate_key())
+        try:
+            os.chmod(key_path, 0o600)
+        except OSError:
+            pass
+    return key_path.read_bytes().strip()
+
 def encrypt_string(plain_text: str) -> str:
-    """Encrypt a plaintext string using a machine-stable key."""
+    """Encrypt a secret with Windows DPAPI or a random local Fernet key."""
     if not plain_text:
         return ""
-    try:
-        key = _get_encryption_key()
-        plain_bytes = plain_text.encode('utf-8')
-        cipher_bytes = bytearray()
-        for i, b in enumerate(plain_bytes):
-            cipher_bytes.append(b ^ key[i % len(key)])
-        return "enc:" + base64.b64encode(cipher_bytes).decode('utf-8')
-    except Exception:
-        return plain_text
+    plain_bytes = plain_text.encode("utf-8")
+    if os.name == "nt":
+        return "dpapi:v2:" + base64.b64encode(_dpapi(plain_bytes, protect=True)).decode("ascii")
+    from cryptography.fernet import Fernet
+    return "fernet:v2:" + Fernet(_get_fernet_key()).encrypt(plain_bytes).decode("ascii")
 
 def decrypt_string(cipher_text: str) -> str:
-    """Decrypt an encrypted string using the machine-stable key."""
-    if not cipher_text or not cipher_text.startswith("enc:"):
+    """Decrypt current values and migrate legacy XOR values on next save."""
+    if not cipher_text:
         return cipher_text
     try:
-        key = _get_encryption_key()
-        cipher_bytes = base64.b64decode(cipher_text[4:])
-        plain_bytes = bytearray()
-        for i, b in enumerate(cipher_bytes):
-            plain_bytes.append(b ^ key[i % len(key)])
-        return plain_bytes.decode('utf-8')
+        if cipher_text.startswith("dpapi:v2:") and os.name == "nt":
+            return _dpapi(base64.b64decode(cipher_text[9:]), protect=False).decode("utf-8")
+        if cipher_text.startswith("fernet:v2:"):
+            from cryptography.fernet import Fernet
+            return Fernet(_get_fernet_key()).decrypt(cipher_text[10:].encode("ascii")).decode("utf-8")
+        if cipher_text.startswith("enc:"):
+            cipher_bytes = base64.b64decode(cipher_text[4:])
+            key = _legacy_encryption_key()
+            return bytes(byte ^ key[i % len(key)] for i, byte in enumerate(cipher_bytes)).decode("utf-8")
+        return cipher_text
     except Exception:
         return cipher_text
+
+
+def _decrypt_settings_tree(value):
+    if isinstance(value, dict):
+        return {key: _decrypt_settings_tree(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_decrypt_settings_tree(item) for item in value]
+    if isinstance(value, str) and value.startswith(("dpapi:v2:", "fernet:v2:", "enc:")):
+        return decrypt_string(value)
+    return value
 
 
 class ConfigManager:
@@ -93,14 +164,17 @@ class ConfigManager:
             "STT_KEY": os.getenv("STT_KEY", ""),
             "STT_MODEL": os.getenv("STT_MODEL", "moonshine"),
             "TTS_PROVIDER": os.getenv("TTS_PROVIDER", "Pocket"),
-            "TTS_ENABLED": os.getenv("TTS_ENABLED", "true").lower() == "true",
+            "TTS_ENABLED": _as_bool(os.getenv("TTS_ENABLED", "true"), True),
             "VISION_PROVIDER": os.getenv("VISION_PROVIDER", "ollama"),
             "VISION_MODEL": os.getenv("VISION_MODEL", "minicpm-v"),
-            "VISION_GRID_OVERLAY": os.getenv("VISION_GRID_OVERLAY", "true").lower() == "true",
+            "VISION_GRID_OVERLAY": _as_bool(os.getenv("VISION_GRID_OVERLAY", "true"), True),
             "theme_color": "#e8a87c",
             "avatar_scale": 1.0,
             "dynamics_intensity": 80,
             "show_animated_assets": True,
+            "DREAM_MEMORY_ENABLED": True,
+            "MEMORY_INSTRUCTIONS_ENABLED": True,
+            "MEMORY_INSTRUCTIONS": [],
         }
         self.load()
 
@@ -110,7 +184,7 @@ class ConfigManager:
                 with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     for k, v in data.items():
-                        if isinstance(v, str) and v.startswith("enc:"):
+                        if isinstance(v, str) and v.startswith(("dpapi:v2:", "fernet:v2:", "enc:")):
                             v = decrypt_string(v)
                         self._config[k] = v
             except Exception as e:
@@ -122,7 +196,7 @@ class ConfigManager:
         if user_settings_path.exists():
             try:
                 with open(user_settings_path, "r", encoding="utf-8") as f:
-                    user_data = json.load(f)
+                    user_data = _decrypt_settings_tree(json.load(f))
                     
                     if "llm" in user_data:
                         llm_info = user_data["llm"]
@@ -193,7 +267,7 @@ class ConfigManager:
                             self._config[f"PLUGINS_{plugin_name.upper()}"] = is_enabled
 
                     if "tts" in user_data:
-                        if "enabled" in user_data["tts"]: self._config["TTS_ENABLED"] = user_data["tts"]["enabled"]
+                        if "enabled" in user_data["tts"]: self._config["TTS_ENABLED"] = _as_bool(user_data["tts"]["enabled"], True)
                         if "voice" in user_data["tts"]: self._config["TTS_VOICE"] = user_data["tts"]["voice"]
                         
                     if "persona" in user_data:
@@ -206,11 +280,26 @@ class ConfigManager:
                         if "avatar_scale" in app_data: self._config["avatar_scale"] = app_data["avatar_scale"]
                         if "dynamics_intensity" in app_data: self._config["dynamics_intensity"] = app_data["dynamics_intensity"]
                         if "show_animated_assets" in app_data: self._config["show_animated_assets"] = app_data["show_animated_assets"]
+
+                    if "memory" in user_data and isinstance(user_data["memory"], dict):
+                        memory_info = user_data["memory"]
+                        if "dream_enabled" in memory_info:
+                            self._config["DREAM_MEMORY_ENABLED"] = _as_bool(memory_info["dream_enabled"], True)
+                        if "instructions_enabled" in memory_info:
+                            self._config["MEMORY_INSTRUCTIONS_ENABLED"] = _as_bool(memory_info["instructions_enabled"], True)
+                        instructions = memory_info.get("instructions", [])
+                        if isinstance(instructions, list):
+                            self._config["MEMORY_INSTRUCTIONS"] = [item.strip()[:500] for item in instructions if isinstance(item, str) and item.strip()][:50]
                             
                     if "vision" in user_data:
                         if "provider" in user_data["vision"]: self._config["VISION_PROVIDER"] = user_data["vision"]["provider"]
                         if "model" in user_data["vision"]: self._config["VISION_MODEL"] = user_data["vision"]["model"]
                         if "grid_overlay" in user_data["vision"]: self._config["VISION_GRID_OVERLAY"] = user_data["vision"]["grid_overlay"]
+
+                    if "proactive_speech" in user_data:
+                        self._config["PROACTIVE_SPEECH"] = _as_bool(user_data["proactive_speech"], False)
+                    if "proactive_enabled" in user_data:
+                        self._config["PROACTIVE_ENABLED"] = _as_bool(user_data["proactive_enabled"], False)
             except Exception as e:
                 logger.error(f"Failed to load user_settings.json: {e}")
 
