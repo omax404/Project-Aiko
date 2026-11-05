@@ -64,19 +64,14 @@ python launch.py
 > **On Linux**, install the system packages PyAudio and OpenCV need before step 2:
 > `sudo apt-get update && sudo apt-get install -y portaudio19-dev libgl1 libglib2.0-0`
 
-> **On dependencies:** `requirements.txt` lists runtime dependencies with lower
-> bounds only — there is **no lockfile or hash pinning yet**, so a fresh install
-> resolves the newest compatible versions. A committed `requirements.lock`
-> (hashes included) is tracked work, not yet done. Development tooling
-> (`pytest`, `pytest-cov`, `pytest-asyncio`, `ruff`, `mypy`, `pre-commit`) lives in
-> the `dev` extra: `pip install -e ".[dev]"`.
+> **On dependencies:** `requirements.in` defines source manifests, locked into `requirements.lock` with full transitive pins and SHA-256 hashes for reproducible, verified builds. To install with hash verification: `pip install --require-hashes -r requirements.lock`. Development tooling (`pytest`, `pytest-cov`, `pytest-asyncio`, `ruff`, `mypy`, `pre-commit`) lives in the `dev` extra: `pip install -e ".[dev]"`.
 
 This starts the Neural Hub (port 8000), connects configured satellites (Discord/Telegram/Twitch), and opens the native Tauri desktop overlay.
 
 **To run or build the desktop UI separately:**
 ```bash
 cd aiko-app
-npm install
+npm ci
 npm run dev           # Vite web dev server
 npm run tauri dev     # Native desktop window with Live2D
 npm run build         # Production frontend bundle

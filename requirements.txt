@@ -6,7 +6,8 @@
 # (PyAudio is sdist-only and links PortAudio; OpenCV needs libGL.)
 # These are installed explicitly by CI — see .github/workflows/ci.yml.
 #
-# No lockfile or hashes yet; all pins are lower bounds only. See README "Dependencies".
+# Source manifest is requirements.in; reproducible locked build with hashes is requirements.lock.
+# Install locked: pip install --require-hashes -r requirements.lock
 
 pymupdf4llm>=0.0.1
 pymupdf>=1.22.0
