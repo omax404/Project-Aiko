@@ -8,60 +8,75 @@
 .animate-spin-slow { animation: spin-slow 12s linear infinite; }
 
 :root {
-  /* Quiet plum and lavender palette */
-  --color-lavender: #bba6d8;
-  --color-plum: #211c28;
-  --color-blush: #e1d5ef;
-  --color-eggplant: #131117;
-  --color-moonlight: #f2edf7;
-  --color-glow: rgba(187, 166, 216, 0.24);
+  /* ── Taste-Skill Anti-Slop Design System Tokens ── */
+  --p-bg: #09080d;
+  --p-surface: #121017;
+  --p-elevated: #1a1722;
+  --p-card: #15131c;
+  --p-ink: #f7f4fc;
+  --p-muted: #9e94aa;
+  --p-subtle: #686075;
+  --p-accent: #b49bf0;
+  --p-accent-hover: #c4aff5;
+  --p-accent-ink: #09080d;
+  --p-accent-soft: rgba(180, 155, 240, 0.08);
+  --p-accent-glow: rgba(180, 155, 240, 0.18);
 
-  /* Surfaces */
-  --bg-base: var(--color-eggplant);
-  --bg-sidebar: var(--color-eggplant);
-  --bg-elevated: var(--color-plum);
-  --bg-surface: var(--color-plum);
-  --bg-card: var(--color-plum);
-  --bg-input: var(--color-plum);
-  --bg-hover: rgba(187, 166, 216, 0.07);
-  --bg-active: rgba(187, 166, 216, 0.11);
+  /* Geometry & Physics */
+  --p-radius-sm: 8px;
+  --p-radius: 14px;
+  --p-radius-lg: 20px;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 140ms;
+  --duration-normal: 220ms;
 
-  /* Text */
-  --t1: var(--color-moonlight);
-  --t2: rgba(242, 237, 247, 0.82);
-  --t3: rgba(242, 237, 247, 0.58);
-  --t4: rgba(242, 237, 247, 0.36);
+  /* Surfaces & Inset Hierarchy */
+  --bg-base: var(--p-bg);
+  --bg-sidebar: var(--p-bg);
+  --bg-elevated: var(--p-elevated);
+  --bg-surface: var(--p-surface);
+  --bg-card: var(--p-card);
+  --bg-input: var(--p-surface);
+  --bg-hover: rgba(247, 244, 252, 0.04);
+  --bg-active: rgba(180, 155, 240, 0.09);
 
-  /* Accent */
-  --accent: var(--color-lavender);
-  --acc: var(--color-lavender);
-  --acc2: var(--color-blush);
-  --acc-soft: rgba(187, 166, 216, 0.10);
-  --acc-glow: var(--color-glow);
+  /* Text & Legibility Contracts */
+  --t1: var(--p-ink);
+  --t2: rgba(247, 244, 252, 0.82);
+  --t3: var(--p-muted);
+  --t4: var(--p-subtle);
 
-  /* Borders — 1px filigree accent at 20% opacity */
-  --b1: rgba(242, 237, 247, 0.075);
-  --b2: rgba(242, 237, 247, 0.12);
-  --b3: rgba(187, 166, 216, 0.32);
+  /* Accent Bridges */
+  --accent: var(--p-accent);
+  --acc: var(--p-accent);
+  --acc2: #d8c8f8;
+  --acc-soft: var(--p-accent-soft);
+  --acc-glow: var(--p-accent-glow);
+
+  /* Borders & Dividers — 1px hairline filigree */
+  --b1: rgba(247, 244, 252, 0.065);
+  --b2: rgba(247, 244, 252, 0.11);
+  --b3: rgba(180, 155, 240, 0.32);
+  --p-inset-hi: rgba(255, 255, 255, 0.05);
 
   /* Status */
-  --green: #55c995;
-  --red: #e9788b;
+  --green: #4ade80;
+  --red: #f87171;
 
-  /* Use installed system fonts so the desktop stays polished offline. */
-  --font-header: 'Segoe UI', Inter, sans-serif;
-  --font-body: 'Segoe UI', Inter, sans-serif;
-  --font-ui: 'Segoe UI', Inter, sans-serif;
-  --font-brand: 'Segoe UI', Inter, sans-serif;
-  --font-mono: 'Cascadia Code', Consolas, monospace;
+  /* Offline-first Typography with Harmonic Optical Scale */
+  --font-header: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-brand: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', Menlo, Consolas, monospace;
 
-  /* Layout */
+  /* Layout Constants */
   --sidebar-w: 240px;
-  --chat-max: 700px;
+  --chat-max: 720px;
   --th: 38px;
   --nh: 48px;
 
-  /* Legacy compatibility */
+  /* Legacy Compatibility */
   --bg-dark: var(--bg-base);
   --bg-pane: var(--bg-surface);
   --bg-glass: var(--bg-active);
@@ -73,9 +88,9 @@
   --text-main: var(--t1);
   --text-dim: var(--t2);
 
-  --shadow-red-glow: 0 0 20px rgba(239, 68, 68, 0.6);
-  --shadow-purple-glow: 0 0 40px rgba(168, 85, 247, 0.6);
-  --shadow-accent-glow: 0 0 15px var(--acc-glow);
+  --shadow-red-glow: 0 0 16px rgba(248, 113, 113, 0.35);
+  --shadow-purple-glow: 0 0 24px rgba(180, 155, 240, 0.25);
+  --shadow-accent-glow: 0 0 16px var(--acc-glow);
 }
 
 @theme {
@@ -101,19 +116,60 @@
   --color-b2: var(--b2);
   --color-b3: var(--b3);
 
-  --font-orbitron: 'Orbitron', sans-serif;
-  --font-pixelify: 'Pixelify Sans', cursive;
-  --font-dm: 'DM Sans', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-orbitron: var(--font-mono);
+  --font-pixelify: var(--font-header);
+  --font-dm: var(--font-body);
+  --font-mono: var(--font-mono);
 
   --shadow-red-glow: var(--shadow-red-glow);
   --shadow-purple-glow: var(--shadow-purple-glow);
   --shadow-accent-glow: var(--shadow-accent-glow);
 }
 
-/* Custom wizard effects */
+/* ── Taste-Skill Anti-Slop Utility Primitives ── */
+.taste-card {
+  position: relative;
+  background: var(--p-card);
+  border: 1px solid var(--b1);
+  border-radius: var(--p-radius);
+  box-shadow: inset 0 1px 0 var(--p-inset-hi), 0 4px 18px -4px rgba(0, 0, 0, 0.45);
+  transition: border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.taste-card:hover {
+  border-color: var(--b2);
+}
+
+.taste-panel {
+  background: var(--p-surface);
+  border: 1px solid var(--b1);
+  box-shadow: inset 0 1px 0 var(--p-inset-hi);
+}
+
+.taste-capsule {
+  background: var(--p-surface);
+  border: 1px solid var(--b1);
+  border-radius: 9999px;
+  box-shadow: inset 0 1px 0 var(--p-inset-hi), 0 2px 10px -2px rgba(0, 0, 0, 0.4);
+}
+
+.taste-input {
+  background: var(--p-surface);
+  border: 1px solid var(--b1);
+  border-radius: var(--p-radius);
+  color: var(--p-ink);
+  transition: all var(--duration-fast) var(--ease-out);
+  box-shadow: inset 0 1px 0 var(--p-inset-hi);
+}
+
+.taste-input:focus {
+  outline: none;
+  border-color: var(--b3);
+  box-shadow: inset 0 1px 0 var(--p-inset-hi), 0 0 0 1px rgba(180, 155, 240, 0.25);
+}
+
 .glow-accent {
-  box-shadow: 0 0 15px var(--acc-glow), inset 0 0 8px var(--acc-soft);
+  box-shadow: 0 0 14px var(--acc-glow), inset 0 0 6px var(--acc-soft);
 }
 
 .neon-border {
@@ -651,21 +707,22 @@ textarea.focus\:ring-0:focus { --tw-ring-shadow: none !important; box-shadow: no
 }
 .markdown-content li { margin-bottom: 0.3em; line-height: 1.65; }
 .markdown-content code {
-  background: rgba(255,220,170,0.08);
-  border: 1px solid var(--b2);
+  background: rgba(180, 155, 240, 0.08);
+  border: 1px solid var(--b1);
   padding: 2px 6px;
-  border-radius: 5px;
+  border-radius: 6px;
   font-family: var(--font-mono);
-  font-size: 0.85em;
-  color: #e2b06a;
+  font-size: 0.88em;
+  color: var(--acc2);
 }
 .markdown-content pre {
-  background: var(--bg-card);
-  border: 1px solid var(--b2);
-  border-radius: 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--b1);
+  border-radius: var(--p-radius);
+  box-shadow: inset 0 1px 0 var(--p-inset-hi);
   padding: 14px 16px;
   overflow-x: auto;
-  margin: 10px 0;
+  margin: 12px 0;
   scrollbar-width: thin;
 }
 .markdown-content pre code {
@@ -673,27 +730,27 @@ textarea.focus\:ring-0:focus { --tw-ring-shadow: none !important; box-shadow: no
   border: none;
   padding: 0;
   font-size: 13px;
-  color: #ccc;
-  line-height: 1.65;
+  color: var(--t2);
+  line-height: 1.6;
 }
 .markdown-content blockquote {
   border-left: 2px solid var(--acc);
-  padding-left: 12px;
-  margin: 8px 0;
-  color: var(--t2);
-  font-style: italic;
+  padding-left: 14px;
+  margin: 10px 0;
+  color: var(--t3);
+  font-style: normal;
 }
 .markdown-content table {
-  width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px;
+  width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px;
 }
 .markdown-content th {
   background: var(--bg-card); color: var(--t1); font-weight: 600;
-  padding: 8px 12px; border: 1px solid var(--b2); text-align: left;
+  padding: 8px 12px; border: 1px solid var(--b1); text-align: left;
 }
 .markdown-content td {
-  padding: 7px 12px; border: 1px solid var(--b1); color: var(--t2);
+  padding: 8px 12px; border: 1px solid var(--b1); color: var(--t2);
 }
-.markdown-content tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+.markdown-content tr:nth-child(even) td { background: rgba(255,255,255,0.015); }
 .markdown-content a { color: var(--acc); text-decoration: underline; text-decoration-color: var(--acc-soft); }
 .markdown-content a:hover { color: var(--acc2); }
 .markdown-content hr { border: none; border-top: 1px solid var(--b1); margin: 14px 0; }

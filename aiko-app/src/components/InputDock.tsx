@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { 
+import {
   Plus,
   Sparkles,
   Image as ImageIcon,
@@ -19,9 +19,7 @@ export function InputDock() {
   const [showGifPicker, setShowGifPicker] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<{url: string, filename: string, type: string}[]>([]);
   const [isUploading, setIsUploading] = useState(false);
-  
-  // Granular Zustand selectors ensure InputDock only re-renders when relevant state
-  // (such as isThinking or isListening) changes, ignoring streaming text and amplitude ticks
+
   const sendMessage = useNeuralStore((s) => s.sendMessage);
   const isThinking = useNeuralStore((s) => s.isThinking);
   const isListening = useNeuralStore((s) => s.isListening);
@@ -82,133 +80,130 @@ export function InputDock() {
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-4 pb-2">
-      <div className="relative">
-        <div className="w-full mb-2">
-          <div className="flex items-center gap-3 w-full opacity-30 select-none pointer-events-none">
-            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[var(--acc)]/30 to-transparent" />
-            <div className="w-1 h-1 rotate-45 border border-[var(--acc)]/20" />
-            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[var(--acc)]/30 to-transparent" />
+    <div className="w-full max-w-4xl mx-auto px-4 pb-3 pt-1">
+      {/* Absolute glow bloom — invisible until focus */}
+      <div className="relative group">
+        <div className="absolute -inset-1 bg-[var(--p-accent)] blur-2xl rounded-3xl opacity-0 group-focus-within:opacity-[0.04] transition-opacity duration-300 pointer-events-none" />
+
+        {/* Main dock shell — taste-skill: inset-hi top highlight, crisp 1px border */}
+        <div className="relative flex flex-col gap-0 bg-[var(--bg-surface)] border border-[var(--b1)] rounded-[var(--p-radius)] shadow-[inset_0_1px_0_var(--p-inset-hi),0_8px_24px_-6px_rgba(0,0,0,0.5)] focus-within:border-[var(--b2)] transition-colors duration-150">
+
+          {/* Top toolbar row */}
+          <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--b1)]">
+            {/* Model pill */}
+            <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-[var(--p-accent-soft)] border border-[var(--b1)]">
+                <Sparkles size={10} className="text-[var(--p-accent)] shrink-0" />
+                <span className="text-[11px] font-semibold text-[var(--p-accent)] tracking-wide truncate max-w-[140px]">
+                  {apiConfig.model}
+                </span>
+              </div>
+            </div>
+
+            {/* Controls */}
+            <div className="flex items-center gap-1.5">
+              <GothicButton
+                icon="volume"
+                size="sm"
+                title={ttsEnabled ? "TTS Active" : "TTS Muted"}
+                onClick={() => setTtsEnabled(!ttsEnabled)}
+                active={ttsEnabled}
+                className={!ttsEnabled ? "opacity-40 grayscale" : ""}
+              />
+              <div className="w-px h-3.5 bg-[var(--b1)] mx-0.5" />
+              <GothicButton
+                icon="mic"
+                size="sm"
+                onClick={() => { if (!isListening) startListening(); }}
+                title={isListening ? "Listening..." : "Voice Input"}
+                active={isListening}
+                className={isListening ? "animate-pulse ring-1 ring-[var(--p-accent)] ring-offset-1 ring-offset-[var(--bg-surface)]" : ""}
+              />
+            </div>
           </div>
-        </div>
-        <div className="absolute -inset-2 bg-[var(--accent)]/5 blur-2xl rounded-3xl opacity-0 group-focus-within:opacity-100 transition-opacity" />
-        
-        <div className="relative flex flex-col gap-2 p-2 bg-[var(--bg-surface)] border border-[var(--b1)] rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.18)] focus-within:border-[var(--accent)]/35 transition-colors duration-200">
-          
-          <div className="flex items-center justify-between px-4 py-2 border-b border-white/5 mb-1">
-             <div className="flex items-center gap-2.5">
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-accent/10 border border-accent/20">
-                   <Sparkles size={11} className="text-accent" />
-                   <span className="text-[11px] font-bold text-[var(--accent)] uppercase tracking-widest">{apiConfig.model}</span>
+
+          {/* File attachment strip */}
+          {(pendingFiles.length > 0 || isUploading) && (
+            <div className="flex flex-wrap gap-2 px-3 py-2 border-b border-[var(--b1)]">
+              {pendingFiles.map((file, idx) => (
+                <div key={idx} className="relative group/file">
+                  {file.type.startsWith('image/') ? (
+                    <div className="w-14 h-14 rounded-[var(--p-radius-sm)] overflow-hidden border border-[var(--b1)] bg-[var(--bg-hover)]">
+                      <img src={file.url} alt="preview" className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className="h-9 px-2.5 flex items-center gap-1.5 rounded-[var(--p-radius-sm)] bg-[var(--bg-hover)] border border-[var(--b1)] text-[11px] text-[var(--t3)]">
+                      <Paperclip size={11} />
+                      <span className="max-w-[80px] truncate">{file.filename}</span>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => removeFile(idx)}
+                    aria-label={`Remove file ${file.filename}`}
+                    title="Remove file"
+                    className="absolute -top-1.5 -right-1.5 w-4.5 h-4.5 rounded-full bg-[var(--red)]/90 text-white flex items-center justify-center opacity-0 group-hover/file:opacity-100 transition-opacity"
+                  >
+                    <X size={9} />
+                  </button>
                 </div>
+              ))}
+              {isUploading && (
+                <div className="w-9 h-9 flex items-center justify-center animate-spin text-[var(--p-accent)]">
+                  <Sparkles size={14} />
+                </div>
+              )}
+            </div>
+          )}
 
-             </div>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={onFileChange}
+            multiple
+            title="File Upload"
+            className="hidden"
+            accept="image/*,application/pdf,text/*,.py,.js,.json"
+          />
 
-             <div className="flex items-center gap-2 text-slate-500">
-                <GothicButton 
-                  icon="volume"
-                  size="sm"
-                  title={ttsEnabled ? "TTS Active" : "TTS Muted"}
-                  aria-label={ttsEnabled ? "Text-to-speech is active" : "Text-to-speech is muted"}
-                  onClick={() => setTtsEnabled(!ttsEnabled)}
-                  active={ttsEnabled}
-                  className={!ttsEnabled ? "opacity-40 grayscale" : ""}
-                />
-                <div className="w-px h-3 bg-white/5 mx-1" />
-                <GothicButton 
-                  icon="mic"
-                  size="sm"
-                  onClick={() => {
-                    if (!isListening) {
-                      startListening();
-                    }
-                  }}
-                  title={isListening ? "Listening..." : "Voice Input"}
-                  aria-label={isListening ? "Microphone is listening" : "Start voice input"}
-                  active={isListening}
-                  className={isListening ? "animate-pulse ring-2 ring-red-500 shadow-[0_0_20px_rgba(239,68,68,0.5)]" : ""}
-                />
-             </div>
-           </div>
-           
-           {/* Attachment Preview Area */}
-           {(pendingFiles.length > 0 || isUploading) && (
-             <div className="flex flex-wrap gap-2 px-4 py-2 border-b border-white/5">
-                {pendingFiles.map((file, idx) => (
-                  <div key={idx} className="relative group/file">
-                    {file.type.startsWith('image/') ? (
-                      <div className="w-16 h-16 rounded-xl overflow-hidden border border-white/10 bg-white/5">
-                        <img src={file.url} alt="preview" className="w-full h-full object-cover" />
-                      </div>
-                    ) : (
-                      <div className="h-10 px-3 flex items-center gap-2 rounded-xl bg-white/5 border border-white/10 text-[11px] text-slate-300">
-                        <Paperclip size={12} />
-                        <span className="max-w-[80px] truncate">{file.filename}</span>
-                      </div>
-                    )}
-                    <button 
-                      onClick={() => removeFile(idx)}
-                      aria-label={`Remove file ${file.filename}`}
-                      title="Remove file"
-                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/file:opacity-100 transition-opacity"
-                    >
-                      <X size={10} />
-                    </button>
-                  </div>
-                ))}
-                {isUploading && (
-                  <div className="w-10 h-10 flex items-center justify-center animate-spin text-accent">
-                    <Sparkles size={16} />
-                  </div>
-                )}
-             </div>
-           )}
-           
-           <input 
-             type="file" 
-             ref={fileInputRef} 
-             onChange={onFileChange} 
-             multiple 
-             title="File Upload"
-             className="hidden" 
-             accept="image/*,application/pdf,text/*,.py,.js,.json"
-           />
-
-          <div className="flex items-end gap-3 px-3 pb-2 pt-1">
-            <button 
+          {/* Textarea + action row */}
+          <div className="flex items-end gap-2 px-2 pb-2 pt-1">
+            <button
               onClick={handleAttach}
               aria-label="Attach file"
-              title="Attach File" className="p-3 rounded-2xl text-slate-500 hover:text-white hover:bg-white/5 transition-all mb-1"
+              title="Attach File"
+              className="p-2 rounded-[var(--p-radius-sm)] text-[var(--t3)] hover:text-[var(--t1)] hover:bg-[var(--bg-hover)] transition-all duration-150 mb-1 shrink-0"
             >
-              <Plus size={18} strokeWidth={2.5} />
+              <Plus size={17} strokeWidth={2} />
             </button>
 
-            <div className="relative mb-1">
-               <button 
-                 onClick={() => setShowGifPicker(!showGifPicker)}
-                 aria-label="Open animated assets picker"
-                 title="Animated Assets" 
-                 className={clsx(
-                   "p-3 rounded-2xl transition-all",
-                   showGifPicker ? "text-accent bg-accent/5" : "text-slate-500 hover:text-[var(--acc)] hover:bg-[var(--acc)]/5"
-                 )}
-               >
-                 <ImageIcon size={18} strokeWidth={2.5} className={clsx(showGifPicker && "animate-pulse")} />
-               </button>
+            <div className="relative mb-1 shrink-0">
+              <button
+                onClick={() => setShowGifPicker(!showGifPicker)}
+                aria-label="Open animated assets picker"
+                title="Animated Assets"
+                className={clsx(
+                  "p-2 rounded-[var(--p-radius-sm)] transition-all duration-150",
+                  showGifPicker
+                    ? "text-[var(--p-accent)] bg-[var(--p-accent-soft)]"
+                    : "text-[var(--t3)] hover:text-[var(--p-accent)] hover:bg-[var(--p-accent-soft)]"
+                )}
+              >
+                <ImageIcon size={17} strokeWidth={2} className={clsx(showGifPicker && "animate-pulse")} />
+              </button>
 
-               <AnimatePresence>
-                 {showGifPicker && (
-                   <GifPicker 
-                     onClose={() => setShowGifPicker(false)} 
-                     onSelect={(url) => {
-                       sendMessage(`![Neural_Asset](${url})`);
-                       setShowGifPicker(false);
-                     }} 
-                   />
-                 )}
-               </AnimatePresence>
+              <AnimatePresence>
+                {showGifPicker && (
+                  <GifPicker
+                    onClose={() => setShowGifPicker(false)}
+                    onSelect={(url) => {
+                      sendMessage(`![Neural_Asset](${url})`);
+                      setShowGifPicker(false);
+                    }}
+                  />
+                )}
+              </AnimatePresence>
             </div>
-            
+
             <textarea
               ref={textareaRef}
               value={text}
@@ -222,8 +217,8 @@ export function InputDock() {
               }}
               title="Message input"
               aria-label="Message input. Press Enter to send, Shift+Enter for new line."
-              placeholder="Ask Aiko anything..."
-              className="flex-1 text-[15px] text-gray-100 placeholder:text-slate-600 max-h-48 custom-scrollbar leading-[1.6] py-3 font-normal focus:outline-none focus:ring-0 focus:border-0 bg-transparent outline-none shadow-none border-none resize-none"
+              placeholder="Ask Aiko anything…"
+              className="flex-1 text-[14px] text-[var(--t1)] placeholder:text-[var(--t4)] max-h-48 custom-scrollbar leading-[1.65] py-2.5 font-normal focus:outline-none bg-transparent border-none resize-none select-text"
               rows={1}
             />
 
@@ -231,12 +226,9 @@ export function InputDock() {
               icon="send"
               size="md"
               onClick={handleSend}
-              title="Send Message"
+              title="Send Message (Enter)"
               disabled={(!text.trim() && pendingFiles.length === 0) || isThinking || isUploading}
-              className={clsx(
-                "mb-1 shadow-[0_0_15px_rgba(212,149,106,0.3)] hover:shadow-[0_0_25px_rgba(212,149,106,0.6)]",
-                isThinking && "animate-pulse"
-              )}
+              className={clsx("mb-1 shrink-0", isThinking && "animate-pulse")}
             />
           </div>
         </div>

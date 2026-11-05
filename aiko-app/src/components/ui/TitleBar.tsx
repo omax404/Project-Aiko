@@ -1,7 +1,6 @@
 import React from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { PanelLeft, Minus, Square } from 'lucide-react';
-import { GothicButton } from '../GothicButton';
+import { PanelLeft, Minus, Square, X, Settings2 } from 'lucide-react';
 import { RotatingOrbital } from '../AnimatedIcons';
 
 interface TitleBarProps {
@@ -20,67 +19,83 @@ export function TitleBar({ sessionLabel, showAnimatedAssets, onSettings, onToggl
   const noDrag = { WebkitAppRegion: 'no-drag' } as React.CSSProperties;
 
   return (
-    <div
+    <header
       data-tauri-drag-region
-      className="h-12 bg-[var(--bg-base)] flex items-center justify-between shrink-0 border-b border-white/[0.06] select-none"
+      className="h-11 bg-[var(--bg-base)] flex items-center justify-between shrink-0 border-b border-[var(--b1)] select-none px-2 z-30"
       style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
     >
       {/* Left: Navigation */}
-      <div className="flex items-center" style={noDrag}>
+      <div className="flex items-center gap-1.5" style={noDrag}>
         <button
           onClick={onToggleSidebar}
-          title="Toggle Sidebar"
-          className="w-10 h-12 bg-transparent border-none cursor-pointer flex items-center justify-center text-white/[0.35] hover:bg-white/[0.07] hover:text-white/80 transition-all duration-100 shrink-0"
+          title="Toggle Sidebar (Ctrl+B)"
+          aria-label="Toggle Sidebar"
+          className="w-8 h-8 rounded-lg bg-transparent border border-transparent cursor-pointer flex items-center justify-center text-[var(--t3)] hover:text-[var(--t1)] hover:bg-[var(--bg-hover)] hover:border-[var(--b1)] transition-all duration-150 shrink-0"
           style={noDrag}
         >
-          <PanelLeft size={16} />
+          <PanelLeft size={15} strokeWidth={1.8} />
         </button>
       </div>
 
-      {/* Center: drag region only */}
+      {/* Center: Window title & session telemetry */}
       <div
         data-tauri-drag-region
-        className="flex-1 flex items-center justify-center gap-2.5 pointer-events-none"
+        className="flex-1 flex items-center justify-center gap-2 pointer-events-none"
       >
-        {showAnimatedAssets ? <RotatingOrbital /> : <div className="w-1.5 h-1.5 rounded-full bg-white/[0.08]" />}
-        <span className="text-[11px] text-white/[0.15] font-medium tracking-[0.15em]">
-          Aiko · {sessionLabel}
+        {showAnimatedAssets ? (
+          <RotatingOrbital />
+        ) : (
+          <div className="w-1.5 h-1.5 rounded-full bg-[var(--p-accent)] opacity-60" />
+        )}
+        <span className="text-[12px] text-[var(--t3)] font-medium tracking-wide">
+          Aiko <span className="text-[var(--t4)] font-mono text-[11px]">· {sessionLabel}</span>
         </span>
       </div>
 
-      {/* Right: action icons + window controls */}
-      <div className="flex items-center px-2 gap-1" style={noDrag}>
-        <GothicButton
-          icon="settings"
-          size="sm"
+      {/* Right: Actions & Window Controls */}
+      <div className="flex items-center gap-1" style={noDrag}>
+        <button
           onClick={onSettings}
           title="Settings"
-        />
-        <span className="w-px h-4 bg-white/[0.06] mx-1 shrink-0" />
+          aria-label="Settings"
+          className="w-8 h-8 rounded-lg bg-transparent border border-transparent cursor-pointer flex items-center justify-center text-[var(--t3)] hover:text-[var(--t1)] hover:bg-[var(--bg-hover)] hover:border-[var(--b1)] transition-all duration-150 shrink-0"
+          style={noDrag}
+        >
+          <Settings2 size={15} strokeWidth={1.8} />
+        </button>
+
+        <span className="w-px h-3.5 bg-[var(--b1)] mx-0.5 shrink-0" />
+
         <button
           onClick={minimize}
           title="Minimize"
-          className="w-9 h-9 bg-transparent border-none cursor-pointer flex items-center justify-center text-white/[0.35] hover:bg-white/[0.08] hover:text-white/90 transition-all duration-100 shrink-0 rounded-lg"
+          aria-label="Minimize"
+          className="w-8 h-8 rounded-lg bg-transparent border border-transparent cursor-pointer flex items-center justify-center text-[var(--t3)] hover:text-[var(--t1)] hover:bg-[var(--bg-hover)] hover:border-[var(--b1)] transition-all duration-150 shrink-0"
           style={noDrag}
         >
-          <Minus size={14} />
+          <Minus size={13} strokeWidth={1.8} />
         </button>
+
         <button
           onClick={maximize}
           title="Maximize"
-          className="w-9 h-9 bg-transparent border-none cursor-pointer flex items-center justify-center text-white/[0.35] hover:bg-white/[0.08] hover:text-white/90 transition-all duration-100 shrink-0 rounded-lg"
+          aria-label="Maximize"
+          className="w-8 h-8 rounded-lg bg-transparent border border-transparent cursor-pointer flex items-center justify-center text-[var(--t3)] hover:text-[var(--t1)] hover:bg-[var(--bg-hover)] hover:border-[var(--b1)] transition-all duration-150 shrink-0"
           style={noDrag}
         >
-          <Square size={11} />
+          <Square size={11} strokeWidth={1.8} />
         </button>
-        <GothicButton
-          icon="close"
-          size="sm"
+
+        <button
           onClick={close}
           title="Close"
-          className="hover:shadow-red-glow"
-        />
+          aria-label="Close"
+          className="w-8 h-8 rounded-lg bg-transparent border border-transparent cursor-pointer flex items-center justify-center text-[var(--t3)] hover:text-[#f87171] hover:bg-[#f87171]/10 hover:border-[#f87171]/20 transition-all duration-150 shrink-0"
+          style={noDrag}
+        >
+          <X size={14} strokeWidth={1.8} />
+        </button>
       </div>
-    </div>
+    </header>
   );
 }

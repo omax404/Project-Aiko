@@ -43,18 +43,18 @@ export const GothicButton: React.FC<GothicButtonProps> = ({
 
   return (
     <motion.button
-      whileHover={disabled ? {} : { scale: 1.08 }}
+      whileHover={disabled ? {} : { scale: 1.05 }}
       whileTap={disabled ? {} : { scale: 0.95 }}
       onClick={onClick}
       title={title}
       disabled={disabled}
       className={clsx(
-        'relative rounded-full border cursor-pointer flex items-center justify-center transition-all duration-200 shrink-0 select-none shadow-md',
+        'relative rounded-full border cursor-pointer flex items-center justify-center transition-all duration-150 shrink-0 select-none',
         sizeConfig.btn,
         active
-          ? 'bg-[#B8A1D9] border-[#B8A1D9] text-[#1A0F24] font-semibold shadow-[0_0_18px_rgba(184,161,217,0.45)]'
-          : 'bg-[#3B2249]/60 border-[#B8A1D9]/30 text-[#F3EAF9] hover:bg-[#B8A1D9]/20 hover:border-[#B8A1D9]/50 hover:shadow-[0_0_15px_rgba(184,161,217,0.3)]',
-        disabled && 'opacity-30 cursor-not-allowed',
+          ? 'bg-[var(--p-accent)] border-[var(--p-accent)] text-[var(--p-accent-ink)] font-medium shadow-[0_2px_12px_rgba(180,155,240,0.25)]'
+          : 'bg-[var(--p-surface)] border-[var(--b1)] text-[var(--t2)] hover:text-[var(--t1)] hover:bg-[var(--bg-hover)] hover:border-[var(--b2)] shadow-[inset_0_1px_0_var(--p-inset-hi)]',
+        disabled && 'opacity-30 cursor-not-allowed pointer-events-none',
         className
       )}
     >
