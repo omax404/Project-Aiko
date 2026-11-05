@@ -124,8 +124,8 @@ export const ChatBubble = memo(function ChatBubble({
         animate={{ opacity: 1, scale: 1 }}
         className="flex justify-center w-full mb-8"
       >
-        <div className="flex items-center gap-3 px-5 py-2 rounded-full bg-white/[0.02] border border-white/5 text-[11px] font-medium text-[#5a5248]">
-          <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]/50" />
+        <div className="flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-[var(--bg-hover)] border border-[var(--b1)] text-[11px] font-medium text-[var(--t4)]">
+          <div className="w-1.5 h-1.5 rounded-full bg-[var(--p-accent)] opacity-60" />
           <span>{content}</span>
         </div>
       </motion.div>
@@ -143,60 +143,60 @@ export const ChatBubble = memo(function ChatBubble({
         mass: 0.8
       }}
       className={clsx(
-        "flex w-full mb-12 group",
+        "flex w-full mb-8 group",
         isUser ? "justify-end" : "justify-start"
       )}
     >
       <div className={clsx(
-        "flex max-w-[85%] gap-6",
+        "flex max-w-[80%] gap-4",
         isUser ? "flex-row-reverse" : "flex-row"
       )}>
-        
-        {/* Avatar Area */}
+
+        {/* Avatar dot — taste-skill: ink-tinted, never neon */}
         <div className="flex flex-col items-center flex-shrink-0 mt-1">
           <div className={clsx(
-            "w-9 h-9 rounded-xl flex items-center justify-center border transition-all duration-500",
+            "w-7 h-7 rounded-[var(--p-radius-sm)] flex items-center justify-center border transition-all duration-300",
             isUser
-              ? "bg-[var(--bg-card)] border-[var(--b2)]"
-              : "bg-[var(--acc)]/10 border-[var(--acc)]/30 shadow-[0_0_15px_var(--acc-glow)]"
+              ? "bg-[var(--bg-elevated)] border-[var(--b1)]"
+              : "bg-[var(--p-accent-soft)] border-[var(--b2)]"
           )}>
             {isUser ? (
-               <div className="w-3.5 h-3.5 bg-[var(--t3)] rounded-sm opacity-40" />
+               <div className="w-2.5 h-2.5 bg-[var(--t4)] rounded-sm" />
             ) : (
-               <Zap size={16} className="text-[var(--acc)] group-hover:scale-110 transition-transform" />
+               <Zap size={13} strokeWidth={2} className="text-[var(--p-accent)]" />
             )}
           </div>
         </div>
 
         <div className={clsx(
-          "flex flex-col gap-2",
+          "flex flex-col gap-1.5",
           isUser ? "items-end" : "items-start"
         )}>
-          {/* Header */}
-          <div className="flex items-center gap-3 px-1">
+          {/* Meta row */}
+          <div className="flex items-center gap-2 px-0.5">
              <span className={clsx(
-               "text-[12px] font-semibold uppercase tracking-wider",
-               isUser ? "text-[#5a5248]" : "text-[var(--accent)]"
+               "text-[11px] font-semibold uppercase tracking-[0.1em]",
+               isUser ? "text-[var(--t4)]" : "text-[var(--p-accent)]"
              )}>
                {isUser ? "You" : "Aiko"}
              </span>
              {timestamp && (
-               <span className="text-[11px] text-[#5a5248] font-medium">
+               <span className="text-[11px] text-[var(--t4)] font-medium tabular-nums">
                  {new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                </span>
              )}
           </div>
 
-          {/* Chat Bubble Body — Soft Vampirism Lavender Component Spec */}
+          {/* Bubble body — taste-skill card system */}
           <div className={clsx(
-            "relative transition-all duration-300 backdrop-blur-md shadow-lg",
-            isUser 
-              ? "bg-[var(--accent)] text-[#17121d] border border-[var(--accent)]/30 rounded-[20px] rounded-tr-md p-4 px-5 font-medium"
-              : "bg-[var(--bg-surface)] text-[var(--t1)] border border-[var(--b1)] rounded-[20px] rounded-tl-md p-4 px-5"
+            "relative transition-all duration-200",
+            isUser
+              ? "bg-[var(--p-accent)] text-[var(--p-accent-ink)] border border-[var(--p-accent)] rounded-[var(--p-radius)] rounded-tr-[6px] px-4 py-3 font-medium shadow-[0_2px_12px_rgba(180,155,240,0.2)]"
+              : "bg-[var(--p-card)] text-[var(--t1)] border border-[var(--b1)] rounded-[var(--p-radius)] rounded-tl-[6px] px-4 py-3 shadow-[inset_0_1px_0_var(--p-inset-hi),0_4px_16px_-4px_rgba(0,0,0,0.5)]"
           )}>
             <div className={clsx(
-              "text-[15px] leading-[1.8] font-normal antialiased selectable markdown-content",
-              !isUser && "text-[var(--t1)]/90"
+              "text-[14px] leading-[1.75] font-normal antialiased selectable markdown-content",
+              isUser && "text-[var(--p-accent-ink)]"
             )}>
               {isEditing ? (
                 <div className="flex flex-col gap-3 min-w-[300px]">
@@ -205,20 +205,20 @@ export const ChatBubble = memo(function ChatBubble({
                     title="Edit message content"
                     aria-label="Edit message content"
                     placeholder="Edit your message..."
-                    className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-[14px] text-[var(--t1)] focus:outline-none focus:border-[var(--accent)]/50 min-h-[100px]"
+                    className="w-full bg-[var(--bg-elevated)] border border-[var(--b1)] rounded-[var(--p-radius-sm)] p-3 text-[13px] text-[var(--t1)] focus:outline-none focus:border-[var(--b3)] min-h-[100px] resize-none"
                     value={editValue}
                     onChange={(e) => setEditValue(e.target.value)}
                   />
                   <div className="flex justify-end gap-2">
                     <button 
                       onClick={() => setIsEditing(false)}
-                      className="px-3 py-1.5 text-[11px] font-medium text-[#5a5248] hover:text-[#9a8f7e] transition-colors"
+                      className="px-3 py-1.5 text-[11px] font-medium text-[var(--t3)] hover:text-[var(--t1)] transition-colors"
                     >
                       Cancel
                     </button>
                     <button 
                       onClick={handleSaveEdit}
-                      className="px-3 py-1.5 bg-[var(--accent)]/20 border border-[var(--accent)]/30 rounded text-[11px] font-medium text-[var(--accent)] hover:bg-[var(--accent)]/30 transition-colors"
+                      className="px-3 py-1.5 bg-[var(--p-accent-soft)] border border-[var(--b2)] rounded-[var(--p-radius-sm)] text-[11px] font-medium text-[var(--p-accent)] hover:bg-[var(--bg-active)] transition-colors"
                     >
                       Save Changes
                     </button>
@@ -314,59 +314,59 @@ export const ChatBubble = memo(function ChatBubble({
               )}
             </div>
             
-            {/* User Glow Effect */}
+            {/* User glow — taste-skill: no neon, just a soft accent tint */}
             {isUser && (
-              <div className="absolute inset-0 bg-[var(--acc)]/5 blur-xl -z-10 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+              <div className="absolute inset-0 bg-[var(--p-accent)]/[0.04] blur-xl -z-10 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             )}
           </div>
 
           {/* Action Row */}
           <div className={clsx(
-            "flex items-center gap-4 mt-2 px-1 opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300",
+            "flex items-center gap-3 mt-1 px-0.5 opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200",
             isUser ? "flex-row-reverse" : "flex-row"
           )}>
-            <button 
+            <button
               onClick={handleCopy}
               aria-label="Copy message to clipboard"
-              title="Copy" className="p-1.5 hover:text-white transition-colors text-[var(--t4)]"
+              title="Copy" className="p-1 hover:text-[var(--t1)] transition-colors text-[var(--t4)]"
             >
-               <Copy size={13} strokeWidth={1.8} />
+               <Copy size={12} strokeWidth={1.8} />
             </button>
-            <button aria-label="Add reaction" title="Reaction" className="p-1.5 hover:text-[var(--acc)] transition-colors text-[var(--t4)]">
-               <Smile size={13} strokeWidth={1.8} />
+            <button aria-label="Add reaction" title="Reaction" className="p-1 hover:text-[var(--p-accent)] transition-colors text-[var(--t4)]">
+               <Smile size={12} strokeWidth={1.8} />
             </button>
             {!isUser ? (
                <>
-                 <button 
+                 <button
                    onClick={() => retryMessage()}
                    aria-label="Retry generating response"
-                   title="Retry" className="p-1.5 hover:text-[var(--acc)] transition-colors text-[var(--t4)]"
+                   title="Retry" className="p-1 hover:text-[var(--p-accent)] transition-colors text-[var(--t4)]"
                  >
-                    <RotateCcw size={13} strokeWidth={1.8} />
+                    <RotateCcw size={12} strokeWidth={1.8} />
                  </button>
-                 <button 
+                 <button
                    onClick={() => playTTS(content)}
                    aria-label="Play text-to-speech"
-                   title="Speech" className="p-1.5 hover:text-[var(--acc)] transition-colors text-[var(--t4)]"
+                   title="Speech" className="p-1 hover:text-[var(--p-accent)] transition-colors text-[var(--t4)]"
                  >
-                    <Volume2 size={13} strokeWidth={1.8} />
+                    <Volume2 size={12} strokeWidth={1.8} />
                  </button>
                </>
             ) : (
                <>
-                 <button 
+                 <button
                    onClick={() => setIsEditing(true)}
                    aria-label="Edit message"
-                   title="Edit" className="p-1.5 hover:text-[var(--acc)] transition-colors text-[var(--t4)]"
+                   title="Edit" className="p-1 hover:text-[var(--p-accent)] transition-colors text-[var(--t4)]"
                  >
-                    <Edit3 size={13} strokeWidth={1.8} />
+                    <Edit3 size={12} strokeWidth={1.8} />
                  </button>
-                 <button 
+                 <button
                    onClick={() => (id || timestamp) && deleteMessage(id || timestamp!)}
                    aria-label="Delete message"
-                   title="Delete" className="p-1.5 hover:text-red-400 transition-colors text-[var(--t4)]"
+                   title="Delete" className="p-1 hover:text-[var(--red)] transition-colors text-[var(--t4)]"
                  >
-                    <Trash size={13} strokeWidth={1.8} />
+                    <Trash size={12} strokeWidth={1.8} />
                  </button>
                </>
             )}

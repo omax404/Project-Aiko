@@ -41,16 +41,16 @@ const SessionItem = ({ id, title, preview, timestamp, active, pinned, onSelect, 
   };
 
   return (
-    <div 
+    <div
       onClick={() => !isRenaming && onSelect(id)}
       className={clsx(
-        "group relative px-4 py-3 rounded-xl transition-all duration-200 cursor-pointer border-l-2",
-        active 
-          ? "bg-[var(--bg-active)] border-[var(--acc)]/50" 
-          : "hover:bg-[var(--bg-hover)] border-transparent"
+        "group relative px-3 py-2.5 rounded-[var(--p-radius-sm)] transition-all duration-150 cursor-pointer border-l-[1.5px]",
+        active
+          ? "bg-[var(--bg-active)] border-[var(--p-accent)]"
+          : "hover:bg-[var(--bg-hover)] border-transparent hover:border-[var(--b2)]"
       )}
     >
-      <div className="flex flex-col gap-0.5 pr-6">
+      <div className="flex flex-col gap-0.5 pr-5">
         <div className="flex items-center justify-between">
           {isRenaming ? (
             <input
@@ -64,7 +64,7 @@ const SessionItem = ({ id, title, preview, timestamp, active, pinned, onSelect, 
                 e.stopPropagation();
               }}
               onClick={(e) => e.stopPropagation()}
-              className="flex-1 bg-transparent border-b border-[var(--acc)]/50 text-[12px] text-[var(--t1)] outline-none mr-2"
+              className="flex-1 bg-transparent border-b border-[var(--b3)] text-[12px] text-[var(--t1)] outline-none mr-2"
             />
           ) : (
             <h3 className={clsx(
@@ -74,18 +74,18 @@ const SessionItem = ({ id, title, preview, timestamp, active, pinned, onSelect, 
               {title}
             </h3>
           )}
-          <span className="text-[11px] text-[var(--t3)] font-mono shrink-0 ml-2">{timestamp}</span>
+          <span className="text-[10px] text-[var(--t4)] font-mono shrink-0 ml-2 tabular-nums">{timestamp}</span>
         </div>
-        <p className="text-[11px] text-[var(--t3)] truncate leading-relaxed">{preview}</p>
+        <p className="text-[11px] text-[var(--t4)] truncate leading-relaxed">{preview}</p>
       </div>
 
-      <div className="absolute top-3 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-        <button 
+      <div className="absolute top-2.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+        <button
           onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
-          className="p-1 hover:text-white text-[var(--t3)]"
+          className="p-1 rounded-md hover:text-[var(--t1)] hover:bg-[var(--bg-hover)] text-[var(--t3)] transition-all"
           title="Session Actions"
         >
-          <MoreVertical size={12} />
+          <MoreVertical size={11} />
         </button>
       </div>
 
@@ -93,30 +93,31 @@ const SessionItem = ({ id, title, preview, timestamp, active, pinned, onSelect, 
         {showMenu && (
           <>
             <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: -10 }}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: -6 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: -10 }}
-              className="absolute right-2 top-8 z-50 w-32 bg-[var(--bg-card)] border border-[var(--b2)] rounded-lg shadow-xl py-1 overflow-hidden"
+              exit={{ opacity: 0, scale: 0.95, y: -6 }}
+              transition={{ duration: 0.1 }}
+              className="absolute right-2 top-8 z-50 w-32 bg-[var(--p-card)] border border-[var(--b1)] rounded-[var(--p-radius-sm)] shadow-[0_8px_24px_-6px_rgba(0,0,0,0.6),inset_0_1px_0_var(--p-inset-hi)] py-1 overflow-hidden"
             >
-              <button 
+              <button
                 onClick={(e) => { e.stopPropagation(); onPin(id); setShowMenu(false); }}
-                className="w-full flex items-center gap-2 px-3 py-1.5 text-[10px] text-[var(--t2)] hover:bg-[var(--bg-hover)] hover:text-white"
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] text-[var(--t2)] hover:bg-[var(--bg-hover)] hover:text-[var(--t1)] transition-colors"
               >
-                <Pin size={10} className={pinned ? "fill-[var(--acc)] text-[var(--acc)]" : ""} />
+                <Pin size={10} className={pinned ? "fill-[var(--p-accent)] text-[var(--p-accent)]" : ""} />
                 {pinned ? "Unpin" : "Pin"}
               </button>
-              <button 
+              <button
                 onClick={(e) => { e.stopPropagation(); setIsRenaming(true); setShowMenu(false); }}
-                className="w-full flex items-center gap-2 px-3 py-1.5 text-[10px] text-[var(--t2)] hover:bg-[var(--bg-hover)] hover:text-white"
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] text-[var(--t2)] hover:bg-[var(--bg-hover)] hover:text-[var(--t1)] transition-colors"
               >
                 <Edit2 size={10} />
                 Rename
               </button>
               <div className="h-px bg-[var(--b1)] my-1" />
-              <button 
+              <button
                 onClick={(e) => { e.stopPropagation(); onDelete(id); setShowMenu(false); }}
-                className="w-full flex items-center gap-2 px-3 py-1.5 text-[10px] text-red-400 hover:bg-red-500/10"
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] text-[var(--red)] hover:bg-[var(--red)]/10 transition-colors"
               >
                 <Trash2 size={10} />
                 Delete
@@ -172,69 +173,65 @@ export function Sidebar({ onOpenSettings }: { onOpenSettings: () => void }) {
   };
 
   return (
-    <div 
+    <nav
       onMouseMove={handleMouseMove}
-      className="w-[var(--sidebar-w)] h-full flex flex-col bg-[var(--bg-sidebar)] border-r border-[var(--b1)] p-4 gap-4 relative overflow-hidden group/sidebar"
+      aria-label="Conversations"
+      className="w-[var(--sidebar-w)] h-full flex flex-col bg-[var(--bg-sidebar)] border-r border-[var(--b1)] p-3 gap-3 relative overflow-hidden group/sidebar"
     >
+      {/* Subtle mouse-follow bloom */}
       <motion.div
-        className="absolute pointer-events-none rounded-full w-40 h-40 bg-[var(--acc-soft)] blur-3xl opacity-0 group-hover/sidebar:opacity-20 transition-opacity"
+        className="absolute pointer-events-none rounded-full w-36 h-36 bg-[var(--p-accent)] blur-3xl opacity-0 group-hover/sidebar:opacity-[0.04] transition-opacity"
         style={{
-          x: useTransform(glowX, (v: number) => v - 80),
-          y: useTransform(glowY, (v: number) => v - 80),
+          x: useTransform(glowX, (v: number) => v - 72),
+          y: useTransform(glowY, (v: number) => v - 72),
         }}
       />
-      
-      {/* Profile */}
-      <div className="flex flex-col gap-4 px-1 py-4">
-        <div className="flex items-center gap-3">
-          <img src="/assets/illustrations/aiko-mark.svg" alt="" width="40" height="40" className="h-10 w-10 shrink-0" />
-          <div className="flex flex-col">
-            <h1 className="text-sm font-semibold text-[var(--t1)] tracking-wide">Aiko</h1>
-            <div className="flex items-center gap-1.5">
-              <div className="h-1.5 w-1.5 rounded-full bg-[var(--acc)]/70" />
-              <p className="text-[10px] text-[var(--t3)]">Your companion</p>
-            </div>
+
+      {/* Identity header */}
+      <div className="flex items-center gap-2.5 px-1 py-3">
+        <img src="/assets/illustrations/aiko-mark.svg" alt="" width="32" height="32" className="h-8 w-8 shrink-0 opacity-80" />
+        <div className="flex flex-col min-w-0">
+          <h1 className="text-[13px] font-semibold text-[var(--t1)] tracking-tight leading-none">Aiko</h1>
+          <div className="flex items-center gap-1 mt-0.5">
+            <div className="h-1.5 w-1.5 rounded-full bg-[var(--p-accent)] opacity-70" />
+            <p className="text-[10px] text-[var(--t4)]">Your companion</p>
           </div>
         </div>
       </div>
 
-      <div className="w-full my-1">
-        <div className="flex items-center gap-3 w-full opacity-40 select-none pointer-events-none">
-          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[var(--acc)]/30 to-transparent" />
-          <div className="w-1.5 h-1.5 rotate-45 border border-[var(--acc)]/30" />
-          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[var(--acc)]/30 to-transparent" />
-        </div>
-      </div>
+      {/* Divider */}
+      <div className="h-px bg-[var(--b1)] mx-1" />
 
-      <button 
+      {/* New chat — taste-skill: filled button, single accent touch */}
+      <button
         onClick={createNewSession}
-        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--acc)]/10 border border-[var(--acc)]/20 text-[11px] font-bold text-[var(--acc)] uppercase tracking-widest hover:bg-[var(--acc)]/20 transition-all"
+        className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-[var(--p-radius-sm)] bg-[var(--p-accent-soft)] border border-[var(--b1)] text-[11px] font-semibold text-[var(--p-accent)] tracking-wide hover:bg-[var(--bg-active)] hover:border-[var(--b2)] transition-all duration-150 shadow-[inset_0_1px_0_var(--p-inset-hi)]"
       >
-        <Plus size={14} />
+        <Plus size={13} strokeWidth={2} />
         New chat
       </button>
 
       {/* Search */}
       <div className="relative group">
-        <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--t3)] group-focus-within:text-[var(--acc)] transition-colors" />
-        <input 
-          type="text" 
-          placeholder="Search sessions..."
+        <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--t4)] group-focus-within:text-[var(--p-accent)] transition-colors" />
+        <input
+          type="text"
+          placeholder="Search conversations…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full bg-[var(--bg-input)] border border-[var(--b1)] rounded-xl py-2 pl-9 pr-4 text-[11px] text-[var(--t1)] placeholder-[var(--t3)] focus:outline-none focus:border-[var(--acc)]/30 transition-all"
+          className="w-full bg-[var(--bg-elevated)] border border-[var(--b1)] rounded-[var(--p-radius-sm)] py-1.5 pl-7 pr-3 text-[11px] text-[var(--t1)] placeholder-[var(--t4)] focus:outline-none focus:border-[var(--b2)] transition-all shadow-[inset_0_1px_0_var(--p-inset-hi)]"
         />
       </div>
 
       {/* Sessions List */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 flex flex-col gap-6">
-        
+      <div className="flex-1 overflow-y-auto custom-scrollbar -mx-1 px-1 flex flex-col gap-5">
+
         {pinnedSessions.length > 0 && (
-          <div className="flex flex-col gap-2">
-            <span className="text-[10px] font-medium text-[var(--t4)] px-3">Pinned</span>
-            <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1">
+            <span className="text-[9px] font-semibold text-[var(--t4)] px-2 uppercase tracking-[0.12em]">Pinned</span>
+            <div className="flex flex-col gap-0.5">
               {pinnedSessions.map(session => (
-                <SessionItem 
+                <SessionItem
                   key={session.id}
                   {...session}
                   active={activeSessionId === session.id}
@@ -248,11 +245,11 @@ export function Sidebar({ onOpenSettings }: { onOpenSettings: () => void }) {
           </div>
         )}
 
-        <div className="flex flex-col gap-2">
-          <span className="text-[10px] font-medium text-[var(--t4)] px-3">Recent chats</span>
-          <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1">
+          <span className="text-[9px] font-semibold text-[var(--t4)] px-2 uppercase tracking-[0.12em]">Recent</span>
+          <div className="flex flex-col gap-0.5">
             {unpinnedSessions.map(session => (
-              <SessionItem 
+              <SessionItem
                 key={session.id}
                 {...session}
                 active={activeSessionId === session.id}
@@ -267,27 +264,27 @@ export function Sidebar({ onOpenSettings }: { onOpenSettings: () => void }) {
       </div>
 
       {/* Bottom Actions */}
-      <div className="flex flex-col gap-1 pt-4 border-t border-[var(--b1)]">
-        <button 
+      <div className="flex flex-col gap-0.5 pt-3 border-t border-[var(--b1)]">
+        <button
           onClick={onOpenSettings}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--t2)] hover:text-white hover:bg-[var(--bg-hover)] transition-all group cursor-pointer"
+          className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[var(--p-radius-sm)] text-[var(--t2)] hover:text-[var(--t1)] hover:bg-[var(--bg-hover)] transition-all duration-150 group cursor-pointer"
         >
-          <div className="w-8 h-8 rounded-full border border-[var(--b2)] bg-[var(--bg-surface)] flex items-center justify-center text-[var(--t2)] group-hover:border-[var(--acc)] group-hover:ring-1 group-hover:ring-[var(--acc)] transition-all shrink-0">
-            <Settings size={14} />
+          <div className="w-7 h-7 rounded-[var(--p-radius-sm)] border border-[var(--b1)] bg-[var(--bg-elevated)] flex items-center justify-center text-[var(--t3)] group-hover:border-[var(--b2)] group-hover:text-[var(--t1)] transition-all shrink-0 shadow-[inset_0_1px_0_var(--p-inset-hi)]">
+            <Settings size={13} strokeWidth={1.8} />
           </div>
           <span className="text-[11px] font-medium">Settings</span>
         </button>
 
-        <button 
+        <button
           onClick={() => window.open('https://discord.com', '_blank')}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--t2)] hover:text-white hover:bg-[var(--bg-hover)] transition-all group cursor-pointer"
+          className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[var(--p-radius-sm)] text-[var(--t2)] hover:text-[var(--t1)] hover:bg-[var(--bg-hover)] transition-all duration-150 group cursor-pointer"
         >
-          <div className="w-8 h-8 rounded-full border border-[var(--b2)] bg-[var(--bg-surface)] flex items-center justify-center text-[var(--t2)] group-hover:border-[var(--acc)] group-hover:ring-1 group-hover:ring-[var(--acc)] transition-all shrink-0">
-            <MessageCircle size={14} />
+          <div className="w-7 h-7 rounded-[var(--p-radius-sm)] border border-[var(--b1)] bg-[var(--bg-elevated)] flex items-center justify-center text-[var(--t3)] group-hover:border-[var(--b2)] group-hover:text-[var(--t1)] transition-all shrink-0 shadow-[inset_0_1px_0_var(--p-inset-hi)]">
+            <MessageCircle size={13} strokeWidth={1.8} />
           </div>
           <span className="text-[11px] font-medium">Discord Community</span>
         </button>
       </div>
-    </div>
+    </nav>
   );
 }
