@@ -51,6 +51,7 @@ user_settings.json
 # Temporary / Local Outputs
 .tmp/
 .logs/
+.dsh-office*/
 *.pdb
 err.txt
 out.txt

@@ -17,8 +17,8 @@ try:
     import spotipy
     from spotipy.oauth2 import SpotifyOAuth
     _SPOTIPY_AVAILABLE = True
-except ImportError:
-    logger.warning("[Spotify] spotipy not installed. Music awareness disabled.")
+except Exception:
+    logger.warning("[Spotify] spotipy not installed or dependency unavailable. Music awareness disabled.")
     _SPOTIPY_AVAILABLE = False
 
 
