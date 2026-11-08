@@ -23,7 +23,7 @@
 - [ ] Add JWT token validation to `neural_hub.py` REST API
 - [ ] Add WebSocket auth handshake
 - [ ] Role-based access control (User vs Admin vs Master)
-- [ ] Remove hardcoded `omax`/`omax404` master checks — make it configurable
+- [ ] Remove hardcoded master checks — make it configurable
 - [ ] Discord/Telegram bot: verify admin via config, not hardcoded usernames
 
 ### 1.3 MCP Sandbox Hardening

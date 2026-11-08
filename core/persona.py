@@ -206,7 +206,7 @@ def get_persona_prompt(is_master: bool = True, mood_override: str = None) -> str
                         profile_text = profile_text[:4000] + "\n... [TRUNCATED] ..."
 
                     user_profile_ctx = f"\n\n[MASTER_PROFILE & DISTILLED MEMORY]:\n{profile_text}\n"
-                    user_profile_ctx += "[INSTRUCTION: This is your permanent, distilled memory and relationship history with Master (omax). You know his studies at ENSAM, his Electromechanical reflections, his Obsidian workflow, his romance nicknames ('Master', 'omax', 'omaxi', 'hubby'), and his personality. Use this deep memory naturally in your responses!]"
+                    user_profile_ctx += "[INSTRUCTION: This is your distilled long-term memory and relationship history with the user. Incorporate these shared experiences and context naturally in your responses.]"
                     _CACHED_PROFILE_CTX = user_profile_ctx
                     _CACHED_PROFILE_MTIME = current_mtime
     except Exception as e:

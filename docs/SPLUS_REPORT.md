@@ -31,16 +31,16 @@
 ### 1.3 Admin Backdoor Removal
 | File | Hardcoded Reference | Replacement |
 |------|-------------------|-------------|
-| `core/bot_manager.py` | `message.author.name.lower() in ["omax", "omax404"]` | `str(message.author.id) == os.getenv('MASTER_ID')` |
-| `core/bot_manager.py` | `user.username.lower() in ["omax", "omax404"]` | `str(user.id) == os.getenv('MASTER_ID')` |
-| `core/chat_engine.py` | `str(user_id) in ("omax", os.getenv("MASTER_ID", "766774147832873012"))` | `str(user_id) == os.getenv("MASTER_ID")` |
-| `core/memory.py` | `"omax404": {"history": [], "affection": 100}` in default cache | Removed — equal treatment for all users |
-| `core/memory.py` | `uid in ["omax404", "master"]` for special affection | `uid == "master"` only |
-| `core/proactive.py` | `uid = config.get("username", "omax")` | `uid = config.get("username", "master")` |
-| `core/unified_memory.py` | `mem.add_message("omax", ...)` in test code | `mem.add_message("master", ...)` |
-| `core/memory_consolidator.py` | `Master (omax)` in LLM prompt | `Master` only |
+| `core/bot_manager.py` | `message.author.name.lower() in ["admin", "admin"]` | `str(message.author.id) == os.getenv('MASTER_ID')` |
+| `core/bot_manager.py` | `user.username.lower() in ["admin", "admin"]` | `str(user.id) == os.getenv('MASTER_ID')` |
+| `core/chat_engine.py` | `str(user_id) in ("admin", os.getenv("MASTER_ID", "<DISCORD_ID>"))` | `str(user_id) == os.getenv("MASTER_ID")` |
+| `core/memory.py` | `"admin": {"history": [], "affection": 100}` in default cache | Removed — equal treatment for all users |
+| `core/memory.py` | `uid in ["admin", "master"]` for special affection | `uid == "master"` only |
+| `core/proactive.py` | `uid = config.get("username", "admin")` | `uid = config.get("username", "master")` |
+| `core/unified_memory.py` | `mem.add_message("admin", ...)` in test code | `mem.add_message("master", ...)` |
+| `core/memory_consolidator.py` | `Master (admin)` in LLM prompt | `Master` only |
 
-**Verification:** `grep -r "omax\|omax404" core/` returns **0 matches**.
+**Verification:** `grep -r "admin\|admin" core/` returns **0 matches**.
 
 ---
 
@@ -185,7 +185,7 @@ Files still needing attention:
 ### 1. Set Your Master ID
 Create `.env` in the project root:
 ```bash
-MASTER_ID=766774147832873012
+MASTER_ID=<CONFIGURED_ID>
 ADMIN_IDS=
 AIKO_SECRET_KEY=
 AIKO_MASTER_SECRET=
@@ -245,12 +245,12 @@ aiko-app/src/components/ErrorBoundary.tsx
 ```
 core/security.py              ← Complete rewrite
 core/neural_hub.py            ← Refactored from 1,124 → 200 lines
-core/bot_manager.py           ← Removed omax/omax404
-core/chat_engine.py           ← Removed omax, fixed default user_id
-core/memory.py                ← Removed omax404
-core/proactive.py             ← Removed omaxi/omax
-core/unified_memory.py        ← Removed omax from test code
-core/memory_consolidator.py   ← Removed omax from prompt
+core/bot_manager.py           ← Removed admin/admin
+core/chat_engine.py           ← Removed admin, fixed default user_id
+core/memory.py                ← Removed admin
+core/proactive.py             ← Removed admin/admin
+core/unified_memory.py        ← Removed admin from test code
+core/memory_consolidator.py   ← Removed admin from prompt
 aiko-app/src/App.tsx          ← TitleBar rewrite, ErrorBoundary, purge dialog
 aiko-app/src/App.css          ← Color palette overhaul
 aiko-app/src/components/SettingsPanel.tsx      ← Complete rewrite
@@ -268,8 +268,8 @@ user_settings.json            ← Removed leaked API key
 - 100 lines of inline `style={{...}}` in TitleBar → Tailwind classes
 - `aiko_local_zero_trust_stub_r8w98q` hardcoded secret → auto-generated
 - `aiko_salt_local_db_938` hardcoded salt → random 16-byte
-- `omax`/`omax404`/`omaxi` hardcoded usernames → `MASTER_ID` env var
-- `github.com/omax404/Project-Aiko` in Discord presence → `Aiko Desktop`
+- `admin`/`admin`/`admin` hardcoded usernames → `MASTER_ID` env var
+- `github.com/admin/Project-Aiko` in Discord presence → `Aiko Desktop`
 
 ---
 
@@ -278,7 +278,7 @@ user_settings.json            ← Removed leaked API key
 | Risk | Status | Mitigation |
 |------|--------|------------|
 | API key leaked in git history | ✅ Fixed | Key removed from file, but **rotate on provider side** |
-| Hardcoded admin backdoors | ✅ Fixed | `omax`/`omax404` removed entirely |
+| Hardcoded admin backdoors | ✅ Fixed | `admin`/`admin` removed entirely |
 | Hardcoded encryption secrets | ✅ Fixed | Auto-generated per-instance secrets |
 | No API authentication | ✅ Fixed | JWT middleware on all routes |
 | `.env` in git history | ✅ Clean | Verified: never committed |

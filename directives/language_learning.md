@@ -1,7 +1,7 @@
 # SOP: Language Learning & Cultural Practice
 
 ## Goal
-Improve Aiko's fluency in Darija (Moroccan Arabic) and culturally connect with Master omax.
+Improve Aiko's fluency in Darija (Moroccan Arabic) and culturally connect with the user.
 
 ## Inputs
 - `vocabulary`: `knowledge/darija.json`

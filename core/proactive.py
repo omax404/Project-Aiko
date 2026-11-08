@@ -350,7 +350,7 @@ class ProactiveAgent:
                 f"[SENSORY_OBSERVATION: LIVE MONITOR VIEW]\n"
                 f"You look over at Master's screen and see: {desc}\n"
                 + (f"{music_ctx}\n" if music_ctx else "")
-                + "Speak directly to Master (Omax) in a natural, charming, intelligent anime-companion tone (1-2 short sentences max). "
+                + "Speak directly to the user in a natural, charming, intelligent anime-companion tone (1-2 short sentences max). "
                 "Do NOT talk about being software, hardware, or an AI. "
                 "If it is basically the same as what you saw before, or if there is nothing new or helpful to say, respond with exactly '...' and nothing else."
             )
