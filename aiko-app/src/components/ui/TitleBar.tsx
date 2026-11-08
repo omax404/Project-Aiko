@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window';
+import { invoke } from '@tauri-apps/api/core';
 import {
   PanelLeft,
   Minus,
@@ -8,6 +9,7 @@ import {
   Settings2,
   LayoutTemplate,
   Columns,
+  PictureInPicture2,
   Activity,
   RefreshCw,
   CheckCircle2,
@@ -115,6 +117,32 @@ export function TitleBar({ sessionLabel, showAnimatedAssets, onSettings, onToggl
   const maximize = () => isTauri ? getCurrentWindow().toggleMaximize().catch(console.error) : undefined;
   const close = () => isTauri ? getCurrentWindow().hide().catch(console.error) : window.close();
 
+  const handleDesktopPetMode = async () => {
+    if (isTauri) {
+      try {
+        await invoke('switch_to_mascot');
+        return;
+      } catch (err) {
+        console.warn('[Aiko] switch_to_mascot command fallback:', err);
+        try {
+          const win = getCurrentWindow();
+          await win.setAlwaysOnTop(true);
+          await win.setSize(new LogicalSize(320, 460));
+        } catch (_) {}
+        window.location.href = '/?mascot=1';
+        return;
+      }
+    }
+    const popup = window.open(
+      '/?mascot=1',
+      'AikoDesktopPet',
+      'width=320,height=460,menubar=no,toolbar=no,location=no,status=no,resizable=yes'
+    );
+    if (!popup) {
+      window.location.href = '/?mascot=1';
+    }
+  };
+
   const noDrag = { WebkitAppRegion: 'no-drag' } as React.CSSProperties;
 
   const wsConnected = bridgeStatus?.status === 'connected';
@@ -168,6 +196,17 @@ export function TitleBar({ sessionLabel, showAnimatedAssets, onSettings, onToggl
           ) : (
             <Columns size={14} strokeWidth={1.8} />
           )}
+        </button>
+
+        <button
+          onClick={handleDesktopPetMode}
+          title="Desktop Pet Mode (Always-On-Top Floating Companion)"
+          aria-label="Desktop Pet Mode"
+          className="h-8 px-2.5 rounded-lg border border-transparent hover:border-[var(--accent)]/35 hover:bg-[var(--accent)]/10 cursor-pointer flex items-center gap-1.5 text-[var(--t3)] hover:text-[var(--accent)] transition-all duration-150 shrink-0"
+          style={noDrag}
+        >
+          <PictureInPicture2 size={14} strokeWidth={1.8} />
+          <span className="text-[11px] font-medium hidden md:inline">Pet Mode</span>
         </button>
       </div>
 

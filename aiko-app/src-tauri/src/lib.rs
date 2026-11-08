@@ -84,6 +84,19 @@ fn switch_to_mascot(app: tauri::AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn restore_from_mascot(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(main) = app.get_webview_window("main") {
+        let _ = main.unminimize();
+        let _ = main.show();
+        let _ = main.set_focus();
+    }
+    if let Some(mascot) = app.get_webview_window("mascot") {
+        let _ = mascot.hide();
+    }
+    Ok(())
+}
+
+#[tauri::command]
 fn log_error(app: tauri::AppHandle, message: String, stack: String) {
     if let Ok(path) = app.path().app_log_dir() {
         std::fs::create_dir_all(&path).ok();
@@ -212,7 +225,8 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
-            log_error, minimize_window, maximize_window, close_window, switch_to_mascot,
+            log_error, minimize_window, maximize_window, close_window,
+            switch_to_mascot, restore_from_mascot,
             check_hub_status, get_startup_status, get_process_status,
             get_user_settings, save_user_settings, get_local_auth_token
         ])

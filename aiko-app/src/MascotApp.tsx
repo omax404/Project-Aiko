@@ -1,11 +1,11 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { getCurrentWindow, Window, LogicalSize } from '@tauri-apps/api/window';
+import { invoke } from '@tauri-apps/api/core';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Live2DAvatar } from './components/Live2DAvatar';
 import { useNeuralStore, getHubUrl } from './store/useNeuralStore';
 import { useShallow } from 'zustand/react/shallow';
-import { Home, X, MessageCircle, Send, Volume2, VolumeX } from 'lucide-react';
-import { Window } from '@tauri-apps/api/window';
+import { Home, X, MessageCircle, Send, Volume2, VolumeX, Pin, ZoomIn } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -28,7 +28,8 @@ export default function MascotApp() {
   // (and its Live2D canvas wrapper) on every unrelated store mutation.
   const {
     connect, isThinking, isTalking, currentEmotion, amplitude,
-    sendMessage, streamingContent, messages, fetchBridgeStatus
+    sendMessage, streamingContent, messages, fetchBridgeStatus,
+    apiConfig, updateApiConfig,
   } = useNeuralStore(useShallow((s) => ({
     connect: s.connect,
     isThinking: s.isThinking,
@@ -39,29 +40,35 @@ export default function MascotApp() {
     streamingContent: s.streamingContent,
     messages: s.messages,
     fetchBridgeStatus: s.fetchBridgeStatus,
+    apiConfig: s.apiConfig,
+    updateApiConfig: s.updateApiConfig,
   })));
+  const ttsEnabled = apiConfig?.ttsEnabled ?? true;
 
+  const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI__;
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
-  const [toolbarVisible, setToolbarVisible] = useState(false);
-  const [muted, setMuted] = useState(false);
+  const [toolbarVisible, setToolbarVisible] = useState(!isTauri);
+  const [pinned, setPinned] = useState(true);
+  const [petScale, setPetScale] = useState<number>(0.72);
   const toolbarTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Tauri Click-Through Helper
   const setIgnoreCursor = useCallback((ignore: boolean) => {
-    const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI__;
     if (isTauri) {
       getCurrentWindow().setIgnoreCursorEvents(ignore).catch(() => {});
     }
-  }, []);
+  }, [isTauri]);
 
   // Connect to Neural Hub and set default click-through
   useEffect(() => {
     try { connect(getHubUrl()); } catch (_) {}
     fetchBridgeStatus();
-    setIgnoreCursor(true); // Clicks on transparent areas fall through by default
-  }, []);
+    if (isTauri) {
+      setIgnoreCursor(true); // Clicks on transparent areas fall through by default
+    }
+  }, [isTauri, setIgnoreCursor]);
 
   // Auto-focus input when chat opens
   useEffect(() => {
@@ -74,22 +81,76 @@ export default function MascotApp() {
   const showToolbar = useCallback(() => {
     setToolbarVisible(true);
     if (toolbarTimeout.current) clearTimeout(toolbarTimeout.current);
-    toolbarTimeout.current = setTimeout(() => setToolbarVisible(false), 3000);
-  }, []);
+    toolbarTimeout.current = setTimeout(() => {
+      if (isTauri) setToolbarVisible(false);
+    }, 3500);
+  }, [isTauri]);
 
   const handleDrag = useCallback(() => {
-    getCurrentWindow().startDragging().catch(() => {});
+    if (isTauri) {
+      getCurrentWindow().startDragging().catch(() => {});
+    }
+  }, [isTauri]);
+
+  const handleTogglePin = useCallback(async () => {
+    const next = !pinned;
+    setPinned(next);
+    if (isTauri) {
+      try {
+        await getCurrentWindow().setAlwaysOnTop(next);
+      } catch (_) {}
+    }
+  }, [pinned, isTauri]);
+
+  const handleCycleScale = useCallback(() => {
+    setPetScale((prev) => (prev < 0.65 ? 0.72 : prev < 0.8 ? 0.85 : 0.58));
   }, []);
 
   const handleReturnToHub = useCallback(async () => {
-    try {
-      const mainWindow = new Window('main');
-      await mainWindow.show();
-      await getCurrentWindow().hide();
-    } catch (e) {
-      console.error("Failed to swap windows", e);
+    if (isTauri) {
+      try {
+        await invoke('restore_from_mascot');
+        return;
+      } catch (_) {
+        try {
+          const cur = getCurrentWindow();
+          if (cur.label === 'main') {
+            await cur.setAlwaysOnTop(false);
+            await cur.setSize(new LogicalSize(1400, 900));
+            window.location.href = '/';
+            return;
+          }
+          const mainWindow = new Window('main');
+          await mainWindow.show();
+          await mainWindow.setFocus();
+          await cur.hide();
+          return;
+        } catch (e) {
+          console.error('Failed to swap windows:', e);
+        }
+      }
     }
-  }, []);
+    if (window.opener && !window.opener.closed) {
+      window.opener.focus();
+      window.close();
+      return;
+    }
+    window.location.href = '/';
+  }, [isTauri]);
+
+  const handleCloseMascot = useCallback(() => {
+    if (isTauri) {
+      getCurrentWindow().hide().catch(() => {
+        void handleReturnToHub();
+      });
+      return;
+    }
+    if (window.opener && !window.opener.closed) {
+      window.close();
+    } else {
+      window.location.href = '/';
+    }
+  }, [isTauri, handleReturnToHub]);
 
   const handleSend = useCallback(() => {
     const text = chatInput.trim();
@@ -154,7 +215,7 @@ export default function MascotApp() {
           emotion={currentEmotion}
           width={MASCOT_W}
           height={MASCOT_H}
-          scale={0.7}
+          scale={petScale}
           amplitude={amplitude}
           offsetX={35}
           offsetY={45}
@@ -218,23 +279,39 @@ export default function MascotApp() {
               <MessageCircle size={15} />
             </button>
             <button
-              onClick={() => setMuted(!muted)}
+              onClick={() => updateApiConfig({ ttsEnabled: !ttsEnabled })}
               className="mascot-btn"
-              title={muted ? "Unmute" : "Mute"}
+              title={ttsEnabled ? "Mute Voice" : "Unmute Voice"}
             >
-              {muted ? <VolumeX size={15} /> : <Volume2 size={15} />}
+              {!ttsEnabled ? <VolumeX size={15} /> : <Volume2 size={15} />}
             </button>
+            <button
+              onClick={handleCycleScale}
+              className="mascot-btn"
+              title={`Resize Pet (${Math.round(petScale * 100)}%)`}
+            >
+              <ZoomIn size={15} />
+            </button>
+            {isTauri && (
+              <button
+                onClick={handleTogglePin}
+                className={`mascot-btn ${pinned ? 'mascot-btn-primary' : ''}`}
+                title={pinned ? "Pinned Always-On-Top (Click to Unpin)" : "Pin Always-On-Top"}
+              >
+                <Pin size={15} />
+              </button>
+            )}
             <button
               onClick={handleReturnToHub}
               className="mascot-btn"
-              title="Open Hub"
+              title="Return to Full Aiko Studio"
             >
               <Home size={15} />
             </button>
             <button
-              onClick={() => getCurrentWindow().close()}
+              onClick={handleCloseMascot}
               className="mascot-btn mascot-btn-danger"
-              title="Close Mascot"
+              title="Hide Mascot"
             >
               <X size={15} />
             </button>

@@ -667,10 +667,14 @@ def launch_tauri_release(path: Path) -> subprocess.Popen:
 
 
 def start_static_server(port=1422):
-    """Fallback: serve the pre-built dist/ folder with Python's built-in HTTP server."""
+    """Serve the pre-built dist/ folder with a threaded Python HTTP server."""
     dist_dir = APP_DIR / "dist"
     if not dist_dir.exists():
         return None
+
+    if http_ok(f"http://127.0.0.1:{port}", timeout=1):
+        UI.ok(f"UI server already active at http://127.0.0.1:{port}")
+        return True
 
     class QuietHandler(http.server.SimpleHTTPRequestHandler):
         def __init__(self, *args, **kwargs):
@@ -678,8 +682,11 @@ def start_static_server(port=1422):
         def log_message(self, format, *args):
             pass  # Suppress noisy HTTP logs
 
+    class ReusableTCPServer(socketserver.ThreadingTCPServer):
+        allow_reuse_address = True
+
     try:
-        server = socketserver.TCPServer(("127.0.0.1", port), QuietHandler)
+        server = ReusableTCPServer(("127.0.0.1", port), QuietHandler)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         UI.ok(f"Static file server running at http://127.0.0.1:{port}")
@@ -773,34 +780,44 @@ def main():
     UI.ok("Neural Link established.")
 
     # 4. Desktop UI
-    # 4. Desktop UI
     UI.banner("Launching Desktop UI")
     tauri_proc = None
+
+    dist_index = APP_DIR / "dist" / "index.html"
+    dist_mtime = dist_index.stat().st_mtime if dist_index.exists() else 0
 
     # Check for pre-built binary
     found_bin = None
     for p in TAURI_BINARY_PATHS:
         if p.exists():
+            is_release_bin = "release" in str(p).lower() or p.parent == BASE
+            if is_release_bin and dist_mtime > p.stat().st_mtime + 10:
+                UI.info(f"Skipping older release binary ({p.name}) because dist/ bundle is newer.")
+                continue
             found_bin = p
             break
 
     if found_bin:
         is_debug = "debug" in str(found_bin).lower()
         if is_debug:
-            has_npm = shutil.which("npm") is not None
-            if has_npm and ensure_npm_deps():
-                UI.info("Debug binary detected. Starting Vite dev server in background...")
-                proc = subprocess.Popen(
-                    "npm run dev",
-                    cwd=str(APP_DIR),
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    shell=True,
-                    env=os.environ.copy()
-                )
-                running_procs.append(proc)
-                stream_proc(proc, "VITE")
-                time.sleep(3)
+            if dist_index.exists() and not os.environ.get("AIKO_USE_VITE_DEV"):
+                UI.info("Serving fresh dist/ bundle on :1422 for native Tauri window...")
+                start_static_server(1422)
+            else:
+                has_npm = shutil.which("npm") is not None
+                if has_npm and ensure_npm_deps():
+                    UI.info("Debug binary detected. Starting Vite dev server in background...")
+                    proc = subprocess.Popen(
+                        "npm run dev",
+                        cwd=str(APP_DIR),
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        shell=True,
+                        env=os.environ.copy()
+                    )
+                    running_procs.append(proc)
+                    stream_proc(proc, "VITE")
+                    time.sleep(3)
         tauri_proc = launch_tauri_release(found_bin)
     else:
         has_npm = shutil.which("npm") is not None
