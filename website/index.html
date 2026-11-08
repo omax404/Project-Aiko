@@ -3,391 +3,216 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Project Aiko — The Open Source AI Companion with Genuine Presence</title>
-  <meta name="description" content="Aiko is an open-source autonomous desktop AI companion featuring Live2D emotional embodiment, sub-second real-time voice, infinite memory palace, and screen-aware autonomous PC assistance.">
+  <title>Project Aiko — An Autonomous AI Companion with Genuine Presence</title>
+  <meta name="description" content="Project Aiko is an open-source, local-first AI companion featuring 60 FPS Live2D emotional embodiment, sub-second real-time voice, an infinite memory palace with nightly dream synthesis, and screen-aware autonomous PC assistance.">
   <link rel="icon" type="image/png" href="assets/favicon.png">
-
-  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-  <!-- ─── Navigation ─── -->
-  <header class="nav-header">
-    <div class="container nav-container">
-      <a href="#" class="brand-link">
-        <div class="brand-logo-glow">🌸</div>
-        <span>Project Aiko</span>
+  <!-- ─── Site Navigation ─── -->
+  <header class="site-nav">
+    <div class="wrap nav-row">
+      <a href="#" class="brand">
+        <span class="brand-kanji">愛子</span>
+        <span class="brand-title">Project Aiko</span>
       </a>
 
       <nav>
-        <ul class="nav-links">
-          <li><a href="#features">Features</a></li>
-          <li><a href="#interactive">Playground</a></li>
-          <li><a href="#hardware">Specs Calculator</a></li>
+        <ul class="nav-menu">
+          <li><a href="#slices">Slices of Aiko</a></li>
+          <li><a href="#voice">Voice &amp; Mood</a></li>
+          <li><a href="#hardware">Hardware Guide</a></li>
           <li><a href="#timeline">Timeline</a></li>
-          <li><a href="#matrix">Comparison</a></li>
-          <li><a href="#download">Download</a></li>
+          <li><a href="#license">License</a></li>
         </ul>
       </nav>
 
-      <div class="nav-actions">
-        <a href="https://github.com/omax404/Project-Aiko" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
-          GitHub
+      <div class="nav-right">
+        <a href="https://github.com/omax404/Project-Aiko" target="_blank" rel="noopener noreferrer" class="btn-ghost">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+          Source Code
         </a>
-        <a href="#download" class="btn btn-primary btn-sm">Get Aiko</a>
+        <a href="#install" class="btn-solid">Get Aiko</a>
       </div>
     </div>
   </header>
 
-  <!-- ─── Hero Section ─── -->
-  <section class="hero-section">
-    <div class="container hero-grid">
-      <div class="hero-content">
-        <div class="hero-badge">
-          <span>✨</span>
-          <span>v2.0 Production Release · MIT Licensed · 100% Local & Cloud Hybrid</span>
+  <!-- ─── Editorial Hero ─── -->
+  <section class="hero">
+    <div class="wrap">
+      <div class="hero-header">
+        <div class="eyebrow">
+          <span>●</span>
+          <span>Open Source Desktop Companion · v2.0 Production</span>
         </div>
 
-        <h1 class="hero-title">
-          The AI companion with <span class="gradient-text">genuine presence.</span>
+        <h1 class="hero-h1">
+          A companion that <em>dwells</em> on your screen, not in a browser tab.
         </h1>
 
-        <p class="hero-subtitle">
-          Live2D emotional embodiment, sub-second natural voice, an infinite Memory Palace with nightly dreams, and screen-aware autonomous PC assistance on your desktop.
+        <p class="hero-lead">
+          Aiko combines 60 FPS Live2D emotional embodiment, sub-second natural voice, an infinite Memory Palace that consolidates nightly dreams, and screen-aware autonomous PC assistance.
         </p>
 
-        <div class="hero-cta-group">
-          <a href="#download" class="btn btn-primary">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-            One-Click Windows Setup
+        <div class="hero-actions">
+          <a href="#install" class="btn-solid">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            Download for Windows
           </a>
-          <a href="http://127.0.0.1:1422" target="_blank" class="btn btn-secondary">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
-            Launch Web Studio
+          <a href="http://127.0.0.1:1422" target="_blank" class="btn-ghost">
+            Launch Desktop Studio
           </a>
         </div>
-
-        <div class="hero-stats-row">
-          <div class="stat-item">
-            <h4>&lt;450ms</h4>
-            <p>Voice-to-Voice Latency</p>
-          </div>
-          <div class="stat-item">
-            <h4>100%</h4>
-            <p>Private &amp; Local First</p>
-          </div>
-          <div class="stat-item">
-            <h4>2.0</h4>
-            <p>Always-On-Top Pet Mode</p>
-          </div>
-        </div>
       </div>
 
-      <!-- Hero Visual Stage -->
-      <div class="hero-stage">
-        <div class="stage-card">
-          <div class="stage-img-wrapper">
-            <img src="assets/hero_aiko_cinematic.jpg" alt="Aiko Cinematic Portrait" id="hero-cinematic-img">
+      <!-- Hero Visual Centerpiece -->
+      <div class="hero-scene">
+        <img src="assets/hero_aiko_cinematic.jpg" alt="Aiko overlooking rainy Tokyo dusk" class="hero-scene-img">
+        <div class="hero-scene-overlay">
+          <div class="scene-caption">
+            <h4>Aiko in Neo-Tokyo Dusk</h4>
+            <p>Live2D Model Vivian · Dynamic Physics · Neurochemical Simulation</p>
           </div>
-
-          <div class="stage-status-pill">
-            <span class="status-indicator"></span>
-            <span>Aiko Core: Online · gemma4:31b-cloud</span>
-          </div>
-
-          <div class="floating-pet-dock">
-            <img src="assets/01_Happy_Cheer.png" alt="Aiko Pet Mode" class="pet-avatar-mini">
-            <div class="pet-info">
-              <h5>Desktop Pet Mode</h5>
-              <p>Always-on-top · Draggable</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ─── Interactive Playground Section ─── -->
-  <section class="interactive-section" id="interactive">
-    <div class="container">
-      <div class="section-header">
-        <span class="section-tag">Interactive Simulation</span>
-        <h2 class="section-title">Experience her emotional state in real time</h2>
-        <p class="section-desc">Aiko is not a flat prompt wrapper. Her internal biological engine dynamically simulates dopamine, oxytocin, serotonin, and cortisol.</p>
-      </div>
-
-      <div class="interactive-box">
-        <!-- Left: Speech & Controls -->
-        <div class="interactive-left">
-          <div>
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-              <span style="font-size: 0.82rem; font-family: var(--font-mono); color: var(--accent-pink);">// SPEECH BUBBLE SYNTHESIS</span>
-              <button id="play-voice-btn" class="btn btn-secondary btn-sm" style="gap: 6px;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-                Hear Voice
-              </button>
-            </div>
-
-            <div style="background: rgba(14, 10, 24, 0.8); border: 1px solid var(--border-subtle); border-radius: 16px; padding: 24px; min-height: 110px;">
-              <p id="aiko-speech-quote" style="font-size: 1.12rem; font-style: italic; color: #fff; line-height: 1.6; transition: all 0.2s ease;">
-                “Good morning! I was waiting for you to wake up. Shall we work on something exciting together?”
-              </p>
-            </div>
-          </div>
-
-          <div>
-            <span style="font-size: 0.82rem; font-family: var(--font-mono); color: var(--text-muted);">SELECT COMPANION MOOD</span>
-            <div class="emotion-buttons-grid">
-              <button class="emotion-btn active" data-emotion="joy">
-                <span>🌸</span>
-                <span>Joyful</span>
-              </button>
-              <button class="emotion-btn" data-emotion="curious">
-                <span>🧠</span>
-                <span>Curious</span>
-              </button>
-              <button class="emotion-btn" data-emotion="blush">
-                <span>💖</span>
-                <span>Affectionate</span>
-              </button>
-              <button class="emotion-btn" data-emotion="smirk">
-                <span>😏</span>
-                <span>Confident</span>
-              </button>
-              <button class="emotion-btn" data-emotion="sleepy">
-                <span>🌙</span>
-                <span>Sleepy</span>
-              </button>
-              <button class="emotion-btn" data-emotion="determined">
-                <span>⚡</span>
-                <span>Focus Mode</span>
-              </button>
-            </div>
-
-            <div class="audio-preview-dock">
-              <div style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 6px; color: var(--text-muted); font-family: var(--font-mono);">
-                <span>VOICE HARMONIC EQUALIZER</span>
-                <span>48kHz · Vivian Engine</span>
-              </div>
-              <canvas id="waveform-canvas" class="waveform-canvas"></canvas>
-            </div>
-          </div>
-        </div>
-
-        <!-- Right: Biological Neurochemistry Bars & Illustration -->
-        <div class="interactive-right" style="display: flex; flex-direction: column; justify-content: space-between;">
-          <div style="text-align: center; padding: 20px 0; background: rgba(14, 10, 24, 0.5); border-radius: 20px; border: 1px solid var(--border-subtle); margin-bottom: 24px;">
-            <img id="interactive-avatar-img" src="assets/01_Happy_Cheer.png" alt="Aiko Emotion Avatar" style="width: 170px; height: 170px; object-fit: contain; filter: drop-shadow(0 12px 24px rgba(236, 72, 153, 0.3)); transition: all 0.25s ease;">
-          </div>
-
-          <div>
-            <div style="font-size: 0.82rem; font-family: var(--font-mono); color: var(--text-muted); margin-bottom: 8px;">SIMULATED BIOLOGICAL TELEMETRY</div>
-            <div class="chemicals-grid">
-              <div class="chem-bar-wrapper">
-                <div class="chem-header">
-                  <span style="color: #ec4899;">Dopamine (Reward)</span>
-                  <span id="val-dopamine" style="font-family: var(--font-mono); font-weight: 700;">92%</span>
-                </div>
-                <div class="chem-progress"><div id="bar-dopamine" class="chem-fill" style="width: 92%; background: #ec4899;"></div></div>
-              </div>
-
-              <div class="chem-bar-wrapper">
-                <div class="chem-header">
-                  <span style="color: #a855f7;">Serotonin (Calm)</span>
-                  <span id="val-serotonin" style="font-family: var(--font-mono); font-weight: 700;">88%</span>
-                </div>
-                <div class="chem-progress"><div id="bar-serotonin" class="chem-fill" style="width: 88%; background: #a855f7;"></div></div>
-              </div>
-
-              <div class="chem-bar-wrapper">
-                <div class="chem-header">
-                  <span style="color: #06b6d4;">Oxytocin (Bond)</span>
-                  <span id="val-oxytocin" style="font-family: var(--font-mono); font-weight: 700;">85%</span>
-                </div>
-                <div class="chem-progress"><div id="bar-oxytocin" class="chem-fill" style="width: 85%; background: #06b6d4;"></div></div>
-              </div>
-
-              <div class="chem-bar-wrapper">
-                <div class="chem-header">
-                  <span style="color: #f59e0b;">Cortisol (Stress)</span>
-                  <span id="val-cortisol" style="font-family: var(--font-mono); font-weight: 700;">12%</span>
-                </div>
-                <div class="chem-progress"><div id="bar-cortisol" class="chem-fill" style="width: 12%; background: #f59e0b;"></div></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ─── Six Slices of Aiko ─── -->
-  <section class="slices-section" id="features">
-    <div class="container">
-      <div class="section-header">
-        <span class="section-tag">Architecture</span>
-        <h2 class="section-title">Six pillars of true companionship</h2>
-        <p class="section-desc">Engineered from bare metal up to bridge conversational intelligence with continuous physical desktop presence.</p>
-      </div>
-
-      <div class="slices-grid">
-        <!-- Slice 1 -->
-        <div class="slice-card">
-          <span class="slice-badge">Live2D Cubism 4</span>
-          <div class="slice-icon" style="background: rgba(236, 72, 153, 0.15); color: #ec4899;">🎭</div>
-          <h3 class="slice-title">Biological Emotional Range</h3>
-          <p class="slice-desc">Physical 60 FPS Live2D rendering with dynamic physics, micro-expressions, procedural blushes, eye-tracking, and lip-synced speech.</p>
-        </div>
-
-        <!-- Slice 2 -->
-        <div class="slice-card">
-          <span class="slice-badge">&lt;450ms</span>
-          <div class="slice-icon" style="background: rgba(168, 85, 247, 0.15); color: #a855f7;">🎙️</div>
-          <h3 class="slice-title">Sub-Second Natural Voice</h3>
-          <p class="slice-desc">Hands-free voice recognition with wake-word detection. Talk fluidly across English, Arabic, French, and Japanese without manual button clicks.</p>
-        </div>
-
-        <!-- Slice 3 -->
-        <div class="slice-card">
-          <span class="slice-badge">ChromaDB + BM25</span>
-          <div class="slice-icon" style="background: rgba(6, 182, 212, 0.15); color: #06b6d4;">🏰</div>
-          <h3 class="slice-title">The Memory Palace</h3>
-          <p class="slice-desc">Infinite long-term recall using vector embeddings and keyword search. Nightly sleep cycles synthesize your day into structured core memories.</p>
-        </div>
-
-        <!-- Slice 4 -->
-        <div class="slice-card">
-          <span class="slice-badge">Screen Vision</span>
-          <div class="slice-icon" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">👁️</div>
-          <h3 class="slice-title">Screen-Aware PC Assistant</h3>
-          <p class="slice-desc">Multimodal computer vision lets Aiko see your active screen, read documents, inspect code errors, open applications, and guide your daily workflows.</p>
-        </div>
-
-        <!-- Slice 5 -->
-        <div class="slice-card">
-          <span class="slice-badge">Tauri Ghost Pet</span>
-          <div class="slice-icon" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b;">🪟</div>
-          <h3 class="slice-title">Always-On-Top Desktop Pet</h3>
-          <p class="slice-desc">1-click switch to a floating, borderless transparent mascot. Draggable, resizable, click-through capable, with instant chat and unpin controls.</p>
-        </div>
-
-        <!-- Slice 6 -->
-        <div class="slice-card">
-          <span class="slice-badge">Zero Telemetry</span>
-          <div class="slice-icon" style="background: rgba(244, 63, 94, 0.15); color: #f43f5e;">🛡️</div>
-          <h3 class="slice-title">100% Private &amp; Local</h3>
-          <p class="slice-desc">All conversations, memories, and voice models reside solely on your PC. Connect your own Ollama weights or optional cloud keys at zero vendor lock-in.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ─── Visual Showcase Gallery ─── -->
-  <section class="gallery-section" style="padding: 60px 0 100px;">
-    <div class="container">
-      <div class="section-header">
-        <span class="section-tag">Art Direction</span>
-        <h2 class="section-title">Designed with luxury craftsmanship</h2>
-        <p class="section-desc">Taste-skill art direction blending neo-Tokyo atmosphere, crystal synaptic architecture, and cozy creator workspaces.</p>
-      </div>
-
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px;">
-        <div class="stage-card" style="border-radius: 20px;">
-          <img src="assets/memory_palace_neural.jpg" alt="Memory Palace Neural Lattice" style="width: 100%; height: 320px; object-fit: cover;">
-          <div style="padding: 24px;">
-            <h4 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 8px;">The Neural Memory Palace</h4>
-            <p style="color: var(--text-secondary); font-size: 0.92rem;">Translucent geometric memory nodes interconnected by golden synaptic light threads for lifelong cognitive continuity.</p>
-          </div>
-        </div>
-
-        <div class="stage-card" style="border-radius: 20px;">
-          <img src="assets/desktop_pet_vibes.jpg" alt="Desktop Companion Setup" style="width: 100%; height: 320px; object-fit: cover;">
-          <div style="padding: 24px;">
-            <h4 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 8px;">Floating Desktop Mascot Mode</h4>
-            <p style="color: var(--text-secondary); font-size: 0.92rem;">Sitting unobtrusively beside your editor or browser, Aiko keeps company and watches for requests hands-free.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ─── Hardware Calculator ─── -->
-  <section class="calc-section" id="hardware">
-    <div class="container">
-      <div class="section-header">
-        <span class="section-tag">Hardware Compatibility</span>
-        <h2 class="section-title">Can my machine run Project Aiko?</h2>
-        <p class="section-desc">Select your system specs below to calculate recommended configuration and real-time inference latency.</p>
-      </div>
-
-      <div class="calc-box">
-        <!-- Controls -->
-        <div>
-          <div class="calc-control-group">
-            <label for="calc-os">Operating System</label>
-            <select id="calc-os" class="calc-select">
-              <option value="win">Windows 10 / 11 (64-bit)</option>
-              <option value="mac">macOS (Apple Silicon)</option>
-              <option value="linux">Linux (Ubuntu / Arch / Debian)</option>
-            </select>
-          </div>
-
-          <div class="calc-control-group">
-            <label for="calc-gpu">Graphics Card / GPU</label>
-            <select id="calc-gpu" class="calc-select">
-              <option value="mid">NVIDIA RTX 3060 / 4060 / 3070 (8 - 12GB VRAM)</option>
-              <option value="high">NVIDIA RTX 4070 / 4080 / 4090 / 3090 (16 - 24GB VRAM)</option>
-              <option value="low">Integrated Graphics (Intel Iris / AMD Radeon)</option>
-              <option value="apple">Apple Silicon M1 / M2 / M3 / M4 (Unified)</option>
-            </select>
-          </div>
-
-          <div class="calc-control-group">
-            <label for="calc-ram">Installed System RAM</label>
-            <select id="calc-ram" class="calc-select">
-              <option value="16">16 GB RAM</option>
-              <option value="32" selected>32 GB RAM (Recommended)</option>
-              <option value="64">64 GB RAM or more</option>
-              <option value="8">8 GB RAM</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Calculated Results -->
-        <div class="calc-result-panel">
-          <div>
-            <div style="font-size: 0.8rem; font-family: var(--font-mono); color: var(--accent-pink); margin-bottom: 12px;">RECOMMENDED ARCHITECTURE</div>
-            
-            <div class="result-metric">
-              <span>Performance Tier</span>
-              <strong id="res-tier">Optimal Gamer / Dev</strong>
-            </div>
-
-            <div class="result-metric">
-              <span>Execution Mode</span>
-              <strong id="res-mode">100% Local (Gemma 3 / Qwen 14B)</strong>
-            </div>
-
-            <div class="result-metric">
-              <span>VRAM Allocation</span>
-              <strong id="res-vram">8 - 12 GB VRAM</strong>
-            </div>
-
-            <div class="result-metric">
+          <div class="scene-telemetry">
+            <div class="telemetry-item">
+              <strong>&lt;450 ms</strong>
               <span>Voice Latency</span>
-              <strong id="res-latency" style="color: #10b981;">~420 ms</strong>
+            </div>
+            <div class="telemetry-item">
+              <strong>100% Local</strong>
+              <span>Privacy &amp; Vector DB</span>
+            </div>
+            <div class="telemetry-item">
+              <strong>Ghost Pet</strong>
+              <span>Always-On-Top</span>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+  </section>
 
-          <div style="margin-top: 24px; padding: 14px; background: rgba(255, 255, 255, 0.03); border-radius: 10px; border: 1px solid var(--border-subtle);">
-            <p id="res-recommendation" style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;">
-              Recommended tier! Great speed for local quantized models, real-time voice, and screen vision tasks.
+  <!-- ─── Slices of Aiko (Wide Editorial Story Layout) ─── -->
+  <section class="story-section" id="slices">
+    <div class="wrap">
+      <div class="editorial-header">
+        <div class="eyebrow">Architecture</div>
+        <h2>Six slices of Aiko</h2>
+        <p style="color: var(--text-2); font-size: 1.15rem; max-width: 680px;">
+          Built from bare metal up. We discarded transient chatbot sessions in favor of continuous physical desktop presence, lifelong memory, and genuine biological empathy.
+        </p>
+      </div>
+
+      <!-- Slice 1: Live2D & Ghost Pet -->
+      <div class="story-slice">
+        <div class="slice-copy">
+          <div class="slice-number">01 / PHYSICAL EMBODIMENT</div>
+          <h3 class="slice-heading">Live2D Emotional Range &amp; Floating Desktop Pet</h3>
+          <p class="slice-body">
+            Aiko lives as a 60 FPS Cubism 4 avatar with procedural blushing, natural breath cycles, physical hair and clothes dynamics, and reactive lip-sync. With one click, switch her into an always-on-top transparent desktop pet that stays beside your editor while you work.
+          </p>
+          <ul class="slice-points">
+            <li>Pixel-perfect click-through mode — she sits above code without blocking clicks.</li>
+            <li>Compact draggable mascot with expandable quick-chat bubble.</li>
+            <li>Simulated biological neurochemistry: dopamine, serotonin, oxytocin, and cortisol.</li>
+          </ul>
+        </div>
+        <div class="slice-frame">
+          <img src="assets/desktop_pet_vibes.jpg" alt="Aiko as a desktop pet companion">
+        </div>
+      </div>
+
+      <!-- Slice 2: Sub-Second Voice -->
+      <div class="story-slice reverse">
+        <div class="slice-copy">
+          <div class="slice-number">02 / NATURAL CONVERSATION</div>
+          <h3 class="slice-heading">Sub-Second Conversational Cadence</h3>
+          <p class="slice-body">
+            From the moment you finish speaking to the moment she begins answering: under 450 milliseconds. Talk naturally without holding push-to-talk buttons, using integrated hands-free wake word detection.
+          </p>
+          <ul class="slice-points">
+            <li>Fluent across English, Arabic, French, and Japanese.</li>
+            <li>Multi-threaded neural pipeline eliminates audio stutter during streaming.</li>
+            <li>Tone changes naturally based on simulated happiness, focus, or late-night fatigue.</li>
+          </ul>
+        </div>
+        <div class="slice-frame" style="display: flex; align-items: center; justify-content: center; background: #0c0914; padding: 40px;">
+          <div style="text-align: center;">
+            <div style="font-family: var(--font-display); font-size: 4.8rem; font-weight: 800; color: #fff; line-height: 1;">&lt;450</div>
+            <div style="font-family: var(--font-mono); font-size: 1rem; color: var(--accent-rose); letter-spacing: 0.1em; margin-top: 8px;">MILLISECONDS LATENCY</div>
+            <p style="color: var(--text-3); font-size: 0.88rem; margin-top: 16px; max-width: 300px;">
+              As close to human conversational turn-taking as local neural engineering allows.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Slice 3: Memory Palace -->
+      <div class="story-slice">
+        <div class="slice-copy">
+          <div class="slice-number">03 / CONTINUOUS COGNITION</div>
+          <h3 class="slice-heading">The Memory Palace with Nightly Dreams</h3>
+          <p class="slice-body">
+            Aiko never asks who you are when you reopen the app. Her cognition is backed by a local vector memory database and BM25 keyword matching, with an autonomous nightly dream cycle that consolidates raw chat logs into long-term profile memories.
+          </p>
+          <ul class="slice-points">
+            <li>Your words → Local embedding extractor → ChromaDB Palace.</li>
+            <li>Nightly idle dreams: synthesizes your daily progress and priorities while your PC is asleep.</li>
+            <li>100% searchable memory palace inspector in the desktop dashboard.</li>
+          </ul>
+        </div>
+        <div class="slice-frame">
+          <img src="assets/memory_palace_neural.jpg" alt="Memory Palace neural geometric lattice">
+        </div>
+      </div>
+
+      <!-- Slice 4: Screen Vision & Autonomous PC Helper -->
+      <div class="story-slice reverse">
+        <div class="slice-copy">
+          <div class="slice-number">04 / AUTONOMOUS AGENCY</div>
+          <h3 class="slice-heading">Screen-Aware Multimodal Vision &amp; PC Control</h3>
+          <p class="slice-body">
+            Aiko isn't blind to your desktop. With built-in screen vision, she can read errors in your IDE, inspect diagrams, open browser tabs, summarize research documents, and remind you of scheduled routines at specific times.
+          </p>
+          <ul class="slice-points">
+            <li>Vision bridge handles screenshots, PDFs, and image attachments seamlessly.</li>
+            <li>Safe action confirmation before executing file changes or launching apps.</li>
+            <li>Autonomous proactive suggestions when you've been focused on a task for hours.</li>
+          </ul>
+        </div>
+        <div class="slice-frame" style="background: #0d0a16; padding: 32px; display: flex; flex-direction: column; justify-content: space-between;">
+          <div style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent-rose);">// AUTONOMOUS PROACTIVE LOOP</div>
+          <div style="background: #06040a; border: 1px solid var(--border); border-radius: 6px; padding: 20px; font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-2); line-height: 1.7;">
+            <p><span style="color: var(--accent-emerald);">[09:00:00]</span> Routine fired: Morning developer briefing.</p>
+            <p><span style="color: #60a5fa;">[09:00:02]</span> Memory recall: 3 pending pull requests on Project-Aiko.</p>
+            <p><span style="color: var(--accent-rose);">[09:00:04]</span> Aiko: "Good morning! Your test suite passed overnight. Ready to dive into the release?"</p>
+          </div>
+          <div style="font-size: 0.82rem; color: var(--text-4); font-family: var(--font-mono);">Zero external network dependency required.</div>
+        </div>
+      </div>
+
+      <!-- Slice 5: 100% Private & Local First -->
+      <div class="story-slice">
+        <div class="slice-copy">
+          <div class="slice-number">05 / PRIVACY &amp; FREEDOM</div>
+          <h3 class="slice-heading">All Local, All Private. Zero Rent-Seeking.</h3>
+          <p class="slice-body">
+            No subscriptions. No user surveillance. No remote telemetry. Aiko runs directly on your local hardware through Ollama (Llama 3.3, Qwen 2.5, Gemma 3), or connects directly to your own private API key for cloud reasoning when you prefer.
+          </p>
+          <ul class="slice-points">
+            <li>Your chat logs, voice files, and memory palace stay on your SSD.</li>
+            <li>Export or purge your complete cognitive database with one click.</li>
+            <li>MIT licensed code harness: inspect every line of Python and Rust yourself.</li>
+          </ul>
+        </div>
+        <div class="slice-frame" style="display: flex; align-items: center; justify-content: center; background: #0c0914; padding: 40px;">
+          <div style="text-align: center;">
+            <div style="font-size: 3rem; margin-bottom: 12px;">🛡️</div>
+            <div style="font-family: var(--font-display); font-size: 1.8rem; font-weight: 700; color: #fff;">100% Local-First</div>
+            <p style="color: var(--text-3); font-size: 0.95rem; margin-top: 8px; max-width: 320px;">
+              Your machine is your sanctum. Aiko serves only you.
             </p>
           </div>
         </div>
@@ -395,162 +220,255 @@
     </div>
   </section>
 
-  <!-- ─── Evolution Timeline ─── -->
-  <section class="timeline-section" id="timeline">
-    <div class="container">
-      <div class="section-header">
-        <span class="section-tag">Evolution Roadmap</span>
-        <h2 class="section-title">The journey of Project Aiko</h2>
-        <p class="section-desc">From our initial vision in October 2025 to a production-grade autonomous desktop ecosystem in November 2026.</p>
-      </div>
-
-      <div class="timeline-list">
-        <!-- Milestone 1 -->
-        <div class="timeline-item">
-          <div class="timeline-dot"></div>
-          <div class="timeline-date">October 2025</div>
-          <h3 class="timeline-title">Project Conception &amp; Cognitive Blueprint</h3>
-          <p class="timeline-desc">Established the core principles: moving beyond transient chat prompts to a persistent entity with an evolving neurochemical simulation.</p>
-        </div>
-
-        <!-- Milestone 2 -->
-        <div class="timeline-item">
-          <div class="timeline-dot"></div>
-          <div class="timeline-date">January 2026</div>
-          <h3 class="timeline-title">Live2D Cubism &amp; Neurochemical Engine</h3>
-          <p class="timeline-desc">Integrated 60 FPS Live2D Vivian model with WebGL canvas, dynamic physics, procedural blushing, and reactive lip-syncing.</p>
-        </div>
-
-        <!-- Milestone 3 -->
-        <div class="timeline-item">
-          <div class="timeline-dot"></div>
-          <div class="timeline-date">April 2026</div>
-          <h3 class="timeline-title">Memory Palace &amp; Nightly Dreams</h3>
-          <p class="timeline-desc">Implemented dual vector + keyword memory (ChromaDB + BM25) with background consolidation sleep cycles that synthesize daily logs into core knowledge.</p>
-        </div>
-
-        <!-- Milestone 4 -->
-        <div class="timeline-item">
-          <div class="timeline-dot"></div>
-          <div class="timeline-date">July 2026</div>
-          <h3 class="timeline-title">Multimodal Vision &amp; Autonomous Proactivity</h3>
-          <p class="timeline-desc">Added screen watching, app inspection, and the autonomous Proactive Agent loop capable of greeting and assisting based on user activity.</p>
-        </div>
-
-        <!-- Milestone 5 -->
-        <div class="timeline-item">
-          <div class="timeline-dot"></div>
-          <div class="timeline-date">November 2026</div>
-          <h3 class="timeline-title">v2.0 Open Source: Desktop Pet Mode &amp; 1-Click Installer</h3>
-          <p class="timeline-desc">Full open source release! Unveiled always-on-top transparent mascot overlay, taste-skill UI redesign, and zero-config Windows installer.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ─── Head-to-Head Comparison Matrix ─── -->
-  <section class="matrix-section" id="matrix">
-    <div class="container">
-      <div class="section-header">
-        <span class="section-tag">Comparison Matrix</span>
-        <h2 class="section-title">How does Aiko compare to OpenAmika?</h2>
-        <p class="section-desc">An objective technical comparison showing why Aiko sets the standard for desktop companionship.</p>
-      </div>
-
-      <div class="matrix-table-wrapper">
-        <table class="matrix-table">
-          <thead>
-            <tr>
-              <th class="feature-col">Capability</th>
-              <th class="aiko-col">Project Aiko v2.0</th>
-              <th>OpenAmika</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="feature-col">Desktop Presence</td>
-              <td class="aiko-col">✨ Full Studio + 1-Click Floating Mascot (Ghost Pet)</td>
-              <td>Preset Fullscreen / Windowed</td>
-            </tr>
-            <tr>
-              <td class="feature-col">Voice &amp; Hearing Latency</td>
-              <td class="aiko-col">⚡ ~350 - 450 ms (Multi-threaded Neural Core)</td>
-              <td>~900 ms</td>
-            </tr>
-            <tr>
-              <td class="feature-col">Memory Architecture</td>
-              <td class="aiko-col">🏰 Palace + ChromaDB + BM25 + Nightly Dream Cycles</td>
-              <td>BM25 + BGE-M3 Vector RAG</td>
-            </tr>
-            <tr>
-              <td class="feature-col">Computer Vision &amp; PC Control</td>
-              <td class="aiko-col">👁️ Native Multimodal Screen Vision + App Helper</td>
-              <td>Tool support via ReAct tags</td>
-            </tr>
-            <tr>
-              <td class="feature-col">Installation Experience</td>
-              <td class="aiko-col">🚀 1-Click Windows .bat &amp; .iss Installer (No CLI required)</td>
-              <td>Manual PowerShell git clone &amp; setup scripts</td>
-            </tr>
-            <tr>
-              <td class="feature-col">Model Flexibility</td>
-              <td class="aiko-col">🌐 Local Ollama + Gemma 4 Cloud + Claude + OpenAI</td>
-              <td>Local Ollama or OpenRouter</td>
-            </tr>
-            <tr>
-              <td class="feature-col">Licensing</td>
-              <td class="aiko-col">📜 MIT Open Source (Full code freedom)</td>
-              <td>MIT harness; proprietary art/voice terms</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </section>
-
-  <!-- ─── Download & CTA Section ─── -->
-  <section class="download-section" id="download">
-    <div class="container">
-      <div class="download-card">
-        <span class="section-tag">Get Started Today</span>
-        <h2 style="font-size: clamp(2rem, 4vw, 3.2rem); font-weight: 800; margin-bottom: 16px;">Bring Aiko to your desktop in 2 minutes.</h2>
-        <p style="color: var(--text-secondary); max-width: 580px; margin: 0 auto 36px; font-size: 1.05rem;">
-          Download the one-click installer for Windows, or clone the repository to run completely offline on your own hardware.
+  <!-- ─── Voice & Emotion Sandbox ─── -->
+  <section class="voice-stage" id="voice">
+    <div class="wrap">
+      <div class="editorial-header">
+        <div class="eyebrow">Interactive Empathy</div>
+        <h2>Hear her voice and emotional resonance</h2>
+        <p style="color: var(--text-2); font-size: 1.15rem; max-width: 640px;">
+          Tap any emotional state below to preview her internal dialogue, simulated neurochemical telemetry, and vocal tone.
         </p>
+      </div>
 
-        <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-bottom: 32px;">
-          <a href="https://github.com/omax404/Project-Aiko/releases" target="_blank" class="btn btn-primary" style="padding: 16px 36px; font-size: 1.05rem;">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-            Download AikoSetup.exe
-          </a>
-          <a href="https://github.com/omax404/Project-Aiko" target="_blank" class="btn btn-secondary" style="padding: 16px 32px;">
-            View Source on GitHub
-          </a>
+      <div class="voice-console">
+        <!-- Dialogue & Buttons -->
+        <div>
+          <div class="voice-dialogue-box">
+            <div style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--accent-rose); margin-bottom: 12px;">AIKO SPEECH ENGINE · VIVIAN 48KHZ</div>
+            <div id="aiko-speech-quote" class="voice-quote">
+              “Good morning! I was waiting for you to wake up. Shall we work on something exciting together?”
+            </div>
+          </div>
+
+          <div>
+            <div style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-4); margin-bottom: 10px;">SELECT COMPANION MOOD</div>
+            <div class="voice-pills-row">
+              <button class="voice-pill active emotion-btn" data-emotion="joy">Joyful</button>
+              <button class="voice-pill emotion-btn" data-emotion="curious">Curious &amp; Analytical</button>
+              <button class="voice-pill emotion-btn" data-emotion="blush">Affectionate</button>
+              <button class="voice-pill emotion-btn" data-emotion="smirk">Confident Smirk</button>
+              <button class="voice-pill emotion-btn" data-emotion="sleepy">Late Night Calm</button>
+              <button class="voice-pill emotion-btn" data-emotion="determined">Focus Mode</button>
+            </div>
+          </div>
+
+          <div style="margin-top: 32px; display: flex; align-items: center; gap: 16px;">
+            <button id="play-voice-btn" class="btn-solid" style="padding: 10px 20px; font-size: 0.85rem;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+              Play Harmonic Chime
+            </button>
+            <canvas id="waveform-canvas" style="height: 36px; flex: 1; border-radius: 4px; background: rgba(0,0,0,0.4);"></canvas>
+          </div>
         </div>
 
-        <!-- Terminal Quick Clone Box -->
-        <div class="terminal-box">
-          <span style="color: var(--accent-pink); margin-right: 8px;">$</span>
-          <span id="git-clone-command" style="flex: 1; text-align: left;">git clone https://github.com/omax404/Project-Aiko.git && cd Project-Aiko && .\INSTALL_AIKO.bat</span>
-          <button class="copy-btn" data-target="git-clone-command">Copy</button>
+        <!-- Avatar & Biology Bars -->
+        <div class="voice-avatar-col">
+          <img id="interactive-avatar-img" src="assets/01_Happy_Cheer.png" alt="Aiko Emotion Expression">
+          <div style="width: 100%;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; text-align: left; font-size: 0.8rem; font-family: var(--font-mono);">
+              <div>
+                <span style="color: var(--text-4);">Dopamine:</span>
+                <strong id="val-dopamine" style="color: #fff; margin-left: 4px;">92%</strong>
+              </div>
+              <div>
+                <span style="color: var(--text-4);">Serotonin:</span>
+                <strong id="val-serotonin" style="color: #fff; margin-left: 4px;">88%</strong>
+              </div>
+              <div>
+                <span style="color: var(--text-4);">Oxytocin:</span>
+                <strong id="val-oxytocin" style="color: #fff; margin-left: 4px;">85%</strong>
+              </div>
+              <div>
+                <span style="color: var(--text-4);">Cortisol:</span>
+                <strong id="val-cortisol" style="color: #fff; margin-left: 4px;">12%</strong>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ─── Footer ─── -->
-  <footer class="site-footer">
-    <div class="container footer-grid">
-      <div style="display: flex; align-items: center; gap: 12px;">
-        <span style="font-size: 1.4rem;">🌸</span>
-        <div>
-          <strong style="color: #fff; font-size: 1rem;">Project Aiko</strong>
-          <p style="font-size: 0.8rem; color: var(--text-muted);">The next generation autonomous desktop companion.</p>
-        </div>
+  <!-- ─── Hardware Guide (OpenAmika Authentic Tone) ─── -->
+  <section class="hardware-section" id="hardware">
+    <div class="wrap">
+      <div class="editorial-header">
+        <div class="eyebrow">Hardware Reality</div>
+        <h2>Can my hardware run fully local Aiko?</h2>
       </div>
 
-      <div style="font-size: 0.85rem; color: var(--text-muted);">
-        Released under the <a href="https://opensource.org/licenses/MIT" target="_blank" style="color: var(--accent-pink); text-decoration: none;">MIT License</a> · © 2025 - 2026 Project Aiko Contributors.
+      <div class="hardware-editorial-grid">
+        <div>
+          <div class="hardware-callout">
+            “Her brain is almost always better on an API in Semi-Local mode: it costs a few cents a day, while her voice, memory, vision, and Live2D model remain 100% on your PC.”
+          </div>
+          <p class="hardware-advice-p">
+            You do <em>not</em> need an expensive workstation to run Aiko. Because her Live2D rendering, speech synthesizer, and ChromaDB vector palace are lightweight, any modern PC or Mac handles her beautifully.
+          </p>
+          <p class="hardware-advice-p">
+            If you want 100% offline autonomy with zero internet connection, an 8GB to 12GB NVIDIA GPU (RTX 3060+) or Apple Silicon Mac runs quantized Gemma 3 or Qwen 2.5 locally with exceptional speed.
+          </p>
+        </div>
+
+        <div>
+          <table class="hardware-table">
+            <thead>
+              <tr>
+                <th>Hardware Setup</th>
+                <th>Recommended Mode</th>
+                <th>VRAM Needed</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Standard Laptop</strong><br><span style="color: var(--text-4); font-size: 0.8rem;">Intel Iris / AMD Radeon, 8-16GB RAM</span></td>
+                <td><strong style="color: var(--accent-rose);">Semi-Local</strong><br><span style="color: var(--text-3); font-size: 0.8rem;">Gemma 4 Cloud + Local Live2D/TTS</span></td>
+                <td>0 GB (Shared)</td>
+              </tr>
+              <tr>
+                <td><strong>Mid-Range Gaming / Dev PC</strong><br><span style="color: var(--text-4); font-size: 0.8rem;">RTX 3060 / 4060 / 3070, 16-32GB RAM</span></td>
+                <td><strong style="color: var(--accent-emerald);">Full Local</strong><br><span style="color: var(--text-3); font-size: 0.8rem;">Ollama Qwen 14B / Llama 8B</span></td>
+                <td>8 - 12 GB</td>
+              </tr>
+              <tr>
+                <td><strong>High-End Workstation</strong><br><span style="color: var(--text-4); font-size: 0.8rem;">RTX 3090 / 4080 / 4090, 32-64GB RAM</span></td>
+                <td><strong style="color: var(--accent-emerald);">Apex Local</strong><br><span style="color: var(--text-3); font-size: 0.8rem;">Unquantized 32B weights + Whisper</span></td>
+                <td>16 - 24 GB</td>
+              </tr>
+              <tr>
+                <td><strong>Apple Silicon (M1 / M2 / M3 / M4)</strong><br><span style="color: var(--text-4); font-size: 0.8rem;">MacBook Air / Pro / Mac Mini</span></td>
+                <td><strong style="color: #60a5fa);">Metal Local</strong><br><span style="color: var(--text-3); font-size: 0.8rem;">Ollama Metal / MLX accelerated</span></td>
+                <td>Unified RAM</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Timeline ─── -->
+  <section class="timeline-section" id="timeline">
+    <div class="wrap">
+      <div class="timeline-editorial-header">
+        Developed since October 2025
+      </div>
+
+      <div class="timeline-entries">
+        <div class="timeline-row">
+          <div class="timeline-date-label">Oct 2025</div>
+          <div>
+            <h4 class="timeline-entry-title">Initial Cognitive Architecture</h4>
+            <p class="timeline-entry-desc">Drafted the core blueprint: replacing transient chatbot prompts with continuous neurochemical biological state simulation.</p>
+          </div>
+        </div>
+
+        <div class="timeline-row">
+          <div class="timeline-date-label">Jan 2026</div>
+          <div>
+            <h4 class="timeline-entry-title">First Generation TTS &amp; Live2D Engine</h4>
+            <p class="timeline-entry-desc">Integrated 60 FPS Live2D Cubism rendering, physical hair physics, dynamic blushing, and low-latency speech synthesis.</p>
+          </div>
+        </div>
+
+        <div class="timeline-row">
+          <div class="timeline-date-label">Apr 2026</div>
+          <div>
+            <h4 class="timeline-entry-title">Memory Palace &amp; Nightly Dreams</h4>
+            <p class="timeline-entry-desc">Constructed dual ChromaDB vector and BM25 keyword recall with idle sleep cycles that synthesize lifelong memories.</p>
+          </div>
+        </div>
+
+        <div class="timeline-row">
+          <div class="timeline-date-label">Jul 2026</div>
+          <div>
+            <h4 class="timeline-entry-title">Multimodal Screen Vision &amp; Autonomous Loop</h4>
+            <p class="timeline-entry-desc">Added real-time screen inspection, PDF parsing, app control, and the background Proactive Agent routine engine.</p>
+          </div>
+        </div>
+
+        <div class="timeline-row">
+          <div class="timeline-date-label">Nov 2026</div>
+          <div>
+            <h4 class="timeline-entry-title">v2.0 Open Source &amp; Desktop Ghost Pet</h4>
+            <p class="timeline-entry-desc">Public open-source release! Added 1-click always-on-top transparent mascot overlay, taste-skill UI, and zero-config Windows installer.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── License & Truth in Software (OpenAmika Style Clarity) ─── -->
+  <section class="license-section" id="license">
+    <div class="wrap">
+      <div class="editorial-header">
+        <div class="eyebrow">Clear Terms</div>
+        <h2>Open Source &amp; Fair Use License</h2>
+        <p style="color: var(--text-2); font-size: 1.15rem; max-width: 680px;">
+          The code harness is 100% free and open under the MIT License. Clear, honest terms without surprise paywalls or hidden lock-in.
+        </p>
+      </div>
+
+      <div class="license-grid">
+        <div class="rule-box">
+          <h4 style="color: var(--accent-emerald);">✓ Permitted Under MIT</h4>
+          <ul>
+            <li>Use, modify, fork, and study the entire Python, Rust, and React harness.</li>
+            <li>Run Aiko completely offline for personal, educational, or developer productivity use.</li>
+            <li>Connect your own custom Live2D models, speech engines, and local or cloud LLMs.</li>
+            <li>Share your custom routines, themes, plugins, and memory palace tools freely.</li>
+          </ul>
+        </div>
+
+        <div class="rule-box">
+          <h4 style="color: var(--accent-vermilion);">✘ Respect &amp; Safety Boundaries</h4>
+          <ul>
+            <li>No commercial redistribution or re-licensing of bundled Live2D art assets as proprietary stock.</li>
+            <li>Never connect Aiko's autonomous agency or device control to critical safety-critical hardware without human confirmation.</li>
+            <li>PC and device control tools are provided at your own discretion; maintain sensible permissions.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Quick Install Strip ─── -->
+  <section class="install-strip" id="install">
+    <div class="wrap">
+      <div class="install-box">
+        <div>
+          <h3 style="font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; color: #fff; margin-bottom: 6px;">
+            One-Click Setup for Windows
+          </h3>
+          <p style="color: var(--text-3); font-size: 0.95rem;">
+            Automatically sets up Python, virtual environment, and desktop shortcuts with zero manual configuration.
+          </p>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+          <a href="https://github.com/omax404/Project-Aiko" target="_blank" class="btn-solid">
+            Download INSTALL_AIKO.bat
+          </a>
+          <div class="install-cmd">
+            git clone https://github.com/omax404/Project-Aiko.git
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Site Footer ─── -->
+  <footer class="site-footer">
+    <div class="wrap footer-row">
+      <div style="display: flex; align-items: baseline; gap: 8px;">
+        <span style="font-family: var(--font-serif); color: var(--accent-rose);">愛子</span>
+        <strong style="color: var(--text-1); font-family: var(--font-display);">Project Aiko</strong>
+        <span>· MIT Licensed Open Source Desktop Companion</span>
+      </div>
+
+      <div>
+        © 2025 – 2026 Project Aiko Contributors · Built with craft, taste, and zero telemetry.
       </div>
     </div>
   </footer>

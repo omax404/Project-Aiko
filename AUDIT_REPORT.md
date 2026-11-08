@@ -54,7 +54,7 @@ Severity is risk-adjusted for this threat model: single-user local app, loopback
 
 | # | Issue (evidence at audit time) | Sev | Effort | Fix approach | Status |
 |---|---|---|---|---|---|
-| 1 | **Release pipeline cannot build**: `scripts/neural_hub.spec` hardcodes `C:\Users\ousmo\...`; PyInstaller fails on runner → Tauri `externalBin` missing. | Critical | S | Resolve paths from `SPECPATH`/`__file__`; clear error if hub script missing. | **FIXED** |
+| 1 | **Release pipeline cannot build**: `scripts/neural_hub.spec` hardcodes user absolute paths; PyInstaller fails on runner → Tauri `externalBin` missing. | Critical | S | Resolve paths from `SPECPATH`/`__file__`; clear error if hub script missing. | **FIXED** |
 | 2 | **CI never green**: ubuntu install dies (`pyaudio` sdist needs portaudio); `ruff` 1 595 errors; coverage gate 70 % vs 27.5 %. | Critical | S/M | apt system deps; two-tier ruff gate (fatal rules gate, full lint advisory); coverage floor 25 with ratchet comment; pin ruff. | **FIXED** |
 | 3 | **Semantic memory dead**: `is_available()` false until `_initialized`, which only `_initialize()` sets, reachable only after the gate → conversations never embedded, context always empty. (`core/rag_memory.py:243`) | Critical | M | Memoized lazy init (`_init_attempted`), `is_available()` triggers one attempt; prime from worker thread at boot. | **FIXED** |
 | 4 | **Discord satellite crashes at import**: `bot` never instantiated → `NameError` on `@bot.event` (`core/satellites/discord_bot.py:93`). | Critical | S | Restore `commands.Bot` with `message_content`/`voice_states` intents. | **FIXED** |
