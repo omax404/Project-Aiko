@@ -2,6 +2,7 @@
 AIKO VISION ENGINE (LOCAL)
 Analysis of screens and images using local on-device MiniCPM-V 4.6.
 """
+from __future__ import annotations
 
 import os
 import sys
@@ -10,8 +11,16 @@ import asyncio
 import io
 import logging
 from typing import Optional, Union, Tuple
-from PIL import Image, ImageDraw, ImageFont, ImageChops, ImageStat
-import numpy as np
+try:
+    from PIL import Image, ImageDraw, ImageFont, ImageChops, ImageStat
+    PIL_AVAILABLE = True
+except Exception:
+    Image = ImageDraw = ImageFont = ImageChops = ImageStat = None
+    PIL_AVAILABLE = False
+try:
+    import numpy as np
+except Exception:
+    np = None
 from core.utils import retry
 from .config_manager import config
 

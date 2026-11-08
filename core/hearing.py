@@ -15,7 +15,7 @@ try:
     from moonshine_voice.mic_transcriber import MicTranscriber
     from moonshine_voice.transcriber import TranscriptEventListener, LineCompleted
     HAS_MOONSHINE = True
-except ImportError:
+except Exception:
     HAS_MOONSHINE = False
     logger.warning("moonshine-voice not installed. Run: pip install moonshine-voice")
 
@@ -23,17 +23,23 @@ except ImportError:
 try:
     import speech_recognition as sr
     HAS_SR = True
-except ImportError:
+except Exception:
     HAS_SR = False
 
 if HAS_SR:
     try:
         import pyaudio
-    except ImportError:
+    except Exception:
         logger.info("PyAudio not found. Injecting SoundDeviceMicrophone adapter for SpeechRecognition fallback.")
         import queue
-        import sounddevice as sd
-        import numpy as np
+        try:
+            import sounddevice as sd
+        except Exception:
+            sd = None
+        try:
+            import numpy as np
+        except Exception:
+            np = None
 
         class SoundDeviceMicrophone(sr.AudioSource):
             def __init__(self, device_index=None, sample_rate=None, chunk_size=1024):

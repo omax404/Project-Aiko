@@ -1,10 +1,10 @@
 // Aiko Desktop — Tauri Core v7 (window controls + proactive + TTS fix)
-// ═══════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════
 // Manages the entire Aiko ecosystem from Rust for 7x faster startup
 
 mod process_manager;
 
-use tauri::{Manager, Listener};
+use tauri::{Manager, Listener, WebviewUrl, WebviewWindowBuilder};
 use serde_json;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
@@ -13,6 +13,32 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use process_manager::ProcessManager;
+
+/// Lazily creates or retrieves the transparent Mascot overlay window so that
+/// startup does not contend on dual WebView2 controller initialization.
+fn ensure_mascot_window(app: &tauri::AppHandle) -> Option<tauri::WebviewWindow> {
+    if let Some(existing) = app.get_webview_window("mascot") {
+        return Some(existing);
+    }
+    match WebviewWindowBuilder::new(app, "mascot", WebviewUrl::App("/?mascot".into()))
+        .title("Aiko Mascot")
+        .inner_size(300.0, 420.0)
+        .resizable(false)
+        .transparent(true)
+        .decorations(false)
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .shadow(false)
+        .visible(true)
+        .build()
+    {
+        Ok(win) => Some(win),
+        Err(e) => {
+            eprintln!("[Aiko/Rust] Failed to build mascot window: {e}");
+            None
+        }
+    }
+}
 
 // ── Tauri Commands ─────────────────────────────────────────────
 
@@ -40,6 +66,20 @@ fn close_window(app: tauri::AppHandle) {
         // Keep the native window object alive so the tray can restore it and
         // the Neural Hub does not become an invisible, unreachable process.
         let _ = win.hide();
+    }
+}
+
+#[tauri::command]
+fn switch_to_mascot(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(mascot) = ensure_mascot_window(&app) {
+        let _ = mascot.show();
+        let _ = mascot.set_focus();
+        if let Some(main) = app.get_webview_window("main") {
+            let _ = main.hide();
+        }
+        Ok(())
+    } else {
+        Err("Failed to create mascot window".to_string())
     }
 }
 
@@ -91,7 +131,6 @@ async fn get_user_settings() -> Result<String, String> {
             }
         }
     }
-    // Return empty JSON object if not found
     Ok("{}".to_string())
 }
 
@@ -107,18 +146,15 @@ fn get_local_auth_token() -> Result<String, String> {
 
 #[tauri::command]
 async fn save_user_settings(settings: String) -> Result<(), String> {
-    // Prevent DoS: limit size to 100KB
     if settings.len() > 100 * 1024 {
         return Err("Settings size exceeds 100KB limit".to_string());
     }
 
-    // Validate valid JSON
     let parsed: serde_json::Value = match serde_json::from_str(&settings) {
         Ok(v) => v,
         Err(e) => return Err(format!("Invalid JSON format: {}", e)),
     };
 
-    // Ensure it's a JSON object
     if !parsed.is_object() {
         return Err("Settings must be a JSON object".to_string());
     }
@@ -137,7 +173,6 @@ async fn save_user_settings(settings: String) -> Result<(), String> {
 // ── Resolve the Aiko project root ──────────────────────────────
 
 fn find_project_root() -> Option<PathBuf> {
-    // Priority 1: Current directory (or walk up)
     if let Ok(cwd) = std::env::current_dir() {
         let mut dir = Some(cwd);
         for _ in 0..4 {
@@ -150,10 +185,7 @@ fn find_project_root() -> Option<PathBuf> {
         }
     }
 
-    // Priority 2: Relative to executable (for production builds)
     if let Ok(exe) = std::env::current_exe() {
-        // In Tauri dev: exe is in target/debug
-        // Walk up until we find core/neural_hub.py
         let mut dir = exe.parent().map(|p| p.to_path_buf());
         for _ in 0..6 {
             if let Some(ref d) = dir {
@@ -180,52 +212,42 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
-            log_error, minimize_window, maximize_window, close_window,
+            log_error, minimize_window, maximize_window, close_window, switch_to_mascot,
             check_hub_status, get_startup_status, get_process_status,
             get_user_settings, save_user_settings, get_local_auth_token
         ])
         .setup(|app| {
-            // ══════════════════════════════════════════════════════════
+            // ═════════════════════════════════════════════════════════════════
             //  RUST PROCESS MANAGER — Full ecosystem startup
-            // ══════════════════════════════════════════════════════════
+            // ════════════════════════════════════════════════════════════════════
             if let Some(project_root) = find_project_root() {
                 println!("[Aiko/Rust] Project root: {:?}", project_root);
 
                 let pm = Arc::new(ProcessManager::new(project_root));
-
-                // Store ProcessManager in Tauri state for commands
                 app.manage(pm.clone());
 
-                // IMPORTANT: All process startup runs in a background thread
-                // so the main thread can create the WebView2 window immediately.
-                // Blocking the main thread here deadlocks window creation on Windows.
                 let pm_bg = pm.clone();
                 std::thread::spawn(move || {
                     let rt = tokio::runtime::Runtime::new().unwrap();
                     rt.block_on(async {
-                        // Step 1: Check if Hub is already alive
                         let hub_already_alive = process_manager::check_hub_health("127.0.0.1", 8000).await;
 
                         if hub_already_alive {
                             println!("[Aiko/Rust] Neural Hub already online — skipping process startup");
                             println!("[Aiko/Rust] ALL SYSTEMS GO (external launcher mode)");
                         } else {
-                            // Step 2: Kill stale processes
                             println!("[Aiko/Rust] Cleaning stale processes...");
                             pm_bg.cleanup_stale_processes();
 
-                            // Step 3: Start Ollama
                             println!("[Aiko/Rust] Starting Ollama...");
                             pm_bg.start_ollama();
 
-                            // Step 4: Start Neural Hub
                             println!("[Aiko/Rust] Starting Neural Hub...");
                             match pm_bg.start_hub() {
                                 Ok(_) => println!("[Aiko/Rust] Neural Hub spawned"),
                                 Err(e) => eprintln!("[Aiko/Rust] Hub error: {}", e),
                             }
 
-                            // Step 5: Wait for hub, then start bots
                             println!("[Aiko/Rust] Waiting for Neural Hub health...");
                             let ready = process_manager::wait_for_hub("127.0.0.1", 8000, 150).await;
                             if ready {
@@ -244,48 +266,46 @@ pub fn run() {
                         }
                     });
                 });
-
-                // We DO NOT shut down processes when a window is destroyed (e.g. hidden).
-                // ProcessManager will be shut down gracefully on App Exit instead.
             } else {
                 eprintln!("[Aiko/Rust] WARNING: Could not find project root!");
             }
 
-            // ══════════════════════════════════════════════════════════
+            // ════════════════════════════════════════════════════════════════════════
             //  TRAY + SHORTCUTS + VISUAL EFFECTS
-            // ══════════════════════════════════════════════════════════
+            // ═══════════════════════════════════════════════════════════════════════════════════
             let show_i = MenuItem::with_id(app, "show", "Show Aiko Dashboard", true, None::<&str>)?;
             let mascot_i = MenuItem::with_id(app, "mascot", "Switch to Mascot Mode", true, None::<&str>)?;
             let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show_i, &mascot_i, &quit_i])?;
-            
+
             let _tray = TrayIconBuilder::new()
                 .icon(tauri::image::Image::from_bytes(include_bytes!("../icons/tray-icon.png")).unwrap())
                 .icon_as_template(true)
                 .menu(&menu)
                 .on_menu_event(|app, event| match event.id.as_ref() {
-                    "show" => { 
+                    "show" => {
                         if let Some(win) = app.get_webview_window("main") {
-                            win.show().unwrap(); 
-                            win.set_focus().unwrap();
+                            let _ = win.unminimize();
+                            let _ = win.show();
+                            let _ = win.set_focus();
                         }
                     }
                     "mascot" => {
-                        if let Some(mascot) = app.get_webview_window("mascot") {
-                            mascot.show().unwrap();
+                        if let Some(mascot) = ensure_mascot_window(app) {
+                            let _ = mascot.show();
+                            let _ = mascot.set_focus();
                             if let Some(main) = app.get_webview_window("main") {
-                                main.hide().unwrap();
+                                let _ = main.hide();
                             }
                         }
                     }
-                    "quit" => { 
+                    "quit" => {
                         if let Some(pm) = app.try_state::<Arc<ProcessManager>>() {
                             println!("[Aiko/Rust] Tray Quit triggered. Shutting down all processes...");
                             pm.shutdown();
                         }
-                        app.exit(0); 
+                        app.exit(0);
                     }
-
                     _ => {}
                 })
                 .build(app)?;
@@ -302,6 +322,7 @@ pub fn run() {
                                     if win.is_visible().unwrap_or(false) {
                                         let _ = win.hide();
                                     } else {
+                                        let _ = win.unminimize();
                                         let _ = win.show();
                                         let _ = win.set_focus();
                                     }
@@ -310,8 +331,6 @@ pub fn run() {
                         })
                         .build();
                     if let Err(error) = app.handle().plugin(plugin) {
-                        // Another Aiko instance may already own the system-wide
-                        // hotkey. Keep this launch alive; the tray stays usable.
                         eprintln!("[Aiko/Rust] Global shortcut unavailable: {error}");
                     }
                 }
@@ -325,34 +344,41 @@ pub fn run() {
         .run(|app_handle, event| {
             if let tauri::RunEvent::Ready = event {
                 if let Some(window) = app_handle.get_webview_window("main") {
-                    match window.hwnd() {
-                        Ok(hwnd) => println!("[Aiko/Rust] Main HWND ready: {:?}", hwnd),
-                        Err(error) => eprintln!("[Aiko/Rust] Main HWND unavailable after Ready: {error}"),
-                    }
-                    if let Err(error) = window.show() {
-                        eprintln!("[Aiko/Rust] Main window show failed: {error}");
-                    }
                     let _ = window.unminimize();
-                    if let Err(error) = window.set_focus() {
-                        eprintln!("[Aiko/Rust] Main window focus failed: {error}");
-                    }
+                    let _ = window.show();
+                    let _ = window.set_focus();
+
                     let win_clone = window.clone();
                     app_handle.listen("app-ready", move |_| {
-                        println!("[Aiko/Rust] Received app-ready event from frontend");
+                        let _ = win_clone.unminimize();
                         let _ = win_clone.show();
                         let _ = win_clone.set_focus();
+                    });
+
+                    // Non-blocking delayed focus check on a background thread that dispatches
+                    // back onto the Win32 main thread without stalling the message pump.
+                    let handle_for_retry = app_handle.clone();
+                    std::thread::spawn(move || {
+                        for delay_ms in [150u64, 450, 900] {
+                            std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+                            let h = handle_for_retry.clone();
+                            let _ = handle_for_retry.run_on_main_thread(move || {
+                                if let Some(win) = h.get_webview_window("main") {
+                                    let _ = win.unminimize();
+                                    let _ = win.show();
+                                }
+                            });
+                        }
                     });
                 } else {
                     eprintln!("[Aiko/Rust] RunEvent::Ready — main window missing");
                 }
             } else if let tauri::RunEvent::Exit = event {
                 if let Some(pm) = app_handle.try_state::<Arc<ProcessManager>>() {
-                    println!("[Aiko/Rust] RunEvent::Exit triggered. Shutting down processes...");
+                    println!("[Aiko/Rust] RunEvent::Exit triggered. Shutting down all processes...");
                     pm.shutdown();
                 }
             } else if let tauri::RunEvent::ExitRequested { api, .. } = event {
-                // Prevent app from exiting when all windows are closed
-                // The Tray icon will keep it alive, and "Quit" menu item will force exit.
                 api.prevent_exit();
             }
         });

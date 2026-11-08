@@ -170,7 +170,7 @@ def get_hub_port() -> int:
 
 
 async def handle_local_token(req):
-    """Return a limited token for browser-based development clients.
+    """Return an authorized token for local loopback clients.
 
     SECURITY: Only loopback addresses are allowed. Remote clients receive 403.
     This replaces the old subnet-bypass pattern with a proper local token handshake.
@@ -188,9 +188,18 @@ async def handle_local_token(req):
         logger.warning("[Auth] /token rejected: request carried proxy headers")
         return web.json_response({"error": "Forbidden"}, status=403)
 
+    token_file = BASE / "data" / "local_token.txt"
+    if token_file.exists():
+        try:
+            token = token_file.read_text(encoding="utf-8").strip()
+            if token:
+                return web.json_response({"token": token})
+        except OSError as e:
+            logger.warning(f"[Auth] Failed to read local_token.txt: {e}")
+
     from core.api.auth import generate_token
     return web.json_response({
-        "token": generate_token("local_browser", is_admin=False, expires_hours=1)
+        "token": generate_token("local_desktop", is_admin=True, expires_hours=24)
     })
 
 
@@ -290,14 +299,35 @@ async def handle_status(req):
 
 async def handle_health(req):
     try:
+        cfg = hub.config
+        provider = cfg.get("PROVIDER", "Ollama") if cfg else "Ollama"
+        model = cfg.get("MODEL_NAME", "gemma4:31b-cloud") if cfg else "gemma4:31b-cloud"
+        fallback = cfg.get("FALLBACK_MODEL", "") if cfg else ""
+        llm_url = cfg.get("LLM_URL", "http://127.0.0.1:11434/api/chat") if cfg else ""
+        api_key = cfg.get("API_KEY", "") if cfg else ""
+        tts_enabled = bool(cfg.get("TTS_ENABLED", False)) if cfg else False
+        tts_voice = str(cfg.get("TTS_VOICE", "vivian")) if cfg else "vivian"
+        memory_ok = hub.memory is not None
+        rag_avail = bool(getattr(hub.rag, "_initialized", False)) if hub.rag else False
+
         health = HealthResponse(
             status="healthy",
             timestamp=datetime.now().isoformat(),
             bridges={
                 "mcp": "online" if hub.bridge else "offline",
-                "vision": "online" if hub.vision else "offline"
+                "vision": "online" if hub.vision else "offline",
+                "tts": "online" if (tts_enabled and getattr(hub, "voice_engine", None)) else ("muted" if not tts_enabled else "offline"),
+                "memory": "online" if memory_ok else "offline",
             },
-            llm_provider=hub.config.get("PROVIDER", "Unknown") if hub.config else "Unknown"
+            llm_provider=provider,
+            llm_model=model,
+            llm_fallback=fallback or None,
+            llm_url=llm_url,
+            has_api_key=bool(api_key),
+            tts_enabled=tts_enabled,
+            tts_voice=tts_voice,
+            memory_ok=memory_ok,
+            rag_available=rag_avail,
         )
         return web.json_response(health.model_dump())
     except (AttributeError, KeyError) as e:
@@ -336,7 +366,9 @@ async def handle_create_session(req):
         hub.memory.history[uid] = []
         profile = hub.memory.get_profile(uid)
         profile["name"] = validated.title
-        hub.memory.save()
+        hub.memory._dirty_history = True
+        hub.memory._dirty_profiles = True
+        hub.memory._schedule_or_save()
         return web.json_response({"status": "success", "id": uid, "title": validated.title})
     except AttributeError as e:
         logger.error(f"Create session memory error: {e}")
@@ -629,33 +661,36 @@ async def handle_update_settings(req):
 
     try:
         user_settings_path = BASE / "user_settings.json"
-        existing = {}
-        if user_settings_path.exists():
-            try:
-                existing = json.loads(user_settings_path.read_text(encoding="utf-8"))
-            except json.JSONDecodeError as e:
-                logger.warning(f"Failed to parse existing settings: {e}")
-            except OSError as e:
-                logger.warning(f"Failed to read existing settings: {e}")
-
         update_data = validated.model_dump(exclude_unset=True)
-        for k, v in update_data.items():
-            if isinstance(v, dict) and isinstance(existing.get(k), dict):
-                merged = {**existing[k]}
-                for sub_k, sub_v in v.items():
-                    if not (_is_masked_value(sub_v) and sub_k in existing[k]):
-                        merged[sub_k] = sub_v
-                existing[k] = merged
-            else:
-                if not (_is_masked_value(v) and k in existing):
-                    existing[k] = v
 
-        # Atomic replace: a crash mid-write must not truncate the user's settings.
-        tmp_path = user_settings_path.with_suffix(".json.tmp")
-        existing = _encrypt_settings_tree(existing)
-        tmp_path.write_text(json.dumps(existing, indent=2, ensure_ascii=False), encoding="utf-8")
-        os.replace(tmp_path, user_settings_path)
-        hub.config.load()
+        def _persist_settings_sync():
+            existing = {}
+            if user_settings_path.exists():
+                try:
+                    existing = json.loads(user_settings_path.read_text(encoding="utf-8"))
+                except json.JSONDecodeError as e:
+                    logger.warning(f"Failed to parse existing settings: {e}")
+                except OSError as e:
+                    logger.warning(f"Failed to read existing settings: {e}")
+
+            for k, v in update_data.items():
+                if isinstance(v, dict) and isinstance(existing.get(k), dict):
+                    merged = {**existing[k]}
+                    for sub_k, sub_v in v.items():
+                        if not (_is_masked_value(sub_v) and sub_k in existing[k]):
+                            merged[sub_k] = sub_v
+                    existing[k] = merged
+                else:
+                    if not (_is_masked_value(v) and k in existing):
+                        existing[k] = v
+
+            tmp_path = user_settings_path.with_suffix(".json.tmp")
+            encrypted = _encrypt_settings_tree(existing)
+            tmp_path.write_text(json.dumps(encrypted, indent=2, ensure_ascii=False), encoding="utf-8")
+            os.replace(tmp_path, user_settings_path)
+            hub.config.load()
+
+        await asyncio.to_thread(_persist_settings_sync)
         logger.info("[Settings] Saved and reloaded user_settings.json")
         return web.json_response({"status": "success"})
     except AttributeError as e:
@@ -685,7 +720,8 @@ async def handle_get_settings(req):
         user_settings_path = BASE / "user_settings.json"
         if user_settings_path.exists():
             try:
-                data = json.loads(user_settings_path.read_text(encoding="utf-8"))
+                raw_text = await asyncio.to_thread(user_settings_path.read_text, "utf-8")
+                data = json.loads(raw_text)
                 for k, v in hub.config.get_all().items():
                     if k not in data:
                         data[k] = v
@@ -761,7 +797,7 @@ async def handle_upload(req):
                         {"error": f"File too large. Maximum size is {MAX_UPLOAD_SIZE // (1024*1024)}MB."},
                         status=413
                     )
-                f.write(chunk)
+                await asyncio.to_thread(f.write, chunk)
 
         logger.info(f"File uploaded safely: {filename} ({size} bytes)")
         from core.api.auth import sign_private_resource
@@ -813,19 +849,23 @@ async def handle_private_tts_audio(req):
 
 async def handle_project_structure(req):
     try:
-        root = os.getcwd()
-        structure = []
-        ignored = {'.git', '.venv', 'node_modules', '__pycache__', '.logs', '.next', '.tauri', '.agent'}
-        for item in os.listdir(root):
-            if item in ignored:
-                continue
-            path = os.path.join(root, item)
-            structure.append({
-                "name": item,
-                "type": "folder" if os.path.isdir(path) else "file",
-                "path": path,
-                "size": os.path.getsize(path) if os.path.isfile(path) else 0
-            })
+        def _scan_project():
+            root = os.getcwd()
+            structure = []
+            ignored = {'.git', '.venv', 'node_modules', '__pycache__', '.logs', '.next', '.tauri', '.agent'}
+            for item in os.listdir(root):
+                if item in ignored:
+                    continue
+                path = os.path.join(root, item)
+                structure.append({
+                    "name": item,
+                    "type": "folder" if os.path.isdir(path) else "file",
+                    "path": path,
+                    "size": os.path.getsize(path) if os.path.isfile(path) else 0
+                })
+            return structure
+
+        structure = await asyncio.to_thread(_scan_project)
         return web.json_response({"structure": structure})
     except OSError as e:
         logger.error(f"Project structure I/O error: {e}")
@@ -1088,3 +1128,156 @@ async def handle_email_settings(req):
     except Exception as e:
         logger.error(f"Email settings endpoint failed: {e}")
         return web.json_response({"error": str(e)}, status=500)
+
+
+# ============================================================
+# CUSTOM STAGE BACKGROUNDS (GIF / VIDEO / IMAGE)
+# ============================================================
+
+_BG_ALLOWED_EXTENSIONS = {
+    ".png": "image",
+    ".jpg": "image",
+    ".jpeg": "image",
+    ".webp": "image",
+    ".avif": "image",
+    ".gif": "gif",
+    ".mp4": "video",
+    ".webm": "video",
+    ".mov": "video",
+}
+_MAX_BG_UPLOAD_BYTES = 100 * 1024 * 1024  # 100 MB
+
+
+def _get_backgrounds_dir() -> Path:
+    bg_dir = BASE / "data" / "backgrounds"
+    bg_dir.mkdir(parents=True, exist_ok=True)
+    return bg_dir
+
+
+async def handle_background_upload(req):
+    """POST /api/background/upload - Upload custom image, animated GIF, or video background."""
+    user = req.get("user", {})
+    if user.get("is_admin") is not True:
+        return web.json_response({"error": "Desktop administrator access required"}, status=403)
+
+    try:
+        reader = await req.multipart()
+        field = await reader.next()
+        if not field or field.name != "file":
+            return web.json_response({"error": "Multipart 'file' field required"}, status=400)
+
+        raw_name = os.path.basename(field.filename or "background.png")
+        ext = os.path.splitext(raw_name)[1].lower()
+        if ext not in _BG_ALLOWED_EXTENSIONS:
+            return web.json_response({
+                "error": f"Unsupported file extension '{ext}'. Allowed: PNG, JPG, WEBP, GIF, MP4, WEBM, MOV."
+            }, status=400)
+
+        safe_stem = re.sub(r"[^a-zA-Z0-9_\-]", "_", os.path.splitext(raw_name)[0])[:40] or "bg"
+        unique_name = f"{safe_stem}_{int(time.time())}_{secrets.token_hex(3)}{ext}"
+        dest = _get_backgrounds_dir() / unique_name
+
+        total_bytes = 0
+        with open(dest, "wb") as f:
+            while True:
+                chunk = await field.read_chunk(65536)
+                if not chunk:
+                    break
+                total_bytes += len(chunk)
+                if total_bytes > _MAX_BG_UPLOAD_BYTES:
+                    f.close()
+                    try:
+                        dest.unlink()
+                    except OSError:
+                        pass
+                    return web.json_response({"error": "Background file exceeds 100 MB limit."}, status=413)
+                f.write(chunk)
+
+        media_kind = _BG_ALLOWED_EXTENSIONS[ext]
+        return web.json_response({
+            "status": "success",
+            "filename": unique_name,
+            "url": f"/backgrounds/{unique_name}",
+            "kind": media_kind,
+            "size": total_bytes,
+        })
+    except Exception as exc:
+        logger.error(f"Background upload error: {exc}")
+        return web.json_response({"error": f"Failed to upload background: {exc}"}, status=500)
+
+
+async def handle_background_list(req):
+    """GET /api/background/list - List all uploaded custom stage backgrounds."""
+    try:
+        bg_dir = _get_backgrounds_dir()
+        items = []
+        for entry in sorted(bg_dir.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True):
+            if not entry.is_file():
+                continue
+            ext = entry.suffix.lower()
+            if ext not in _BG_ALLOWED_EXTENSIONS:
+                continue
+            stat = entry.stat()
+            items.append({
+                "filename": entry.name,
+                "url": f"/backgrounds/{entry.name}",
+                "kind": _BG_ALLOWED_EXTENSIONS[ext],
+                "size": stat.st_size,
+                "modified": int(stat.st_mtime),
+            })
+        return web.json_response({"status": "success", "backgrounds": items})
+    except Exception as exc:
+        logger.error(f"Background list error: {exc}")
+        return web.json_response({"error": str(exc)}, status=500)
+
+
+async def handle_background_delete(req):
+    """DELETE /api/background/{filename} - Remove an uploaded background."""
+    user = req.get("user", {})
+    if user.get("is_admin") is not True:
+        return web.json_response({"error": "Desktop administrator access required"}, status=403)
+
+    filename = os.path.basename(req.match_info.get("filename", ""))
+    if not filename or ".." in filename or "/" in filename or "\\" in filename:
+        return web.json_response({"error": "Invalid filename"}, status=400)
+
+    target = (_get_backgrounds_dir() / filename).resolve()
+    if not target.is_relative_to(_get_backgrounds_dir().resolve()) or not target.is_file():
+        return web.json_response({"error": "Background not found"}, status=404)
+
+    try:
+        target.unlink()
+        return web.json_response({"status": "success", "deleted": filename})
+    except OSError as exc:
+        return web.json_response({"error": str(exc)}, status=500)
+
+
+# ============================================================
+# SAFE ACTIONS AUDIT LOG & UNDO
+# ============================================================
+
+async def handle_actions_log(req):
+    """GET /api/actions/log - Return recent PC/MCP actions and their approval/undo status."""
+    from core.infrastructure.tools.executor import get_public_action_log
+    return web.json_response({"status": "success", "actions": get_public_action_log()})
+
+
+async def handle_actions_undo(req):
+    """POST /api/actions/undo - Undo a reversible action (clipboard or file write)."""
+    user = req.get("user", {})
+    if user.get("is_admin") is not True:
+        return web.json_response({"error": "Desktop administrator access required"}, status=403)
+    try:
+        data = await req.json()
+        action_id = str(data.get("id", "")).strip()
+    except Exception:
+        return web.json_response({"error": "Invalid JSON"}, status=400)
+
+    if not action_id:
+        return web.json_response({"error": "Missing action id"}, status=400)
+
+    from core.infrastructure.tools.executor import undo_recorded_action
+    ok, msg = await undo_recorded_action(action_id)
+    if ok:
+        return web.json_response({"status": "success", "message": msg})
+    return web.json_response({"error": msg}, status=400)

@@ -96,7 +96,7 @@ full = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["core*", "execution*", "discord_bot*", "telegram_bot*"]
+include = ["core*", "execution*", "plugins*", "discord_bot*", "telegram_bot*"]
 exclude = ["tests*", "aiko-app*", "android*", "docs*", "assets*", "data*"]
 
 [tool.ruff]

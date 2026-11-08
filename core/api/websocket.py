@@ -202,22 +202,22 @@ async def _process_chat_ws(data: dict, ws: web.WebSocketResponse, user_claims: d
         gif_url = chat_res[5] if len(chat_res) > 5 else None
     except AttributeError as e:
         logger.error(f"Brain chat not initialized: {e}")
-        reply = "Neural Hub is not ready. Please try again in a moment."
+        reply = "⚠️ **Neural Hub is still initializing.** Give it 5 seconds, then try again."
         active_emotion = "sad"
         gif_url = None
     except asyncio.TimeoutError:
         logger.error("Brain chat timeout")
-        reply = "The request timed out. The AI may be overloaded."
+        reply = "⚠️ **Your model timed out while thinking.** Try again or pick a faster backup model in the chat bar."
         active_emotion = "sad"
         gif_url = None
     except (OSError, ConnectionError, aiohttp.ClientError) as e:
         logger.exception(f"Brain chat network error: {e}")
-        reply = "I couldn't reach my reasoning engine just now. Please try again in a moment."
+        reply = f"⚠️ **Could not reach your AI model** ({type(e).__name__}). Check your internet or local Ollama server, or switch models in Settings."
         active_emotion = "sad"
         gif_url = None
     except Exception as e:
         logger.exception(f"Brain chat unexpected error: {e}")
-        reply = "Something went wrong while I was thinking. Please try again."
+        reply = f"⚠️ **Thinking interrupted ({type(e).__name__}: {str(e)[:120]}).** Check the Health indicator in the top bar or try again."
         active_emotion = "sad"
         gif_url = None
     

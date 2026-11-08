@@ -17,10 +17,13 @@ Design Goals:
 import json
 import os
 import time
+import copy
 import asyncio
+import threading
+import contextlib
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, List, Optional, Any, Set
 from dataclasses import dataclass, asdict
 import logging
 import hashlib
@@ -326,9 +329,15 @@ class UnifiedMemoryManager:
         self.reminders_file = self.data_dir / "reminders.json"
         self._load_reminders()
 
-        # Auto-save timer
+        # Auto-save & write-behind state
         self._last_save = time.time()
         self._save_interval = 60  # seconds
+        self._io_lock = threading.RLock()
+        self._dirty_history = False
+        self._dirty_profiles = False
+        self._dirty_reminders = False
+        self._write_behind_task: Optional[asyncio.Task] = None
+        self._pending_bg_tasks: Set[asyncio.Future] = set()
 
         # Migrate legacy memory if new history is empty (must be after reminders_file is initialized)
         shared_memory_path = self.data_dir / "shared_memory.json"
@@ -412,11 +421,60 @@ class UnifiedMemoryManager:
                 self.reminders = []
 
     def _maybe_save(self):
-        """Save if enough time has passed."""
-        now = time.time()
-        if now - self._last_save > self._save_interval:
+        """Save if enough time has passed, or schedule async write-behind."""
+        self._schedule_or_save()
+
+    def _schedule_or_save(self, force_sync: bool = False):
+        """Coalesce disk writes on an async write-behind worker when an event loop is active."""
+        if force_sync:
             self.save()
-            self._last_save = now
+            return
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            self.save()
+            return
+
+        if self._write_behind_task is None or self._write_behind_task.done():
+            async def _debounced_writer():
+                try:
+                    await asyncio.sleep(0.08)
+                    await asyncio.to_thread(self.save)
+                except asyncio.CancelledError:
+                    await asyncio.to_thread(self.save)
+                    raise
+                except Exception as e:
+                    logger.error(f"[Memory] Write-behind error: {e}")
+
+            task = loop.create_task(_debounced_writer())
+            self._write_behind_task = task
+            self._pending_bg_tasks.add(task)
+            task.add_done_callback(self._pending_bg_tasks.discard)
+
+    def _file_to_palace_sync(self, user_id: str, role: str, content: str):
+        """Index message in MemPalace RAG (runs on worker thread when loop is active)."""
+        try:
+            from core.rag_memory import get_mempalace_rag
+            mp = get_mempalace_rag()
+            if mp.is_available():
+                mp.add_memory(
+                    text=f"{role.upper()}: {content}",
+                    metadata={"user_id": user_id, "source": "chat_history"},
+                    room="knowledge"
+                )
+        except Exception as e:
+            logger.error(f"[Memory] Palace filing error: {e}")
+
+    async def flush_async(self):
+        """Await all pending write-behind and RAG tasks and flush dirty partitions."""
+        if self._pending_bg_tasks:
+            pending = list(self._pending_bg_tasks)
+            await asyncio.gather(*pending, return_exceptions=True)
+        await asyncio.to_thread(self.save, True)
+
+    def flush(self):
+        """Synchronously flush all partitions to disk."""
+        self.save(force=True)
 
     async def async_save(self):
         """
@@ -426,11 +484,8 @@ class UnifiedMemoryManager:
         """
         await asyncio.to_thread(self.save)
 
-    def save(self):
-        """Persist all memory to disk."""
-        import os
-        import contextlib
-
+    def save(self, force: bool = False):
+        """Persist dirty (or all if force=True) memory partitions to disk atomically."""
         @contextlib.contextmanager
         def file_lock(file_path):
             lock_path = file_path.with_suffix(".lock")
@@ -479,25 +534,37 @@ class UnifiedMemoryManager:
                 tmp_path.write_text(data, encoding='utf-8')
                 os.replace(tmp_path, file_path)
 
+        with self._io_lock:
+            write_all = force or not (self._dirty_history or self._dirty_profiles or self._dirty_reminders)
+            do_history = write_all or self._dirty_history
+            do_profiles = write_all or self._dirty_profiles
+            do_reminders = write_all or self._dirty_reminders
+
+            history_snapshot = copy.deepcopy(self.history) if do_history else None
+            profiles_snapshot = copy.deepcopy(self.user_profiles) if do_profiles else None
+            reminders_snapshot = copy.deepcopy(self.reminders) if do_reminders else None
+
+            self._dirty_history = False
+            self._dirty_profiles = False
+            self._dirty_reminders = False
+            self._last_save = time.time()
+
         try:
-
-            # Save conversations
-            _write_atomic(
-                self.history_file,
-                json.dumps(self.history, indent=2, ensure_ascii=False)
-            )
-
-            # Save profiles
-            _write_atomic(
-                self.profiles_file,
-                json.dumps(self.user_profiles, indent=2, ensure_ascii=False)
-            )
-
-            # Save reminders
-            _write_atomic(
-                self.reminders_file,
-                json.dumps(self.reminders, indent=2, ensure_ascii=False)
-            )
+            if history_snapshot is not None:
+                _write_atomic(
+                    self.history_file,
+                    json.dumps(history_snapshot, indent=2, ensure_ascii=False)
+                )
+            if profiles_snapshot is not None:
+                _write_atomic(
+                    self.profiles_file,
+                    json.dumps(profiles_snapshot, indent=2, ensure_ascii=False)
+                )
+            if reminders_snapshot is not None:
+                _write_atomic(
+                    self.reminders_file,
+                    json.dumps(reminders_snapshot, indent=2, ensure_ascii=False)
+                )
         except Exception as e:
             logger.error(f"[Memory] Failed to save memory files atomically: {e}")
 
@@ -510,32 +577,32 @@ class UnifiedMemoryManager:
 
     # === Conversation History ===
 
-    def add_message(self, user_id: str, role: str, content: str, metadata: dict = None):
-        """Add message to conversation history."""
-        if user_id not in self.history:
-            self.history[user_id] = []
+    def add_message(self, user_id: str, role: str, content: str, metadata: dict = None, attachments: List[str] = None):
+        """Add message to conversation history with non-blocking write-behind persistence."""
+        with self._io_lock:
+            if user_id not in self.history:
+                self.history[user_id] = []
 
-        entry = {
-            'role': role,
-            'content': content,
-            'timestamp': time.time(),
-            'metadata': metadata or {}
-        }
+            entry = {
+                'role': role,
+                'content': content,
+                'timestamp': time.time(),
+                'metadata': metadata or {}
+            }
+            if attachments:
+                entry['attachments'] = list(attachments)
 
-        self.history[user_id].append(entry)
+            self.history[user_id].append(entry)
+            self._dirty_history = True
 
-        # File into MemPalace for high-recall long-term storage
+        # File into MemPalace for high-recall long-term storage (offloaded when loop is running)
         try:
-            from core.rag_memory import get_mempalace_rag
-            mp = get_mempalace_rag()
-            if mp.is_available():
-                mp.add_memory(
-                    text=f"{role.upper()}: {content}",
-                    metadata={"user_id": user_id, "source": "chat_history"},
-                    room="knowledge"
-                )
-        except Exception as e:
-            logger.error(f"[Memory] Palace filing error: {e}")
+            loop = asyncio.get_running_loop()
+            fut = loop.run_in_executor(None, self._file_to_palace_sync, user_id, role, content)
+            self._pending_bg_tasks.add(fut)
+            fut.add_done_callback(self._pending_bg_tasks.discard)
+        except RuntimeError:
+            self._file_to_palace_sync(user_id, role, content)
 
         # Log important messages to thought stream
         if role == 'assistant' and len(content) > 100:
@@ -548,7 +615,7 @@ class UnifiedMemoryManager:
         # Memory Compression & Archiving (Keep local history efficient)
         if len(self.history[user_id]) > 40:
             self._compress_history(user_id)
-        self.save()
+        self._schedule_or_save()
 
     def _compress_history(self, user_id: str):
         """Turn old conversation segments into a single semantic anchor."""
@@ -610,7 +677,8 @@ class UnifiedMemoryManager:
         uid = str(user_id)
         if uid in self.history:
             self.history[uid] = self.history[uid][:index]
-            self.save()
+            self._dirty_history = True
+            self._schedule_or_save()
 
     def get_history(self, user_id: str, limit: int = 20) -> List[Dict]:
         """Get conversation history for user."""
@@ -624,6 +692,7 @@ class UnifiedMemoryManager:
             self.history[user_id] = []
         else:
             self.history.clear()
+        self._dirty_history = True
         self.save()
 
     def clear_memory(self, user_id: str = None) -> bool:
@@ -645,7 +714,7 @@ class UnifiedMemoryManager:
         if not user_id and hasattr(self, 'file_graph'):
             self.file_graph.links.clear()
 
-        self.save()
+        self.save(force=True)
         return True
 
     def get_stats(self, user_id: str) -> Dict:
@@ -684,7 +753,8 @@ class UnifiedMemoryManager:
         if session_id in self.history or session_id in self.user_profiles:
             profile = self.get_profile(session_id)
             profile["name"] = new_name
-            self.save()
+            self._dirty_profiles = True
+            self._schedule_or_save()
             return True
         return False
 
@@ -694,7 +764,8 @@ class UnifiedMemoryManager:
             profile = self.get_profile(session_id)
             current = profile.get("pinned", False)
             profile["pinned"] = not current
-            self.save()
+            self._dirty_profiles = True
+            self._schedule_or_save()
             return True
         return False
 
@@ -703,12 +774,14 @@ class UnifiedMemoryManager:
         deleted = False
         if session_id in self.history:
             del self.history[session_id]
+            self._dirty_history = True
             deleted = True
         if session_id in self.user_profiles:
             del self.user_profiles[session_id]
+            self._dirty_profiles = True
             deleted = True
         if deleted:
-            self.save()
+            self._schedule_or_save()
             return True
         return False
 
@@ -723,12 +796,14 @@ class UnifiedMemoryManager:
                 'first_seen': time.time(),
                 'message_count': 0
             }
+            self._dirty_profiles = True
         return self.user_profiles[user_id]
 
     def update_preference(self, user_id: str, key: str, value: Any):
         """Update user preference."""
         profile = self.get_profile(user_id)
         profile['preferences'][key] = value
+        self._dirty_profiles = True
         self._maybe_save()
 
     # === Reminders ===
@@ -745,7 +820,8 @@ class UnifiedMemoryManager:
             "created_at": time.time()
         }
         self.reminders.append(reminder)
-        self.save()
+        self._dirty_reminders = True
+        self._schedule_or_save()
         return reminder["id"]
 
     def get_reminders(self, user_id: str = None) -> List[Dict]:
@@ -759,7 +835,8 @@ class UnifiedMemoryManager:
         initial_len = len(self.reminders)
         self.reminders = [r for r in self.reminders if r["id"] != reminder_id]
         if len(self.reminders) < initial_len:
-            self.save()
+            self._dirty_reminders = True
+            self._schedule_or_save()
             return True
         return False
 
@@ -769,7 +846,8 @@ class UnifiedMemoryManager:
         due = [r for r in self.reminders if r["due_time"] <= now]
         if due:
             self.reminders = [r for r in self.reminders if r["due_time"] > now]
-            self.save()
+            self._dirty_reminders = True
+            self._schedule_or_save()
         return due
 
     # === Thoughts ===

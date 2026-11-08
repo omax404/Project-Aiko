@@ -859,14 +859,31 @@ def main():
 
     try:
         consecutive_failures = 0
+        crash_restarts = 0
+        MAX_CRASH_RESTARTS = 3
         while True:
             if hub_proc.poll() is not None:
                 # Double-check if the server is still active (e.g. wrapper stub spawned grandchild)
                 if not http_ok(f"{NEURAL_HUB_URL}/status", timeout=10):
                     consecutive_failures += 1
-                    if consecutive_failures >= 15:
-                        UI.err("Neural Hub exited unexpectedly (15 consecutive health check failures)!")
-                        break
+                    if consecutive_failures >= 5:
+                        exit_code = hub_proc.returncode
+                        UI.err(f"Neural Hub exited unexpectedly (code={exit_code})!")
+                        if crash_restarts < MAX_CRASH_RESTARTS:
+                            crash_restarts += 1
+                            consecutive_failures = 0
+                            UI.warn(f"[Crash Recovery] Auto-restarting Neural Hub (attempt {crash_restarts}/{MAX_CRASH_RESTARTS})...")
+                            try:
+                                with open(LOG_DIR / "crash_recovery.log", "a", encoding="utf-8") as cf:
+                                    cf.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Hub crashed (exit={exit_code}); auto-restart #{crash_restarts}\n")
+                            except Exception:
+                                pass
+                            hub_proc = start_neural_hub()
+                            time.sleep(3)
+                            continue
+                        else:
+                            UI.err("Maximum auto-restart attempts reached. Check .logs/neural_hub.log for details.")
+                            break
                 else:
                     consecutive_failures = 0
             if tauri_proc and tauri_proc.poll() is not None:
@@ -878,7 +895,69 @@ def main():
     finally:
         kill_all()
 
+
+def run_preflight_check() -> int:
+    """OpenAmika-style `launch.py --check` health diagnostics without starting servers."""
+    UI.banner("AIKO PREFLIGHT DIAGNOSTICS (--check)")
+    issues = 0
+
+    # 1. Python Venv
+    if check_python_works(PYTHON):
+        UI.ok(f"Python environment ready ({PYTHON})")
+    else:
+        UI.err(f"Python environment missing aiohttp ({PYTHON})")
+        issues += 1
+
+    # 2. Settings & LLM config
+    settings_path = BASE / "user_settings.json"
+    if settings_path.exists():
+        try:
+            cfg = _json.loads(settings_path.read_text(encoding="utf-8"))
+            llm = cfg.get("llm") or {}
+            provider = llm.get("provider", "Ollama")
+            model = llm.get("model", "gemma4:31b-cloud")
+            has_key = bool(llm.get("api_key"))
+            UI.ok(f"Brain configured: provider={provider}, model={model}, api_key={'set' if has_key else 'none'}")
+        except Exception as e:
+            UI.err(f"user_settings.json corrupt: {e}")
+            issues += 1
+    else:
+        UI.warn("user_settings.json not found (will be created on first launch)")
+
+    # 3. Local Ollama check
+    if http_ok("http://127.0.0.1:11434/api/tags", timeout=3):
+        UI.ok("Ollama service reachable at http://127.0.0.1:11434")
+    else:
+        UI.warn("Local Ollama not responding on :11434 (OK if using a pure cloud endpoint)")
+
+    # 4. Live2D & Frontend build
+    if (APP_DIR / "dist" / "index.html").exists():
+        UI.ok("Frontend production bundle ready (aiko-app/dist/index.html)")
+    else:
+        UI.warn("Frontend dist/ not built yet — run `npm run build` inside aiko-app")
+
+    if (APP_DIR / "public" / "live2d" / "vivian" / "vivian.model3.json").exists():
+        UI.ok("Live2D companion model ready (vivian.model3.json)")
+    else:
+        UI.warn("Live2D model vivian.model3.json not found")
+
+    print()
+    if issues == 0:
+        UI.ok("result: ready ✨")
+        return 0
+    else:
+        UI.err(f"result: {issues} issue(s) need attention")
+        return 1
+
+
 if __name__ == "__main__":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+    if "--check" in sys.argv:
+        sys.exit(run_preflight_check())
     try:
         main()
     except Exception as e:

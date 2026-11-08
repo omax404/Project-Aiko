@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "plugin": "iot",
+  "transport": {
+    "protocol": "mqtt",
+    "default_port": 1883,
+    "topic_prefix": "aiko/devices",
+    "qos": 1
+  },
+  "scopes": {
+    "read": "Read device state without changing it",
+    "write": "Change a device state to a specific value",
+    "toggle": "Flip a device between its off and on states"
+  },
+  "confirmation": {
+    "mode": "per_action",
+    "required": true,
+    "auto_approve": false,
+    "prompt_template": "Aiko wants to {scope} device '{device_id}' over MQTT. Allow this action once?"
+  },
+  "tools": [
+    {
+      "name": "iot.device.toggle",
+      "description": "Toggle an allowed smart-home device on or off via MQTT. Requires one-time human approval.",
+      "scope": "toggle",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "device_id": {
+            "type": "string",
+            "description": "Device id from the configured allowlist (a-z, A-Z, 0-9, _ or -)."
+          }
+        },
+        "required": ["device_id"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "iot.device.set",
+      "description": "Set an allowed smart-home device to a specific state via MQTT. Requires one-time human approval.",
+      "scope": "write",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "device_id": {
+            "type": "string",
+            "description": "Device id from the configured allowlist."
+          },
+          "value": {
+            "type": ["string", "number", "boolean"],
+            "description": "Desired state (e.g. \"on\", \"off\", 40, true)."
+          }
+        },
+        "required": ["device_id", "value"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "iot.device.read",
+      "description": "Ask an allowed smart-home device to report its state over MQTT. Requires one-time human approval.",
+      "scope": "read",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "device_id": {
+            "type": "string",
+            "description": "Device id from the configured allowlist."
+          }
+        },
+        "required": ["device_id"],
+        "additionalProperties": false
+      }
+    }
+  ]
+}

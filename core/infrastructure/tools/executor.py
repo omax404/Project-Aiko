@@ -21,13 +21,26 @@ SAFE_PYTHON_FUNCTIONS = {
     "divide": lambda x, y: float(x) / float(y) if float(y) != 0 else "division by zero",
 }
 
-# PRE-COMPILED REGEX PATTERNS (Performance Optimization)
+# PRE-COMPILED REGEX PATTERNS (Performance Optimization & Single Source of Truth)
+SUPPORTED_TOOL_TAGS = (
+    "OPEN", "SCAN", "CAMERA", "TYPE", "CLICK", "PRESS", "TASK", "WAIT",
+    "WALLPAPER", "LATEX", "GAME", "EXEC", "ARGS", "MCP", "BIO_REGISTER",
+    "MUSIC", "EMAIL_SEND", "EMAIL_INBOX", "IMAGE", "GIF", "RECALL",
+    "VTS_BG", "WEATHER", "LETTER", "NOTE", "READ", "WRITE", "REFLECTIVE_STATE",
+)
+CLEANABLE_TOOL_TAGS_RE = re.compile(
+    r"\[(?:" + "|".join(SUPPORTED_TOOL_TAGS) + r")\b[^\]]*\]",
+    re.IGNORECASE | re.DOTALL,
+)
+
 EXEC_PATTERN = re.compile(r'\[EXEC\s*:\s*(\w+)\](?:\s*\[ARGS\s*:\s*(.*?)\])?', re.IGNORECASE | re.DOTALL)
 LATEX_PATTERN = re.compile(r'\[LATEX\s*:\s*(.*?)\]', re.IGNORECASE | re.DOTALL)
 OPEN_PATTERN = re.compile(r'\[OPEN\s*:\s*(.*?)\]', re.IGNORECASE)
 TYPE_PATTERN = re.compile(r'\[TYPE\s*:\s*(.*?)\]', re.IGNORECASE)
 CLICK_PATTERN = re.compile(r'\[CLICK\s*:\s*(.*?)\]', re.IGNORECASE)
 PRESS_PATTERN = re.compile(r'\[PRESS\s*:\s*(.*?)\]', re.IGNORECASE)
+WAIT_PATTERN = re.compile(r'\[WAIT\s*:\s*(.*?)\]', re.IGNORECASE)
+WALLPAPER_PATTERN = re.compile(r'\[WALLPAPER\s*:\s*(.*?)\]', re.IGNORECASE)
 TASK_PATTERN = re.compile(r'\[TASK\s*:\s*(.*?)\]', re.IGNORECASE | re.DOTALL)
 NOTE_PATTERN = re.compile(r'\[NOTE\s*:\s*(.*?)\]', re.IGNORECASE | re.DOTALL)
 READ_PATTERN = re.compile(r'\[READ\s*:\s*(.*?)\]', re.IGNORECASE)
@@ -39,6 +52,84 @@ BIO_REGISTER_PATTERN = re.compile(r'\[BIO_REGISTER\]', re.IGNORECASE)
 EMAIL_SEND_PATTERN = re.compile(r'\[EMAIL_SEND\s*:\s*([^|\]]+?)\s*\|\s*([^|\]]+?)\s*\|\s*(.*?)\]', re.IGNORECASE | re.DOTALL)
 EMAIL_INBOX_PATTERN = re.compile(r'\[EMAIL_INBOX\]', re.IGNORECASE)
 IMAGE_PATTERN = re.compile(r'\[IMAGE\s*:\s*(.*?)\]', re.IGNORECASE | re.DOTALL)
+
+# Bounded audit log of tool actions for the Safe Actions Log & Undo UI
+import time as _time
+import uuid as _uuid
+
+ACTION_AUDIT_LOG: List[Dict[str, Any]] = []
+_MAX_ACTION_LOG = 100
+
+
+def record_action_log(
+    tool_name: str,
+    args: Dict[str, Any],
+    status: str,
+    detail: str = "",
+    undo_type: Optional[str] = None,
+    undo_payload: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Record a safe action execution or denial for user transparency and optional undo."""
+    entry = {
+        "id": _uuid.uuid4().hex[:12],
+        "timestamp": _time.time(),
+        "tool": tool_name,
+        "args": {k: (str(v)[:200] if isinstance(v, str) else v) for k, v in (args or {}).items()},
+        "status": status,  # "executed" | "denied" | "blocked" | "error" | "undone"
+        "detail": str(detail)[:300],
+        "can_undo": bool(undo_type and undo_payload),
+        "undo_type": undo_type,
+        "_undo_payload": undo_payload or {},
+    }
+    ACTION_AUDIT_LOG.insert(0, entry)
+    if len(ACTION_AUDIT_LOG) > _MAX_ACTION_LOG:
+        del ACTION_AUDIT_LOG[_MAX_ACTION_LOG:]
+    return entry
+
+
+def get_public_action_log() -> List[Dict[str, Any]]:
+    """Return sanitized action log entries without internal undo payload blobs."""
+    return [
+        {k: v for k, v in item.items() if not k.startswith("_")}
+        for item in ACTION_AUDIT_LOG
+    ]
+
+
+async def undo_recorded_action(action_id: str) -> tuple[bool, str]:
+    """Undo a previously executed reversible action by ID."""
+    for item in ACTION_AUDIT_LOG:
+        if item.get("id") == action_id:
+            if not item.get("can_undo") or item.get("status") == "undone":
+                return False, "This action cannot be undone or was already undone."
+            u_type = item.get("undo_type")
+            payload = item.get("_undo_payload") or {}
+            try:
+                if u_type == "clipboard":
+                    prev_text = payload.get("previous_clipboard", "")
+                    await mcp_bridge.set_clipboard(prev_text)
+                    item["status"] = "undone"
+                    item["can_undo"] = False
+                    item["detail"] = "Undone: restored previous clipboard text."
+                    return True, "Restored previous clipboard contents."
+                elif u_type == "write_file":
+                    path = payload.get("path", "")
+                    existed = payload.get("existed", False)
+                    prev_content = payload.get("previous_content", "")
+                    if existed and path:
+                        await mcp_bridge.write_file(path, prev_content)
+                        msg = f"Restored previous file version: {path}"
+                    elif path and os.path.isfile(path):
+                        await asyncio.to_thread(os.remove, path)
+                        msg = f"Removed newly created file: {path}"
+                    else:
+                        return False, "Target file no longer exists."
+                    item["status"] = "undone"
+                    item["can_undo"] = False
+                    item["detail"] = f"Undone: {msg}"
+                    return True, msg
+            except Exception as exc:
+                return False, f"Undo failed: {exc}"
+    return False, "Action ID not found."
 
 
 @dataclass
@@ -65,6 +156,9 @@ class AgentExecutor:
             "TYPE": self._handle_type,
             "CLICK": self._handle_click,
             "PRESS": self._handle_press,
+            "WAIT": self._handle_wait,
+            "TASK": self._handle_task,
+            "WALLPAPER": self._handle_wallpaper,
             "MCP": self._handle_mcp,
             "RECALL": self._handle_recall,
             "EMAIL_SEND": self._handle_email_send,
@@ -186,9 +280,9 @@ class AgentExecutor:
         for tag in re.findall(r'\[([A-Z0-9_]+)\b.*?\]', text, re.I):
             # Skip core tools to avoid duplicate parsing
             if tag.upper() in {
-                "EXEC", "ARGS", "LATEX", "OPEN", "TYPE", "CLICK", "PRESS", "TASK", "NOTE", 
-                "READ", "WRITE", "MCP", "GIF", "RECALL", 
-                "BIO_REGISTER", "SCAN", "CAMERA", "IMAGE"
+                "EXEC", "ARGS", "LATEX", "OPEN", "TYPE", "CLICK", "PRESS", "WAIT", "WALLPAPER",
+                "TASK", "NOTE", "READ", "WRITE", "MCP", "GIF", "RECALL",
+                "BIO_REGISTER", "SCAN", "CAMERA", "IMAGE", "EMAIL_SEND", "EMAIL_INBOX"
             }:
                 continue
             for match in re.finditer(rf'\[{tag}\s*:\s*(.*?)\]', text, re.I):
@@ -241,6 +335,14 @@ class AgentExecutor:
         for match in PRESS_PATTERN.finditer(text):
             actions_with_pos.append((match.start(), AgentAction(tool_name="PRESS", args={"key": match.group(1).strip()}, raw_content=match.group(0))))
 
+        # 11b. WAIT / TASK / WALLPAPER
+        for match in WAIT_PATTERN.finditer(text):
+            actions_with_pos.append((match.start(), AgentAction(tool_name="WAIT", args={"seconds": match.group(1).strip()}, raw_content=match.group(0))))
+        for match in TASK_PATTERN.finditer(text):
+            actions_with_pos.append((match.start(), AgentAction(tool_name="TASK", args={"goal": match.group(1).strip()}, raw_content=match.group(0))))
+        for match in WALLPAPER_PATTERN.finditer(text):
+            actions_with_pos.append((match.start(), AgentAction(tool_name="WALLPAPER", args={"target": match.group(1).strip()}, raw_content=match.group(0))))
+
         # 12. MCP
         for match in MCP_PATTERN.finditer(text):
             tool = match.group(1).strip().lower()
@@ -282,7 +384,7 @@ class AgentExecutor:
                 # Sensitive system tools ALWAYS require confirmation, even for admin/master,
                 # to prevent indirect prompt injection from driving the desktop autonomously.
                 CONFIRMATION_REQUIRED_TOOLS = {
-                    "OPEN", "TYPE", "CLICK", "PRESS", "EMAIL_SEND",
+                    "OPEN", "TYPE", "CLICK", "PRESS", "EMAIL_SEND", "WALLPAPER",
                     # Privacy-sensitive reads: without a confirmation an avatar
                     # driven by an untrusted conversation (Discord/Twitch) could
                     # exfiltrate the screen, webcam, inbox, or biometrics.
@@ -306,17 +408,23 @@ class AgentExecutor:
                         res = f"[TOOL_BLOCKED] Execution of {action.tool_name} was denied or timed out."
                         observations.append(res)
                         orchestrator.emit_tool_result(action.tool_name, "Denied by user")
+                        record_action_log(action.tool_name, action.args, "denied", "User denied or timed out on confirmation card.")
                         continue
 
                 # Dispatch tool handling to registered handler method
                 handler = self._handlers.get(action.tool_name)
                 if handler:
+                    obs_before = len(observations)
                     await handler(brain, action, observations, images_data, is_admin, user_id)
+                    latest_obs = observations[-1] if len(observations) > obs_before else "Completed"
+                    if not getattr(action, "_logged", False):
+                        record_action_log(action.tool_name, action.args, "executed", str(latest_obs)[:240])
                 else:
                     logger.warning(f"No handler registered for tool: {action.tool_name}")
 
             except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
                 observations.append(f"Tool Error ({action.tool_name}): {e}")
+                record_action_log(action.tool_name, action.args, "error", str(e))
 
     # --- INDIVIDUAL HANDLER ACTIONS ---
 
@@ -502,6 +610,38 @@ class AgentExecutor:
         except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:
             observations.append(f"[System Error: Key press failed: {e}]")
 
+    async def _handle_wait(self, brain, action, observations, images_data, is_admin, user_id):
+        try:
+            raw_sec = str(action.args.get("seconds", "1")).strip().rstrip("s")
+            secs = max(0.1, min(15.0, float(raw_sec)))
+        except ValueError:
+            secs = 1.0
+        await asyncio.sleep(secs)
+        observations.append(f"[System: Waited {secs:.1f}s]")
+
+    async def _handle_task(self, brain, action, observations, images_data, is_admin, user_id):
+        goal = action.args.get("goal", "").strip()
+        observations.append(f"[System: Task goal registered: '{goal[:120]}']")
+
+    async def _handle_wallpaper(self, brain, action, observations, images_data, is_admin, user_id):
+        if not is_admin:
+            observations.append("[Security Block: Unauthorized user cannot change desktop wallpaper.]")
+            return
+        target = action.args.get("target", "").strip()
+        if not target or not os.path.isfile(target):
+            observations.append(f"[System Error: Wallpaper file not found: '{target}']")
+            return
+        if os.name == "nt":
+            try:
+                import ctypes
+                abs_path = os.path.abspath(target)
+                await asyncio.to_thread(ctypes.windll.user32.SystemParametersInfoW, 20, 0, abs_path, 3)
+                observations.append(f"[System: Desktop wallpaper updated to '{abs_path}']")
+            except Exception as exc:
+                observations.append(f"[System Error: Wallpaper update failed: {exc}]")
+        else:
+            observations.append("[System Error: Wallpaper change is only supported on Windows.]")
+
     async def _handle_mcp(self, brain, action, observations, images_data, is_admin, user_id):
         tool_mcp = action.args["tool"]
         arg_str = action.args["arg_str"]
@@ -524,6 +664,28 @@ class AgentExecutor:
         }.get(tool_mcp, ""), None)
 
         if method:
+            undo_type = None
+            undo_payload = None
+            if tool_mcp == "set_clipboard":
+                try:
+                    prev_clip = await mcp_bridge.get_clipboard()
+                    undo_type = "clipboard"
+                    undo_payload = {"previous_clipboard": str(prev_clip)}
+                except Exception:
+                    pass
+            elif tool_mcp == "write_file" and "|" in arg_str:
+                target_path = arg_str.split("|", 1)[0].strip()
+                existed = os.path.isfile(target_path)
+                prev_content = ""
+                if existed:
+                    try:
+                        with open(target_path, "r", encoding="utf-8", errors="ignore") as f:
+                            prev_content = f.read(200_000)
+                    except Exception:
+                        pass
+                undo_type = "write_file"
+                undo_payload = {"path": target_path, "existed": existed, "previous_content": prev_content}
+
             if "|" in arg_str:
                 parts = [p.strip() for p in arg_str.split("|")]
                 result = await method(*parts)
@@ -533,6 +695,16 @@ class AgentExecutor:
                 result = await method()
             logger.info(f"[MCP] {tool_mcp}: {str(result)[:80]}")
             observations.append(result)
+            if undo_type:
+                record_action_log(
+                    f"MCP:{tool_mcp}",
+                    action.args,
+                    "executed",
+                    str(result)[:240],
+                    undo_type=undo_type,
+                    undo_payload=undo_payload,
+                )
+                action._logged = True  # type: ignore[attr-defined]
         else:
             observations.append(f"[MCP] Unknown tool: {tool_mcp}")
 
@@ -541,9 +713,9 @@ class AgentExecutor:
         room = action.args["room"]
         if brain.rag:
             if getattr(brain.rag, 'use_mempalace', False) and hasattr(brain.rag, 'mempalace'):
-                res = brain.rag.mempalace.search_memory(query, n_results=5, room=room)
+                res = await asyncio.to_thread(brain.rag.mempalace.search_memory, query, 5, room)
             else:
-                res = brain.rag.search_memory(query, n_results=5)
+                res = await asyncio.to_thread(brain.rag.search_memory, query, 5)
             if res:
                 obs = f"\n[RECALL RESULT for '{query}']:\n"
                 for i, r in enumerate(res, 1):

@@ -224,7 +224,7 @@ async def start_background_tasks(app):
     logger.info(f"[Hub] {len(background_tasks)} background tasks started.")
 
 async def cleanup_background_tasks(app):
-    """Cancel all background loops on shutdown."""
+    """Cancel all background loops and flush write-behind memory on shutdown."""
     logger.info("[Hub] Cleaning up background tasks...")
     for task in background_tasks:
         task.cancel()
@@ -233,4 +233,9 @@ async def cleanup_background_tasks(app):
         await asyncio.gather(*background_tasks, return_exceptions=True)
     
     background_tasks.clear()
+    if hub.memory and hasattr(hub.memory, "flush_async"):
+        try:
+            await hub.memory.flush_async()
+        except Exception as e:
+            logger.error(f"[Hub] Final memory flush failed: {e}")
     logger.info("[Hub] All background tasks cleaned up.")

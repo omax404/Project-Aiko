@@ -9,6 +9,7 @@ import {
 import { clsx } from 'clsx';
 import { useNeuralStore } from "../store/useNeuralStore";
 import { GifPicker } from "./GifPicker";
+import { ModelPicker } from "./ModelPicker";
 import { AnimatePresence } from "framer-motion";
 import { GothicButton } from "./GothicButton";
 
@@ -28,6 +29,7 @@ export function InputDock() {
   const uploadFile = useNeuralStore((s) => s.uploadFile);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -41,7 +43,7 @@ export function InputDock() {
   const handleSend = () => {
     if ((!text.trim() && pendingFiles.length === 0) || isThinking || isSendingRef.current) return;
     isSendingRef.current = true;
-    const sendContent = text.trim();
+    const sendContent = text.trim() || (pendingFiles.length > 0 ? "Look at what I attached for you, Aiko!" : "");
     const sendFiles = pendingFiles.map(f => f.url);
     setText("");
     setPendingFiles([]);
@@ -53,6 +55,37 @@ export function InputDock() {
 
   const handleAttach = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleImageAttach = () => {
+    imageInputRef.current?.click();
+  };
+
+  const handlePaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const imageFiles: File[] = [];
+    for (const item of Array.from(items)) {
+      if (item.kind === 'file' && item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (file) imageFiles.push(file);
+      }
+    }
+    if (imageFiles.length === 0) return;
+    e.preventDefault();
+    setIsUploading(true);
+    try {
+      const newFiles: {url: string, filename: string, type: string}[] = [];
+      for (const file of imageFiles) {
+        const res = await uploadFile(file);
+        newFiles.push(res);
+      }
+      setPendingFiles(prev => [...prev, ...newFiles]);
+    } catch (err) {
+      console.error("Clipboard image upload failed", err);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -92,12 +125,10 @@ export function InputDock() {
           <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--b1)]">
             {/* Model pill */}
             <div className="flex items-center gap-1.5">
-              <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-[var(--p-accent-soft)] border border-[var(--b1)]">
-                <Sparkles size={10} className="text-[var(--p-accent)] shrink-0" />
-                <span className="text-[11px] font-semibold text-[var(--p-accent)] tracking-wide truncate max-w-[140px]">
-                  {apiConfig.model}
-                </span>
-              </div>
+              <ModelPicker
+                fallbackLabel={apiConfig.model}
+                icon={<Sparkles size={10} className="text-[var(--p-accent)] shrink-0" />}
+              />
             </div>
 
             {/* Controls */}
@@ -164,13 +195,22 @@ export function InputDock() {
             className="hidden"
             accept="image/*,application/pdf,text/*,.py,.js,.json"
           />
+          <input
+            type="file"
+            ref={imageInputRef}
+            onChange={onFileChange}
+            multiple
+            title="Image Upload"
+            className="hidden"
+            accept="image/png,image/jpeg,image/webp,image/gif,image/bmp"
+          />
 
           {/* Textarea + action row */}
           <div className="flex items-end gap-2 px-2 pb-2 pt-1">
             <button
               onClick={handleAttach}
               aria-label="Attach file"
-              title="Attach File"
+              title="Attach File or Document (+)"
               className="p-2 rounded-[var(--p-radius-sm)] text-[var(--t3)] hover:text-[var(--t1)] hover:bg-[var(--bg-hover)] transition-all duration-150 mb-1 shrink-0"
             >
               <Plus size={17} strokeWidth={2} />
@@ -178,23 +218,31 @@ export function InputDock() {
 
             <div className="relative mb-1 shrink-0">
               <button
-                onClick={() => setShowGifPicker(!showGifPicker)}
-                aria-label="Open animated assets picker"
-                title="Animated Assets"
+                onClick={handleImageAttach}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setShowGifPicker(!showGifPicker);
+                }}
+                aria-label="Upload image to chat"
+                title="Send Image (Right-click for Stickers)"
                 className={clsx(
                   "p-2 rounded-[var(--p-radius-sm)] transition-all duration-150",
-                  showGifPicker
+                  showGifPicker || pendingFiles.length > 0
                     ? "text-[var(--p-accent)] bg-[var(--p-accent-soft)]"
                     : "text-[var(--t3)] hover:text-[var(--p-accent)] hover:bg-[var(--p-accent-soft)]"
                 )}
               >
-                <ImageIcon size={17} strokeWidth={2} className={clsx(showGifPicker && "animate-pulse")} />
+                <ImageIcon size={17} strokeWidth={2} className={clsx((showGifPicker || isUploading) && "animate-pulse")} />
               </button>
 
               <AnimatePresence>
                 {showGifPicker && (
                   <GifPicker
                     onClose={() => setShowGifPicker(false)}
+                    onUploadClick={() => {
+                      setShowGifPicker(false);
+                      handleImageAttach();
+                    }}
                     onSelect={(url) => {
                       sendMessage(`![Neural_Asset](${url})`);
                       setShowGifPicker(false);
@@ -208,6 +256,7 @@ export function InputDock() {
               ref={textareaRef}
               value={text}
               onChange={(e) => setText(e.target.value)}
+              onPaste={handlePaste}
               onKeyDown={(e) => {
                 if (e.nativeEvent.isComposing) return;
                 if (e.key === 'Enter' && !e.shiftKey) {

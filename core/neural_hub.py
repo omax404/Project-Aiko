@@ -3,6 +3,10 @@ core/neural_hub.py
 Refactored Neural Hub — modular, with JWT auth, clean architecture.
 Original 1,124 lines → ~200 lines by extracting routes, websocket, broadcast, and background tasks.
 """
+try:
+    import ctypes
+except Exception:
+    ctypes = None
 import os
 import time
 import json
@@ -15,7 +19,34 @@ from aiohttp.web_middlewares import middleware
 
 
 from core.config_manager import config
-from core.chat_engine import AikoBrain
+from core.cognition import (
+    AikoBrain,
+    EmotionEngine,
+    ProactiveAgent,
+    autonomous_agent,
+    detect_emotion,
+)
+from core.perception import (
+    HearingEngine,
+    VisionEngine,
+    VoiceEngine,
+)
+from core.memory import (
+    RAGMemorySystem,
+    get_card_manager,
+    get_unified_memory,
+    memory_consolidator,
+)
+from core.automation import (
+    MessageQueue,
+    PCManager,
+    mcp_bridge,
+    startup_manager,
+)
+from core.integrations import (
+    LatexEngine,
+    ObsidianConnector,
+)
 from core.security import policy_engine
 from core.api.auth import jwt_middleware, generate_token
 from core.api.hub_state import hub
@@ -28,33 +59,23 @@ from core.api.routes import (
     handle_webrtc_offer, handle_local_token, handle_bot_token, handle_private_upload,
     handle_mobile_pair_code, handle_mobile_pair_exchange,
     handle_private_tts_audio, handle_email_send,
-    handle_email_inbox, handle_email_settings
+    handle_email_inbox, handle_email_settings,
+    handle_background_upload, handle_background_list, handle_background_delete,
+    handle_actions_log, handle_actions_undo
 )
 from core.api.websocket import handle_ws
 from core.api.background import start_background_tasks, cleanup_background_tasks
 from core.api.broadcast import broadcast_event
-from core.mcp_bridge import mcp_bridge
-from core.autonomous_agent import autonomous_agent
+from core.api.upload_resign import handle_upload_resign
+from core.api.model_routes import handle_models
+from core.routines import routines, handle_routines_get, handle_routines_post
+from core.api.memory_routes import handle_memory_profile_get, handle_memory_profile_put
+from core.nanomuse_bridge import (
+    nanomuse_bridge, handle_nanomuse_status, handle_nanomuse_task, handle_nanomuse_config
+)
 from core.plugins.game_plugin import GamePlugin
 from core.plugins.spotify_plugin import SpotifyPlugin
-
-from core.emotion_engine import EmotionEngine
-from core.persona import detect_emotion
-from core.voice import VoiceEngine
-from core.hearing import HearingEngine
-from core.obsidian_connector import ObsidianConnector
-from core.latex_engine import LatexEngine
-from core.rag_memory import RAGMemorySystem
-from core.unified_memory import get_unified_memory
-from core.memory_consolidator import memory_consolidator
-from core.proactive import ProactiveAgent
-from core.message_queue import MessageQueue
-from core.startup_manager import startup_manager
-from core.vision import VisionEngine
-from core.pc_manager import PCManager
-
 from core.structured_logger import system_logger
-from core.card_engine import get_card_manager
 
 
 BASE = Path(__file__).parent.parent
@@ -313,6 +334,17 @@ async def on_startup(app):
     logger.info("="*40 + "\n")
     
     # 20. Start background tasks
+    # nanoMuse bridge: stays off unless enabled with `python -m core.nanomuse_bridge enable`
+    try:
+        await routines.start()
+    except Exception as e:
+        logger.warning(f" [Hub] Routines not started: {e}")
+
+    try:
+        await nanomuse_bridge.start()
+    except Exception as e:
+        logger.warning(f" [Hub] nanoMuse bridge not started: {e}")
+
     await start_background_tasks(app)
     
     # 21. Broadcast boot event
@@ -337,16 +369,19 @@ def build_hub_app() -> web.Application:
     
     # Static routes
     uploads_dir = BASE / 'data' / 'uploads'
+    backgrounds_dir = BASE / 'data' / 'backgrounds'
     assets_dir = BASE / 'assets'
     stickers_dir = BASE / 'aiko-app' / 'public' / 'stickers'
     if not stickers_dir.exists():
         stickers_dir = BASE / 'stickers'
     
     uploads_dir.mkdir(parents=True, exist_ok=True)
+    backgrounds_dir.mkdir(parents=True, exist_ok=True)
     assets_dir.mkdir(parents=True, exist_ok=True)
     stickers_dir.mkdir(parents=True, exist_ok=True)
 
     app.router.add_get('/uploads/{filename}', handle_private_upload)
+    app.router.add_static('/backgrounds', backgrounds_dir, name='backgrounds')
     app.router.add_static('/assets', assets_dir, name='assets')
     app.router.add_static('/stickers', stickers_dir, name='stickers')
     
@@ -384,6 +419,20 @@ def build_hub_app() -> web.Application:
     app.router.add_post('/api/email/send', handle_email_send)
     app.router.add_get('/api/email/inbox', handle_email_inbox)
     app.router.add_post('/api/email/settings', handle_email_settings)
+    app.router.add_post('/api/uploads/sign', handle_upload_resign)
+    app.router.add_get('/api/models', handle_models)
+    app.router.add_get('/api/routines', handle_routines_get)
+    app.router.add_post('/api/routines', handle_routines_post)
+    app.router.add_get('/api/memory/profile', handle_memory_profile_get)
+    app.router.add_post('/api/memory/profile', handle_memory_profile_put)
+    app.router.add_get('/api/nanomuse/status', handle_nanomuse_status)
+    app.router.add_post('/api/nanomuse/task', handle_nanomuse_task)
+    app.router.add_post('/api/nanomuse/config', handle_nanomuse_config)
+    app.router.add_post('/api/background/upload', handle_background_upload)
+    app.router.add_get('/api/background/list', handle_background_list)
+    app.router.add_delete('/api/background/{filename}', handle_background_delete)
+    app.router.add_get('/api/actions/log', handle_actions_log)
+    app.router.add_post('/api/actions/undo', handle_actions_undo)
     
     # TTS static audio
     app.router.add_get('/api/tts/audio/{filename}', handle_private_tts_audio)
@@ -399,6 +448,11 @@ def build_hub_app() -> web.Application:
         except Exception:
             pass
     app.on_cleanup.append(on_cleanup_vision_camera)
+
+    async def on_cleanup_nanomuse(app_instance):
+        await nanomuse_bridge.stop()
+        await routines.stop()
+    app.on_cleanup.append(on_cleanup_nanomuse)
     
     return app
 

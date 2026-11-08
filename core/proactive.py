@@ -34,12 +34,14 @@ GREETINGS = {
 }
 
 
-import psutil
-import ctypes
-
+try:
+    import psutil
+except Exception:
+    psutil = None  # type: ignore[assignment]
 def get_system_idle_seconds() -> float:
     """Returns system idle duration in seconds using Win32 API."""
     try:
+        import ctypes
         class LASTINPUTINFO(ctypes.Structure):
             _fields_ = [("cbSize", ctypes.c_uint), ("dwTime", ctypes.c_uint)]
         
@@ -150,7 +152,17 @@ class ProactiveAgent:
             raise
 
     async def _maybe_greet(self, now: datetime) -> None:
-        """Send a greeting when user first arrives in morning/evening."""
+        """Send a greeting when user first arrives in morning/evening.
+        Skips random built-in greetings if the user has an enabled greeting routine in core/routines.py.
+        """
+        try:
+            from core.routines import routines
+            if any(r.get("enabled", True) and r.get("type") == "greeting" for r in getattr(routines, "items", [])):
+                logger.debug("[Proactive] Skipping built-in greeting — user has an active greeting routine.")
+                return
+        except Exception:
+            pass
+
         hour = now.hour
         today = now.date()
 

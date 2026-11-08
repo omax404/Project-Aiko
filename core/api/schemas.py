@@ -80,6 +80,14 @@ class HealthResponse(BaseModel):
     timestamp: str
     bridges: Dict[str, str]
     llm_provider: str
+    llm_model: Optional[str] = None
+    llm_fallback: Optional[str] = None
+    llm_url: Optional[str] = None
+    has_api_key: bool = False
+    tts_enabled: bool = False
+    tts_voice: Optional[str] = None
+    memory_ok: bool = True
+    rag_available: bool = False
 
 class StatusResponse(BaseModel):
     """Response model for /status."""

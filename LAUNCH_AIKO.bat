@@ -1,13 +1,6 @@
 @echo off
-if "%1"=="h" goto :run_hidden
-
-echo Set WshShell = CreateObject("WScript.Shell") > "%temp%\launcher_hidden.vbs"
-echo WshShell.Run """%~dp0LAUNCH_AIKO.bat"" h", 0, False >> "%temp%\launcher_hidden.vbs"
-wscript.exe "%temp%\launcher_hidden.vbs"
-exit /b
-
-:run_hidden
 setlocal enabledelayedexpansion
+cd /d "%~dp0"
 title Aiko Core Launcher
 mode con: cols=90 lines=28
 color 0D
@@ -76,7 +69,39 @@ set "PYTHON_CMD=python"
 :found_python
 echo [System] Selected Python interpreter: "%PYTHON_CMD%"
 
-:: Run launcher script
+:: ---------------------------------------------------------------------------
+:: Free the ports Aiko needs (8000 = brain, 1422 = interface) so it never ends
+:: up on 8001 talking to an old copy. Only python / node / aiko-app processes
+:: are ever closed; anything else is left alone.
+:: ---------------------------------------------------------------------------
+echo [System] Checking ports 8000 and 1422...
+call :free_ports
+call :port_busy 8000
+if "!BUSY!"=="1" (
+    net session >nul 2>&1
+    if errorlevel 1 (
+        if /I not "%~1"=="elev" (
+            echo [System] An old Aiko process still holds port 8000 and needs administrator rights to close.
+            echo [System] Windows will ask for permission - click Yes.
+            powershell -NoProfile -Command "Start-Process -FilePath '%~f0' -ArgumentList 'elev' -Verb RunAs"
+            exit /b 0
+        )
+    )
+    call :free_ports
+    call :port_busy 8000
+    if "!BUSY!"=="1" (
+        echo.
+        echo [Error] Port 8000 is still in use by a program that is not Aiko.
+        echo         Find it with:  netstat -ano ^| findstr :8000
+        echo.
+        pause
+        exit /b 1
+    )
+)
+echo [System] Ports are free.
+echo.
+
+:: Run launcher script (this window stays open so any error is visible)
 "%PYTHON_CMD%" "%~dp0launch.py"
 
 if %errorlevel% neq 0 (
@@ -85,3 +110,17 @@ if %errorlevel% neq 0 (
     echo.
     pause
 )
+endlocal
+exit /b 0
+
+:: ---------------------------------------------------------------------------
+:port_busy
+set "BUSY=0"
+netstat -ano | findstr /R /C:":%~1 .*LISTENING" >nul 2>&1 && set "BUSY=1"
+exit /b 0
+
+:free_ports
+taskkill /F /IM aiko-app.exe /T >nul 2>&1
+powershell -NoProfile -Command "$ErrorActionPreference='SilentlyContinue'; foreach($port in 8000,1422){ Get-NetTCPConnection -LocalPort $port -State Listen | ForEach-Object { $p = Get-Process -Id $_.OwningProcess; if ($p -and ($p.ProcessName -in 'python','node','aiko-app')) { Stop-Process -Id $p.Id -Force } } }" >nul 2>&1
+timeout /t 1 /nobreak >nul
+exit /b 0

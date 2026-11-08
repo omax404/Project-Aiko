@@ -28,7 +28,7 @@ from core.plugins.spotify_plugin import SpotifyPlugin
 
 # Import extracted infrastructure functions
 from core.infrastructure.llm.streaming import get_session, close_session, stream_openai, stream_ollama
-from core.infrastructure.tools.executor import AgentExecutor, GIF_PATTERN
+from core.infrastructure.tools.executor import AgentExecutor, GIF_PATTERN, CLEANABLE_TOOL_TAGS_RE
 from core.infrastructure.rag.context_builder import build_rag_context
 from core.infrastructure.media.generator import handle_generate_command, handle_selfie_request
 from core.security import policy_engine
@@ -292,6 +292,7 @@ class AikoBrain:
         
         self._message_count = 0
         self._chat_lock = asyncio.Lock()
+        self._session_locks: Dict[str, asyncio.Lock] = {}
         self._reflective_state = ""
         self.using_fallback = False
         self.on_thinking = None
@@ -317,6 +318,14 @@ class AikoBrain:
         logger.info("🔌 Loading Aiko Plugins...")
         await self.plugins.register_plugin(GamePlugin())
         await self.plugins.register_plugin(SpotifyPlugin())
+        # IoT is opt-in: it needs an MQTT broker plus an explicit device allowlist,
+        # and every action is still gated per-call by the HITL confirmation flow.
+        if config.get("PLUGINS_IOT", False):
+            try:
+                from plugins.iot import IotPlugin
+                await self.plugins.register_plugin(IotPlugin())
+            except Exception as exc:
+                logger.warning(f"IoT plugin unavailable: {exc}")
         self._plugins_ready = True
         logger.info("✅ Plugins loaded successfully.")
 
@@ -362,10 +371,7 @@ class AikoBrain:
 
             visible = "".join(output)
             visible = re.sub(r"<emotion>.*?</emotion>", "", visible, flags=re.IGNORECASE | re.DOTALL)
-            visible = re.sub(
-                r"\[(?:OPEN|SCAN|TYPE|CLICK|PRESS|TASK|LATEX|GAME|EXEC|MCP|BIO_REGISTER|MUSIC|EMAIL_SEND|EMAIL_INBOX|WALLPAPER|WAIT|IMAGE|GIF|RECALL|VTS_BG|WEATHER|LETTER)\b[^\]]*\]",
-                "", visible, flags=re.IGNORECASE | re.DOTALL
-            )
+            visible = CLEANABLE_TOOL_TAGS_RE.sub("", visible)
             return visible.strip()
 
         def _emitter(text: str):
@@ -393,12 +399,25 @@ class AikoBrain:
         if emitter:
             emitter(text)
 
+    def _get_session_lock(self, user_id: str) -> asyncio.Lock:
+        """Return a per-session lock so independent sessions do not block or corrupt each other."""
+        key = str(user_id or "default")
+        lock = self._session_locks.get(key)
+        if lock is None:
+            if len(self._session_locks) > 256:
+                # Prune unlocked entries to bound memory
+                for old_k in [k for k, v in self._session_locks.items() if not v.locked()][:128]:
+                    self._session_locks.pop(old_k, None)
+            lock = asyncio.Lock()
+            self._session_locks[key] = lock
+        return lock
+
     async def chat(self, message: str, user_id: str = "user", input_role: str = "user",
                    save_input: bool = True, initial_images: list = None,
                    on_sentence: Any = None, is_admin: bool = False,
                    suppress_audio: bool = False) -> tuple:
-        """Serialize access to shared chat state across every API entry point."""
-        async with self._chat_lock:
+        """Serialize access per session while keeping independent sessions concurrent."""
+        async with self._get_session_lock(user_id):
             return await self._chat_impl(
                 message, user_id=user_id, input_role=input_role,
                 save_input=save_input, initial_images=initial_images,
@@ -443,7 +462,11 @@ class AikoBrain:
             
             if processed_images and self.vision:
                 active_model = config.get("MODEL_NAME", self.model or "gemma4:31b-cloud")
-                native_vision_models = ["llava", "moondream", "minicpm", "paligemma", "gpt-4o", "gpt-4-vision", "claude-3", "gemini-1.5", "gemini-2"]
+                native_vision_models = [
+                    "llava", "moondream", "minicpm", "paligemma",
+                    "gemma3", "gemma4", "qwen2.5-vl", "qwen3", "llama3.2-vision",
+                    "gpt-4o", "gpt-4-vision", "claude-3", "gemini-1.5", "gemini-2"
+                ]
                 is_native_vision = any(vm in active_model.lower() for vm in native_vision_models)
                 
                 if not is_native_vision:
@@ -468,11 +491,17 @@ class AikoBrain:
             except Exception as e:
                 logger.warning(f"[ChatEngine] On-demand screen scan failed: {e}")
 
+        user_display_message = message if message.strip() else "Look at this attachment, Aiko!"
         if file_context:
-            message = f"{message}\n\n[SENSORY_CONTEXT]:\n{file_context}"
+            message = f"{user_display_message}\n\n[SENSORY_CONTEXT]:\n{file_context}"
 
         if save_input:
-            self.memory.add_message(user_id, input_role, message)
+            self.memory.add_message(
+                user_id,
+                input_role,
+                user_display_message,
+                attachments=initial_images if initial_images else None,
+            )
             self._message_count += 1
             if self._message_count % 5 == 0:
                 asyncio.create_task(self._update_reflective_state(user_id))
@@ -611,7 +640,7 @@ class AikoBrain:
         # Clean Tags
         cleaned_response = re.sub(r'<(think|emotion|thought|relevant_memory_context|current_visual_awareness|eq_signal)>.*?</\1>', '', final_response, flags=re.IGNORECASE | re.DOTALL)
         cleaned_response = re.sub(r'</?(think|emotion|thought|relevant_memory_context|current_visual_awareness|eq_signal)>', '', cleaned_response, flags=re.IGNORECASE)
-        cleaned_response = re.sub(r'\[(SCAN|MCP|TASK|BIO_REGISTER|GAME|OPEN|TYPE|CLICK|PRESS|WAIT|WALLPAPER|WEATHER|MUSIC|LETTER|VTS_BG|RECALL|LATEX|REFLECTIVE_STATE|GIF|IMAGE|EMAIL_SEND|EMAIL_INBOX)[^\]]*?\]', '', cleaned_response, flags=re.IGNORECASE)
+        cleaned_response = CLEANABLE_TOOL_TAGS_RE.sub('', cleaned_response)
         cleaned_response = re.sub(r'\n{3,}', '\n\n', cleaned_response).strip()
         cleaned_response = translate_stickers(cleaned_response)
 
@@ -628,12 +657,17 @@ class AikoBrain:
             if selfie_md:
                 cleaned_response += selfie_md
 
-        # Save & Return
-        if save_input:
+        # Save & Return (do not persist transient LLM error alerts into RAG memory)
+        is_transient_error = cleaned_response.startswith(("⚠️", "Ehh? I couldn't connect"))
+        if save_input and not is_transient_error:
             self.memory.add_message(user_id, "assistant", cleaned_response)
             if self.rag and self.rag.is_available():
                 mem_text = f"User ({user_id}): {message}\nAiko: {cleaned_response}"
-                self.rag.add_memory(mem_text, metadata={"type": "conversation", "user_id": str(user_id), "room": "conversations"})
+                await asyncio.to_thread(
+                    self.rag.add_memory,
+                    mem_text,
+                    {"type": "conversation", "user_id": str(user_id), "room": "conversations"},
+                )
 
         if self.on_thinking:
             self.on_thinking(False)
@@ -697,12 +731,13 @@ Use MCP tools whenever Master asks about his PC state, files, wants you to read/
         for source in attachment_paths_or_urls:
             try:
                 content = None
-                filename = os.path.basename(str(source))
+                raw_source = str(source).split("?", 1)[0].split("#", 1)[0]
+                filename = os.path.basename(raw_source)
 
                 # 1. Uploaded file: resolve to data/uploads and require containment
                 #    (also catches symlinks pointing out of the uploads directory).
                 candidates = [uploads_dir / filename]
-                source_path = Path(str(source))
+                source_path = Path(raw_source)
                 if not source_path.is_absolute():
                     candidates.append(uploads_dir / source_path)
                 resolved_local = None
@@ -716,8 +751,7 @@ Use MCP tools whenever Master asks about his PC state, files, wants you to read/
                         break
 
                 if resolved_local is not None:
-                    with open(resolved_local, 'rb') as f:
-                        content = f.read()
+                    content = await asyncio.to_thread(resolved_local.read_bytes)
                 # 2. Remote attachment: public http(s) hosts only, capped read.
                 elif isinstance(source, str) and source.lower().startswith(("http://", "https://")):
                     if not await asyncio.to_thread(_is_public_http_url, source):
@@ -736,8 +770,8 @@ Use MCP tools whenever Master asks about his PC state, files, wants you to read/
 
                 if not content: continue
 
-                ext = os.path.splitext(source.lower())[1]
-                mime_type, _ = mimetypes.guess_type(source)
+                ext = os.path.splitext(filename.lower())[1]
+                mime_type, _ = mimetypes.guess_type(filename)
                 is_image = ext in IMAGE_EXTENSIONS or (mime_type and mime_type.startswith('image/'))
 
                 if is_image:
@@ -765,7 +799,22 @@ Use MCP tools whenever Master asks about his PC state, files, wants you to read/
 
         return images, "\n".join(context_parts)
 
-    async def _call_llm(self, messages, model=None, images=None, apply_neuromodulators=False, emit_callback=None):
+    @staticmethod
+    def _fallback_model(current: str) -> str:
+        """Backup model chosen in the chat bar (user_settings.json > llm.fallback_model)."""
+        fb = config.get("FALLBACK_MODEL", "") or ""
+        if not fb:
+            try:
+                import json as _json
+                from pathlib import Path as _Path
+                raw = _json.loads((_Path(__file__).resolve().parent.parent / "user_settings.json").read_text("utf-8"))
+                fb = (raw.get("llm") or {}).get("fallback_model", "") or ""
+            except Exception:
+                fb = ""
+        fb = str(fb).strip()
+        return fb if fb and fb != current else ""
+
+    async def _call_llm(self, messages, model=None, images=None, apply_neuromodulators=False, emit_callback=None, suppress_audio: bool = False):
         """Call LLM with connection pooling."""
         PROVIDER = config.get("PROVIDER", "Ollama")
         MODEL = config.get("MODEL_NAME", model or "qwen3.5:cloud")
@@ -785,43 +834,96 @@ Use MCP tools whenever Master asks about his PC state, files, wants you to read/
                 "max_tokens": 2000
             }
 
+        fallback = self._fallback_model(MODEL)
+        used_fallback = False
+        original_model = MODEL
+
         try:
             if PROVIDER == "Ollama":
                 url = config.get("LLM_URL", "http://127.0.0.1:11434/api/chat")
                 if not url:
                     url = "http://127.0.0.1:11434/api/chat"
-                content, status = await stream_ollama(
-                    url=url, model=MODEL, messages=messages, images=images,
-                    api_key=API_KEY, modifiers=modifiers, emit_callback=callback
-                )
+                try:
+                    content, status = await stream_ollama(
+                        url=url, model=MODEL, messages=messages, images=images,
+                        api_key=API_KEY, modifiers=modifiers, emit_callback=callback
+                    )
+                except Exception as primary_err:
+                    if not fallback:
+                        raise
+                    logger.warning(f"[Brain] '{MODEL}' unreachable ({primary_err}).")
+                    content, status = None, 0
+                if not content and fallback and status != 401:
+                    # The main (cloud) model is down or failed: retry once on the backup model.
+                    from urllib.parse import urlparse as _urlparse
+                    local = (_urlparse(url).hostname or "") in ("127.0.0.1", "localhost", "::1")
+                    fb_url = url if local else "http://127.0.0.1:11434/api/chat"
+                    fb_key = API_KEY if local else ""
+                    logger.warning(f"[Brain] Falling back from '{MODEL}' to '{fallback}'.")
+                    content, status = await stream_ollama(
+                        url=fb_url, model=fallback, messages=messages, images=images,
+                        api_key=fb_key, modifiers=modifiers, emit_callback=callback
+                    )
+                    if content:
+                        MODEL = fallback
+                        used_fallback = True
             else:
                 primary_url = config.get("LLM_URL", "")
                 if not primary_url:
                     if PROVIDER.lower() == "cloud":
-                        return "Master, since you configured Aiko to use a Cloud provider, please enter your cloud endpoint URL (e.g., OpenRouter or custom Ollama cloud) in Settings (user_settings.json). (⁠ꈍ⁠ᴗ⁠ꈍ⁠)"
+                        return "⚠️ **Cloud endpoint URL is missing.** Open **Settings → AI Model** and pick a provider preset or paste your endpoint URL."
                     primary_url = "http://127.0.0.1:11434/v1/chat/completions"
-                
-                content, status = await stream_openai(
-                    url=primary_url, model=MODEL, messages=messages, images=images,
-                    api_key=API_KEY, modifiers=modifiers, emit_callback=callback
-                )
+                try:
+                    content, status = await stream_openai(
+                        url=primary_url, model=MODEL, messages=messages, images=images,
+                        api_key=API_KEY, modifiers=modifiers, emit_callback=callback
+                    )
+                except Exception as primary_err:
+                    if not fallback:
+                        raise
+                    logger.warning(f"[Brain] Cloud provider '{PROVIDER}' ({MODEL}) failed ({primary_err}).")
+                    content, status = None, 0
+
+                if not content and fallback:
+                    logger.warning(f"[Brain] Cloud '{MODEL}' unavailable — switching to backup model '{fallback}' via local Ollama.")
+                    try:
+                        content, status = await stream_ollama(
+                            url="http://127.0.0.1:11434/api/chat",
+                            model=fallback,
+                            messages=messages,
+                            images=images,
+                            api_key="",
+                            modifiers=modifiers,
+                            emit_callback=callback,
+                        )
+                        if content:
+                            MODEL = fallback
+                            used_fallback = True
+                    except Exception as fb_err:
+                        logger.warning(f"[Brain] Backup model '{fallback}' also failed: {fb_err}")
         except Exception as conn_err:
             logger.error(f"[Brain] LLM connection failed: {conn_err}")
-            return f"Ehh? I couldn't connect to your LLM provider '{PROVIDER}', Master. Please check if your LLM server/cloud URL is active and reachable. (Error: {str(conn_err)}) (⁠ꈍ⁠ᴗ⁠ꈍ⁠)"
+            return (
+                f"⚠️ **Could not connect to `{PROVIDER}` (`{MODEL}`).** "
+                f"Make sure your model server or internet connection is online, or pick a backup model in the chat bar. "
+                f"*(Details: {str(conn_err)[:140]})*"
+            )
 
         if content:
+            self.using_fallback = used_fallback
+            if used_fallback:
+                return f"*(⚡ Cloud model `{original_model}` is down — using your backup `{MODEL}`)*\n\n{content}"
             return content
 
         if status == 408:
-            return f"{PROVIDER} is taking too long to think. (Timeout)"
+            return f"⚠️ **`{MODEL}` on {PROVIDER} timed out.** The server is overloaded — try again or switch to your backup model."
         if status == 404:
             if PROVIDER == "Ollama":
-                return f"Model '{MODEL}' not found. Run: `ollama pull {MODEL}`"
-            else:
-                return f"Model '{MODEL}' not found on {PROVIDER}."
-        if status == 401:
-            return f"API key rejected by {PROVIDER}. Check your credentials."
-        return f"{PROVIDER} is unreachable or returned an error. (Error {status})"
+                return f"⚠️ **Model `{MODEL}` is not installed in Ollama.** Run `ollama pull {MODEL}` or pick another model in the chat bar."
+            return f"⚠️ **Model `{MODEL}` was not found on {PROVIDER}.** Check the model name in **Settings → AI Model**."
+        if status in (401, 403):
+            return f"⚠️ **API key rejected by {PROVIDER} (HTTP {status}).** Open **Settings → AI Model** and update your API key."
+        return f"⚠️ **`{PROVIDER}` (`{MODEL}`) is currently unreachable (HTTP {status}).** Check the Health indicator in the top bar or select a backup model."
 
     async def _update_reflective_state(self, user_id: str):
         """Generates a summary of the current emotional dynamic."""

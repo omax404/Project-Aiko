@@ -18,6 +18,7 @@ import 'katex/dist/katex.min.css';
 import { useNeuralStore, getHubUrl } from '../store/useNeuralStore';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { useState, memo } from 'react';
+import { AttachmentImage } from './AttachmentImage';
 
 interface ChatBubbleProps {
   id?: string;
@@ -285,13 +286,7 @@ export const ChatBubble = memo(function ChatBubble({
                         return (
                           <div key={idx} className="relative group/att max-w-[200px]">
                             {isImg ? (
-                              <motion.img 
-                                whileHover={{ scale: 1.02 }}
-                                src={url} 
-                                alt="Attachment" 
-                                className="rounded-2xl border border-white/10 shadow-lg cursor-pointer max-h-48 object-cover"
-                                onClick={() => window.open(url, '_blank')}
-                              />
+                              <AttachmentImage url={url} />
                             ) : (
                               <a 
                                 href={url} 

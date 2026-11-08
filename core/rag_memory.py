@@ -16,7 +16,7 @@ try:
     from mempalace.searcher import search_memories
     from mempalace.miner import get_collection, add_drawer, chunk_text
     HAS_MEMPALACE = True
-except ImportError:
+except Exception:
     HAS_MEMPALACE = False
 
 DEFAULT_PALACE = os.path.expanduser("~/.mempalace/palace")

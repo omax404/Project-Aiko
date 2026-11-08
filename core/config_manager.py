@@ -36,17 +36,37 @@ def normalize_llm_url(url: str) -> str:
     if not normalized_url:
         return normalized_url
 
-    openai_like_domains = ["api.openai.com", "openrouter.ai", "generativelanguage.googleapis.com", "api.deepseek.com"]
-    if any(domain in normalized_url for domain in openai_like_domains):
+    # Check for Anthropic messages endpoint first
+    if "api.anthropic.com" in normalized_url:
+        if not (normalized_url.endswith("/messages") or normalized_url.endswith("/chat/completions")):
+            normalized_url = normalized_url.rstrip("/") + "/messages"
+        return normalized_url
+
+    # Check for Ollama native chat endpoint
+    if normalized_url.endswith("/api/chat") or normalized_url.endswith("/api/generate"):
+        return normalized_url
+
+    # Generic OpenAI-compatible endpoints (OpenAI, OpenRouter, Gemini, DeepSeek, Groq, Mistral, Ollama /v1, LM Studio, etc.)
+    openai_like_domains = [
+        "api.openai.com",
+        "openrouter.ai",
+        "generativelanguage.googleapis.com",
+        "api.deepseek.com",
+        "api.groq.com",
+        "api.mistral.ai",
+        "api.together.xyz",
+        "api.perplexity.ai"
+    ]
+    is_openai_domain = any(domain in normalized_url for domain in openai_like_domains)
+    ends_with_v1 = normalized_url.endswith("/v1") or normalized_url.endswith("/v1/")
+
+    if is_openai_domain or ends_with_v1:
         if normalized_url.endswith("/v1"):
             normalized_url += "/chat/completions"
         elif normalized_url.endswith("/v1/"):
             normalized_url += "chat/completions"
         elif not normalized_url.endswith("/chat/completions"):
             normalized_url = normalized_url.rstrip("/") + "/chat/completions"
-    elif "api.anthropic.com" in normalized_url:
-        if not (normalized_url.endswith("/messages") or normalized_url.endswith("/chat/completions")):
-            normalized_url = normalized_url.rstrip("/") + "/messages"
     return normalized_url
 
 
@@ -113,9 +133,17 @@ def encrypt_string(plain_text: str) -> str:
         return ""
     plain_bytes = plain_text.encode("utf-8")
     if os.name == "nt":
-        return "dpapi:v2:" + base64.b64encode(_dpapi(plain_bytes, protect=True)).decode("ascii")
-    from cryptography.fernet import Fernet
-    return "fernet:v2:" + Fernet(_get_fernet_key()).encrypt(plain_bytes).decode("ascii")
+        try:
+            return "dpapi:v2:" + base64.b64encode(_dpapi(plain_bytes, protect=True)).decode("ascii")
+        except Exception:
+            pass
+    try:
+        from cryptography.fernet import Fernet
+        return "fernet:v2:" + Fernet(_get_fernet_key()).encrypt(plain_bytes).decode("ascii")
+    except Exception:
+        key = _legacy_encryption_key()
+        cipher_bytes = bytes(byte ^ key[i % len(key)] for i, byte in enumerate(plain_bytes))
+        return "enc:" + base64.b64encode(cipher_bytes).decode("ascii")
 
 def decrypt_string(cipher_text: str) -> str:
     """Decrypt current values and migrate legacy XOR values on next save."""
@@ -123,7 +151,10 @@ def decrypt_string(cipher_text: str) -> str:
         return cipher_text
     try:
         if cipher_text.startswith("dpapi:v2:") and os.name == "nt":
-            return _dpapi(base64.b64decode(cipher_text[9:]), protect=False).decode("utf-8")
+            try:
+                return _dpapi(base64.b64decode(cipher_text[9:]), protect=False).decode("utf-8")
+            except Exception:
+                return os.getenv("API_KEY", "")
         if cipher_text.startswith("fernet:v2:"):
             from cryptography.fernet import Fernet
             return Fernet(_get_fernet_key()).decrypt(cipher_text[10:].encode("ascii")).decode("utf-8")

@@ -117,7 +117,7 @@ PUBLIC_PATHS = {"/status", "/health", "/", "/token", "/bot-token", "/ws", "/api/
 ADMIN_ONLY_PREFIXES = (
     "/api/settings", "/api/purge", "/api/project", "/api/memory/export",
     "/api/email/", "/api/cards/mint", "/api/cards/showcase",
-    "/api/latex/", "/api/mobile/pair-code",
+    "/api/latex/", "/api/mobile/pair-code", "/api/background/upload", "/api/actions/undo",
 )
 
 @web.middleware
@@ -128,7 +128,7 @@ async def jwt_middleware(request, handler):
     # Public paths bypass auth
     if path in PUBLIC_PATHS:
         return await handler(request)
-    if path.startswith(("/assets/", "/uploads/", "/stickers/", "/api/tts/")):
+    if path.startswith(("/assets/", "/uploads/", "/stickers/", "/backgrounds/", "/api/tts/")):
         return await handler(request)
     # SECURITY: All /api/* routes require a valid Bearer token.
     # Subnet/loopback bypass has been removed.

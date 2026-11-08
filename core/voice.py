@@ -12,9 +12,15 @@ import asyncio
 import time
 import logging
 import threading
-import numpy as np
 import io
-import torch
+try:
+    import numpy as np
+except Exception:
+    np = None
+try:
+    import torch
+except Exception:
+    torch = None
 from typing import Optional, Callable
 
 logger = logging.getLogger("Voice")

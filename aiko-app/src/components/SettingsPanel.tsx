@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Save, X, Settings, User, Palette, Brain, Volume2, Eye, Plug, Smartphone, Moon, Plus, Trash2 } from 'lucide-react';
+import { Save, X, Settings, User, Palette, Brain, Volume2, Eye, Plug, Smartphone, Moon, Plus, Trash2, Shield, RotateCcw, Download } from 'lucide-react';
 import { useNeuralStore, getHubUrl, getAuthHeaders, resolveHubUrl } from '../store/useNeuralStore';
 import { QRCodeSVG } from 'qrcode.react';
+import { StageBackgroundSettings } from './StageBackgroundSettings';
+import { StageAvatarSettings } from './StageAvatarSettings';
+import { MemoryViewer } from './MemoryViewer';
+import { RoutinesPanel } from './RoutinesPanel';
 
 interface SettingsPanelProps {
   isOpen: boolean;
@@ -44,12 +48,20 @@ async function saveSettingsToBackend(settings: any): Promise<void> {
     }
   }
   const hubUrl = await resolveHubUrl();
-  const headers = await getAuthHeaders({ 'Content-Type': 'application/json' });
-  const res = await fetch(`${hubUrl}/api/settings`, {
+  let headers = await getAuthHeaders({ 'Content-Type': 'application/json' });
+  let res = await fetch(`${hubUrl}/api/settings`, {
     method: 'POST',
     headers,
     body: JSON.stringify(settings),
   });
+  if (res.status === 401 || res.status === 403) {
+    headers = await getAuthHeaders({ 'Content-Type': 'application/json' }, true);
+    res = await fetch(`${hubUrl}/api/settings`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(settings),
+    });
+  }
   if (!res.ok) {
     const text = await res.text().catch(() => 'Unknown error');
     throw new Error(`Server error ${res.status}: ${text}`);
@@ -81,6 +93,26 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, o
   const [localPort, setLocalPort] = useState<number>(Number(new URL(getHubUrl()).port || '8000'));
   const [pairingQrData, setPairingQrData] = useState('');
   const [pairingError, setPairingError] = useState('');
+  const [actionLog, setActionLog] = useState<any[]>([]);
+  const [undoNotice, setUndoNotice] = useState('');
+
+  const refreshActionLog = async () => {
+    try {
+      const hubUrl = await resolveHubUrl();
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${hubUrl}/api/actions/log`, { headers });
+      if (res.ok) {
+        const data = await res.json();
+        setActionLog(Array.isArray(data?.actions) ? data.actions : []);
+      }
+    } catch (_) {}
+  };
+
+  useEffect(() => {
+    if (isOpen && activeTab === 'privacy') {
+      void refreshActionLog();
+    }
+  }, [isOpen, activeTab]);
 
   useEffect(() => {
     if (isOpen) {
@@ -202,11 +234,12 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, o
 
   const tabs = [
     { id: 'persona', label: 'Persona' },
-    { id: 'memory', label: 'Memory' },
     { id: 'appearance', label: 'Appearance' },
     { id: 'llm', label: 'AI Model' },
+    { id: 'memory', label: 'Memory' },
     { id: 'tts', label: 'Voice' },
     { id: 'vision', label: 'Vision' },
+    { id: 'privacy', label: 'Privacy & Safe' },
     { id: 'plugins', label: 'Plugins' },
     { id: 'mobile', label: 'Mobile Link' },
   ];
@@ -219,6 +252,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, o
       case 'llm': return <Brain size={14} strokeWidth={1.8} />;
       case 'tts': return <Volume2 size={14} strokeWidth={1.8} />;
       case 'vision': return <Eye size={14} strokeWidth={1.8} />;
+      case 'privacy': return <Shield size={14} strokeWidth={1.8} />;
       case 'plugins': return <Plug size={14} strokeWidth={1.8} />;
       case 'mobile': return <Smartphone size={14} strokeWidth={1.8} />;
       default: return <Settings size={14} strokeWidth={1.8} />;
@@ -276,16 +310,66 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, o
               
               {activeTab === 'persona' && (
                 <div className="flex flex-col gap-4">
-                  <h3 className="text-[16px] font-semibold text-[#f0ebe3]">Personality</h3>
-                  <p className="text-[12px] text-[#9a8f7e] leading-relaxed">
-                    Custom instructions override or append to Aiko's default personality. 
-                    Tell her to focus on coding, be sarcastic, or adopt any persona you want.
-                  </p>
+                  <div>
+                    <h3 className="text-[16px] font-semibold text-[#f0ebe3]">Personality & Tone Packs</h3>
+                    <p className="text-[12px] text-[#9a8f7e] leading-relaxed mt-1">
+                      Switch Aiko's personality pack with one click, or write your own custom persona instructions below.
+                    </p>
+                  </div>
+
+                  {/* 1-Click Personality Packs */}
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      {
+                        title: '🌸 Friendly Companion',
+                        desc: 'Warm, cheerful, supportive everyday best friend',
+                        prompt: 'You are Aiko, a warm, empathetic, and playful everyday companion. Speak naturally, celebrate small wins, and keep your tone encouraging and affectionate.',
+                      },
+                      {
+                        title: '📚 Strict Study Teacher',
+                        desc: 'Socratic tutor, quizzes, flashcards & exam focus',
+                        prompt: 'You are Aiko in Strict Study Teacher mode. Keep the user focused on coursework, explain concepts step-by-step, quiz them with active-recall questions, and generate concise flashcards and study schedules.',
+                      },
+                      {
+                        title: '🧘 Calm Life Coach',
+                        desc: 'Mindful daily planning, habits & evening recaps',
+                        prompt: 'You are Aiko in Calm Life Coach mode. Speak with a grounded, soothing tone. Help organize daily tasks, break down overwhelming goals into 3 clear steps, and guide evening reflections.',
+                      },
+                      {
+                        title: '💻 Senior Pair Programmer',
+                        desc: 'Concise, sharp systems architect & debugger',
+                        prompt: 'You are Aiko in Senior Pair Programmer mode. Be direct, technically rigorous, and concise. Prioritize clean architecture, edge-case safety, and actionable code solutions.',
+                      },
+                    ].map((pack) => {
+                      const isSelected = settings.persona?.custom_prompt === pack.prompt;
+                      return (
+                        <button
+                          key={pack.title}
+                          type="button"
+                          onClick={() =>
+                            setSettings({
+                              ...settings,
+                              persona: { ...settings.persona, custom_prompt: pack.prompt },
+                            })
+                          }
+                          className={`flex flex-col gap-1 p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                            isSelected
+                              ? 'border-[var(--accent)] bg-[var(--accent)]/10'
+                              : 'border-white/[0.06] bg-[var(--bg-base)] hover:border-white/[0.15]'
+                          }`}
+                        >
+                          <span className="text-[12.5px] font-semibold text-[#f0ebe3]">{pack.title}</span>
+                          <span className="text-[11px] text-[#9a8f7e] leading-snug">{pack.desc}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[12px] font-medium text-[#9a8f7e]">Custom Personality Injection</label>
                     <textarea 
                       id="persona-prompt"
-                      className="w-full h-48 bg-[var(--bg-base)] border border-white/[0.06] rounded-lg p-3 text-[13px] text-[#f0ebe3] focus:border-[var(--accent)]/50 focus:outline-none resize-none leading-relaxed"
+                      className="w-full h-36 bg-[var(--bg-base)] border border-white/[0.06] rounded-lg p-3 text-[13px] text-[#f0ebe3] focus:border-[var(--accent)]/50 focus:outline-none resize-none leading-relaxed"
                       value={settings.persona.custom_prompt}
                       onChange={e => setSettings({...settings, persona: {...settings.persona, custom_prompt: e.target.value}})}
                       placeholder="E.g., You are a highly professional assistant..."
@@ -323,6 +407,13 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, o
                       </div>
                     </div>
                   </section>
+                </div>
+              )}
+
+              {activeTab === 'memory' && (
+                <div className="mt-5 flex flex-col gap-5">
+                  <MemoryViewer />
+                  <RoutinesPanel />
                 </div>
               )}
 
@@ -428,48 +519,109 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, o
                     />
                     <span className="text-[13px] font-medium text-[#f0ebe3]">Show Animated UI Elements</span>
                   </label>
+
+                  {/* Custom 2D model size & position */}
+                  <StageAvatarSettings />
+
+                  {/* Custom stage background */}
+                  <StageBackgroundSettings />
                 </div>
               )}
 
               {activeTab === 'llm' && (
                 <div className="flex flex-col gap-5">
-                  <h3 className="text-[16px] font-semibold text-[#f0ebe3]">AI Model</h3>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h3 className="text-[16px] font-semibold text-[#f0ebe3]">AI Model & Provider</h3>
+                      <p className="text-[12px] text-[#9a8f7e]">Connect to any AI provider, local model, or custom OpenAI-compatible endpoint.</p>
+                    </div>
+                  </div>
+
+                  {/* Quick Provider Presets */}
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[12px] font-medium text-[#9a8f7e]">Quick Presets</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { name: 'Ollama Cloud', provider: 'Ollama', url: 'http://127.0.0.1:11434/api/chat', model: 'gemma4:31b-cloud' },
+                        { name: 'OpenRouter', provider: 'OpenRouter', url: 'https://openrouter.ai/api/v1/chat/completions', model: 'anthropic/claude-3.5-sonnet' },
+                        { name: 'OpenAI', provider: 'OpenAI', url: 'https://api.openai.com/v1/chat/completions', model: 'gpt-4o' },
+                        { name: 'Gemini', provider: 'Gemini', url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', model: 'gemini-1.5-flash' },
+                        { name: 'DeepSeek', provider: 'DeepSeek', url: 'https://api.deepseek.com/chat/completions', model: 'deepseek-chat' },
+                        { name: 'Groq', provider: 'Groq', url: 'https://api.groq.com/openai/v1/chat/completions', model: 'llama-3.3-70b-versatile' },
+                        { name: 'Ollama Local', provider: 'Ollama', url: 'http://127.0.0.1:11434/api/chat', model: 'qwen2.5:7b' },
+                      ].map((preset) => (
+                        <button
+                          key={preset.name}
+                          type="button"
+                          onClick={() => setSettings({
+                            ...settings,
+                            llm: {
+                              ...settings.llm,
+                              provider: preset.provider,
+                              url: preset.url,
+                              model: preset.model,
+                            }
+                          })}
+                          className="px-2.5 py-2 rounded-lg border border-white/[0.06] bg-[var(--bg-base)] text-[12px] font-medium text-[#f0ebe3] hover:border-[var(--accent)]/50 hover:bg-white/[0.04] transition-all text-left flex justify-between items-center"
+                        >
+                          <span>{preset.name}</span>
+                          <span className="text-[10px] text-[#9a8f7e]">Auto-fill</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[12px] font-medium text-[#9a8f7e]">API URL</label>
+                    <label className="text-[12px] font-medium text-[#9a8f7e]">API Endpoint URL</label>
                     <input 
                       id="api-url"
                       type="text"
-                      className="w-full bg-[var(--bg-base)] border border-white/[0.06] rounded-lg px-3 py-2 text-[13px] text-[#f0ebe3] focus:border-[var(--accent)]/50 focus:outline-none"
+                      className="w-full bg-[var(--bg-base)] border border-white/[0.06] rounded-lg px-3 py-2 text-[13px] text-[#f0ebe3] focus:border-[var(--accent)]/50 focus:outline-none font-mono"
                       value={settings.llm.url}
                       onChange={e => setSettings({...settings, llm: {...settings.llm, url: e.target.value}})}
                       aria-label="API URL"
                     />
-                    <p className="text-[11px] text-[#5a5248]">Ollama or OpenAI-compatible endpoint</p>
+                    <p className="text-[11px] text-[#5a5248]">Any OpenAI-compatible or Ollama endpoint URL</p>
                   </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[12px] font-medium text-[#9a8f7e]">Model Name</label>
-                    <input 
-                      id="model-name"
-                      type="text"
-                      className="w-full bg-[var(--bg-base)] border border-white/[0.06] rounded-lg px-3 py-2 text-[13px] text-[#f0ebe3] focus:border-[var(--accent)]/50 focus:outline-none"
-                      value={settings.llm.model}
-                      onChange={e => setSettings({...settings, llm: {...settings.llm, model: e.target.value}})}
-                      aria-label="Model Name"
-                    />
-                    <p className="text-[11px] text-[#5a5248]">E.g., qwen3.5:397b-cloud or gpt-4o</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[12px] font-medium text-[#9a8f7e]">Primary Model</label>
+                      <input 
+                        id="model-name"
+                        type="text"
+                        className="w-full bg-[var(--bg-base)] border border-white/[0.06] rounded-lg px-3 py-2 text-[13px] text-[#f0ebe3] focus:border-[var(--accent)]/50 focus:outline-none font-mono"
+                        value={settings.llm.model}
+                        onChange={e => setSettings({...settings, llm: {...settings.llm, model: e.target.value}})}
+                        aria-label="Model Name"
+                      />
+                      <p className="text-[10.5px] text-[#5a5248]">E.g., gemma4:31b-cloud, gpt-4o</p>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[12px] font-medium text-[#9a8f7e]">Backup / Fallback Model</label>
+                      <input 
+                        id="fallback-model-name"
+                        type="text"
+                        className="w-full bg-[var(--bg-base)] border border-white/[0.06] rounded-lg px-3 py-2 text-[13px] text-[#f0ebe3] focus:border-[var(--accent)]/50 focus:outline-none font-mono"
+                        value={settings.llm.fallback_model || ''}
+                        onChange={e => setSettings({...settings, llm: {...settings.llm, fallback_model: e.target.value}})}
+                        placeholder="e.g. qwen2.5:7b (local backup)"
+                        aria-label="Fallback Model Name"
+                      />
+                      <p className="text-[10.5px] text-[#5a5248]">Used automatically if cloud is down</p>
+                    </div>
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[12px] font-medium text-[#9a8f7e]">API Key</label>
                     <input 
                       id="api-key"
                       type="password"
-                      className="w-full bg-[var(--bg-base)] border border-white/[0.06] rounded-lg px-3 py-2 text-[13px] text-[#f0ebe3] focus:border-[var(--accent)]/50 focus:outline-none"
+                      className="w-full bg-[var(--bg-base)] border border-white/[0.06] rounded-lg px-3 py-2 text-[13px] text-[#f0ebe3] focus:border-[var(--accent)]/50 focus:outline-none font-mono"
                       value={settings.llm.api_key || ''}
                       onChange={e => setSettings({...settings, llm: {...settings.llm, api_key: e.target.value}})}
-                      placeholder="sk-... or leave blank for local Ollama"
+                      placeholder="Enter any provider key (or leave blank for local Ollama)"
                       aria-label="API Key"
                     />
-                    <p className="text-[11px] text-[#5a5248]">Required for cloud providers</p>
+                    <p className="text-[11px] text-[#5a5248]">Encrypted locally with DPAPI / Fernet</p>
                   </div>
                 </div>
               )}
@@ -638,6 +790,161 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, o
                     </div>
 
                     <Checkbox label="Hermes AI Agent (Cognitive Bridge)" checked={settings.plugins.hermes_agent} onChange={v => setSettings({...settings, plugins: {...settings.plugins, hermes_agent: v}})} />
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'privacy' && (
+                <div className="flex flex-col gap-5">
+                  <div>
+                    <h3 className="text-[16px] font-semibold text-[#f0ebe3] mb-1">Privacy & Safe Actions Center</h3>
+                    <p className="text-[12px] text-[#9a8f7e] leading-relaxed">
+                      Full transparency into what stays on your PC, what goes to the cloud, and every desktop action Aiko requests.
+                    </p>
+                  </div>
+
+                  {/* What stays on PC vs What goes to Cloud */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3.5 rounded-xl bg-[var(--bg-base)] border border-emerald-500/20">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 block mb-1.5">
+                        🔒 Stays 100% on Your PC
+                      </span>
+                      <ul className="text-[11.5px] text-[#f0ebe3]/85 space-y-1 list-disc pl-4">
+                        <li>API keys (Windows DPAPI encrypted)</li>
+                        <li>Long-term memory & chat history (`data/`)</li>
+                        <li>Uploaded backgrounds, GIFs & videos</li>
+                        <li>Voice synthesis & local Ollama models</li>
+                      </ul>
+                    </div>
+                    <div className="p-3.5 rounded-xl bg-[var(--bg-base)] border border-amber-500/20">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-amber-300 block mb-1.5">
+                        ☁️ Sent Only When Using Cloud LLM
+                      </span>
+                      <ul className="text-[11.5px] text-[#f0ebe3]/85 space-y-1 list-disc pl-4">
+                        <li>Active chat prompt & recent turn context</li>
+                        <li>Files/screenshots you explicitly attach</li>
+                        <li>Sent only to: <code className="text-[10.5px] text-[var(--accent)]">{settings.llm?.provider || 'Ollama'}</code></li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  {/* Safe Actions Audit Log + Undo */}
+                  <div className="p-3.5 rounded-xl bg-[var(--bg-base)] border border-white/[0.06] flex flex-col gap-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[12.5px] font-semibold text-[#f0ebe3]">
+                        Safe Actions Log (Confirmation Gate & Undo)
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => void refreshActionLog()}
+                        className="flex items-center gap-1 text-[11px] text-[#9a8f7e] hover:text-[var(--accent)]"
+                      >
+                        <RotateCcw size={11} /> Refresh
+                      </button>
+                    </div>
+                    {undoNotice && (
+                      <p className="text-[11px] text-emerald-400">{undoNotice}</p>
+                    )}
+                    {actionLog.length === 0 ? (
+                      <p className="text-[11.5px] text-[#9a8f7e] py-2">
+                        No PC or file actions executed in this session yet. Sensitive tools (`OPEN`, `TYPE`, `CLICK`, `WRITE_FILE`, `SCAN`) always ask for your confirmation first.
+                      </p>
+                    ) : (
+                      <div className="flex flex-col gap-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
+                        {actionLog.map((act) => (
+                          <div
+                            key={act.id}
+                            className="flex items-center justify-between gap-2 p-2 rounded-lg bg-black/30 border border-white/[0.05] text-[11.5px]"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono font-semibold text-[var(--accent)]">{act.tool}</span>
+                                <span
+                                  className={`px-1.5 py-0.2 rounded text-[9.5px] uppercase font-mono ${
+                                    act.status === 'executed'
+                                      ? 'bg-emerald-500/15 text-emerald-300'
+                                      : act.status === 'undone'
+                                      ? 'bg-sky-500/15 text-sky-300'
+                                      : 'bg-rose-500/15 text-rose-300'
+                                  }`}
+                                >
+                                  {act.status}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-[#9a8f7e] truncate mt-0.5" title={act.detail}>
+                                {act.detail}
+                              </p>
+                            </div>
+                            {act.can_undo && (
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  try {
+                                    const hubUrl = await resolveHubUrl();
+                                    const headers = await getAuthHeaders({ 'Content-Type': 'application/json' });
+                                    const res = await fetch(`${hubUrl}/api/actions/undo`, {
+                                      method: 'POST',
+                                      headers,
+                                      body: JSON.stringify({ id: act.id }),
+                                    });
+                                    const data = await res.json();
+                                    setUndoNotice(data.message || data.error || 'Undo processed.');
+                                    await refreshActionLog();
+                                  } catch (_) {
+                                    setUndoNotice('Could not undo action.');
+                                  }
+                                }}
+                                className="px-2.5 py-1 rounded-md bg-[var(--accent)]/15 border border-[var(--accent)]/40 text-[11px] font-medium text-[var(--accent)] hover:bg-[var(--accent)]/25 shrink-0 cursor-pointer"
+                              >
+                                Undo
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Export or Delete Everything */}
+                  <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-[var(--bg-base)] border border-white/[0.06]">
+                    <div>
+                      <span className="text-[12.5px] font-semibold text-[#f0ebe3] block">Your Data Ownership</span>
+                      <span className="text-[11px] text-[#9a8f7e]">Export all memories as JSON or permanently wipe all local chat history.</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const hubUrl = await resolveHubUrl();
+                            const headers = await getAuthHeaders();
+                            const res = await fetch(`${hubUrl}/api/memory/export`, { headers });
+                            if (!res.ok) return;
+                            const blob = await res.blob();
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `aiko-memories-${new Date().toISOString().slice(0, 10)}.json`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                          } catch (_) {}
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/15 bg-white/[0.04] hover:bg-white/[0.08] text-[11.5px] font-medium text-[#f0ebe3] cursor-pointer"
+                      >
+                        <Download size={13} /> Export JSON
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!window.confirm('Delete all conversation history and memories permanently?')) return;
+                          await useNeuralStore.getState().triggerPurge();
+                          setUndoNotice('All local history and memories purged.');
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-[11.5px] font-medium text-rose-300 cursor-pointer"
+                      >
+                        <Trash2 size={13} /> Delete All
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}

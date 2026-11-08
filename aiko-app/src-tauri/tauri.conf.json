@@ -23,21 +23,8 @@
         "resizable": true,
         "fullscreen": false,
         "center": true,
-        "visible": true
-      },
-      {
-        "label": "mascot",
-        "url": "/?mascot",
-        "title": "Aiko Mascot",
-        "width": 300,
-        "height": 420,
-        "resizable": false,
-        "transparent": true,
-        "decorations": false,
-        "alwaysOnTop": true,
-        "skipTaskbar": true,
-        "visible": false,
-        "shadow": false
+        "visible": true,
+        "focus": true
       }
     ],
     "security": {

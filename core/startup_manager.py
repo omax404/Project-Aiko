@@ -6,7 +6,10 @@ import os
 import sys
 import subprocess
 import logging
-import psutil
+try:
+    import psutil
+except Exception:
+    psutil = None  # type: ignore[assignment]
 import time
 from pathlib import Path
 from dotenv import load_dotenv
@@ -24,6 +27,8 @@ class StartupManager:
     @staticmethod
     def is_process_running(process_name: str) -> bool:
         """Check if there is any running process that contains the given name."""
+        if psutil is None:
+            return False
         for proc in psutil.process_iter(['name', 'cmdline']):
             try:
                 name = proc.info['name'] or ''

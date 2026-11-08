@@ -88,6 +88,11 @@ export function DashboardStats({
             type="button"
             onClick={async () => {
               try {
+                if (typeof window !== 'undefined' && !!(window as any).__TAURI__) {
+                  const { invoke } = await import('@tauri-apps/api/core');
+                  await invoke('switch_to_mascot');
+                  return;
+                }
                 const mascot = new Window('mascot');
                 await mascot.show();
                 await getCurrentWindow().hide();

@@ -14,7 +14,11 @@ import asyncio
 import logging
 import platform
 import subprocess
-import psutil
+import sys
+try:
+    import psutil
+except Exception:
+    psutil = None  # type: ignore[assignment]
 from pathlib import Path
 from datetime import datetime
 
@@ -24,6 +28,7 @@ logger = logging.getLogger("MCPBridge")
 # SECURITY: Do NOT add Path.home() or any broad directory.
 # Granting home() exposes .ssh/id_rsa, .aws/credentials, browser databases, etc.
 _APP_BASE = Path(__file__).parent.parent  # project root
+PYTHON_PATH = sys.executable  # Use the same Python running Aiko
 ALLOWED_ROOTS = [
     _APP_BASE / "data" / "sandbox",
     _APP_BASE / "data" / "uploads",
@@ -336,7 +341,7 @@ class MCPBridge:
             try:
                 from pywinauto import Desktop
                 desktop = Desktop(backend="uia")
-                
+
                 win = None
                 for w in desktop.windows():
                     if window_title.lower() in w.window_text().lower():
@@ -344,7 +349,7 @@ class MCPBridge:
                         break
                 if not win:
                     return f"[UIA ERROR] Window containing '{window_title}' not found."
-                    
+
                 descendants = win.descendants()
                 target_ctrl = None
                 for ctrl in descendants:
@@ -360,7 +365,7 @@ class MCPBridge:
                             break
                 if not target_ctrl:
                     return f"[UIA ERROR] Control '{control_name}' not found in window '{win.window_text()}'."
-                    
+
                 # Focus window first
                 try:
                     win.set_focus()
@@ -375,6 +380,27 @@ class MCPBridge:
                 return f"[UIA OK] Typed '{text}' into '{name_label}' in window '{win.window_text()}'."
             except (OSError, PermissionError, ValueError, TypeError) as e:
                 return f"[UIA ERROR] Type failed: {str(e) or repr(e)}"
+
+    # ── nanoMuse Bridge ───────────────────────────────────────────────────────
+
+    async def nanomuse_do(self, task: str) -> str:
+        """Delegate a task to nanoMuse (DSH agent). nanoMuse has screen/hand control
+        and can open apps, browse the web, click, type, etc. on your PC."""
+        try:
+            # Run the nanomuse_bridge.py script to relay the task
+            result = await asyncio.to_thread(
+                subprocess.run,
+                [PYTHON_PATH, str(_APP_BASE / "nanomuse_bridge.py"), "do", task],
+                capture_output=True, text=True, timeout=30, cwd=str(_APP_BASE)
+            )
+            if result.returncode == 0:
+                return f"[NANOMUSE OK] {result.stdout.strip()}"
+            else:
+                return f"[NANOMUSE ERROR] {result.stderr.strip() or result.stdout.strip()}"
+        except subprocess.TimeoutExpired:
+            return "[NANOMUSE ERROR] nanoMuse task timed out (30s)."
+        except Exception as e:
+            return f"[NANOMUSE ERROR] {e}"
 
 
 # ── Tool registry — maps [MCP:tool:arg] tags to methods ──────────────────────
@@ -398,6 +424,7 @@ MCP_TOOLS = {
     "uia_list":       ("uia_list",      "window_title?"),
     "uia_click":      ("uia_click",     "window_title|control_name"),
     "uia_type":       ("uia_type",      "window_title|control_name|text"),
+    "nanomuse":       ("nanomuse_do",   "task"),
 }
 
 mcp_bridge = MCPBridge()

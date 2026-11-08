@@ -33,7 +33,7 @@ function requestMotion(model: any, name: string) {
   } catch (_) {}
 }
 
-export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
+export const Live2DAvatar: React.FC<Live2DAvatarProps> = React.memo(({
   modelUrl,
   isThinking,
   isTalking,
@@ -47,14 +47,15 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
   offsetY = 0,
   interactive = false
 }) => {
+  // Note: `streamingContent` and `amplitude` are intentionally read directly inside
+  // `useLive2DExpression`'s 60fps tick via `useNeuralStore.getState()` so token
+  // streaming and audio amplitude never cause React re-renders of the canvas container.
   const {
     chemicals: storeChemicals,
-    streamingContent,
     messages,
     isThinking: storeIsThinking,
   } = useNeuralStore(useShallow((state) => ({
     chemicals: state.chemicals,
-    streamingContent: state.streamingContent,
     messages: state.messages,
     isThinking: state.isThinking,
   })));
@@ -73,7 +74,6 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
     isTalking,
     mouthAmplitude: amplitude,
     emotion,
-    spokenText: isThinking ? '' : (streamingContent || messages[messages.length - 1]?.content || '')
   });
 
   const sayHello = () => {
@@ -88,7 +88,6 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
 
   // React once when a reply finishes. The backend's semantic emotion drives
   // both the sustained expression (above) and this short, cooldown-limited gesture.
-  // Avoid lexical guesses from punctuation or arbitrary words in the reply text.
   useEffect(() => {
     const wasThinking = wasThinkingRef.current;
     wasThinkingRef.current = !!storeIsThinking;
@@ -137,12 +136,14 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
           resolution: Math.min(window.devicePixelRatio || 1, 2),
           autoDensity: true,
           antialias: true,
+          powerPreference: 'high-performance',
         });
 
         appRef.current = app;
 
         const model = await Live2DModel.from(modelUrl, {
-          idleMotionGroup: 'idle'
+          idleMotionGroup: 'idle',
+          autoInteract: false,
         });
 
         if (destroyed) {
@@ -153,16 +154,18 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
         modelRef.current = model;
         model.autoUpdate = true;
 
+        // Disable pixi-live2d-display's internal focusController & eyeBlink so they do not
+        // fight with our 6-layer procedural IdleLayer + critically-damped Spring gaze engine.
         try {
-          (model as any).autoInteract = true;
+          (model as any).autoInteract = false;
+          if (model.internalModel) {
+            (model.internalModel as any).eyeBlink = undefined;
+          }
         } catch (_) {}
 
-        // Improved scaling logic to fill more space
         const calculateScale = () => {
           const modelW = model.internalModel.originalWidth;
           const modelH = model.internalModel.originalHeight;
-          
-          // Fill 95% of height or width, then multiply by external scale
           const scaleX = (width * 0.95) / modelW;
           const scaleY = (height * 0.95) / modelH;
           return Math.min(scaleX, scaleY) * externalScale;
@@ -171,18 +174,11 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
         const scale = calculateScale();
         model.scale.set(scale);
         model.anchor.set(0.5, 0.5);
-        // Position in middle of canvas plus custom alignment offsets
         model.position.set(width / 2 + offsetX, height / 2 + offsetY);
 
         app.stage.addChild(model);
-        // The renderer starts before the asynchronous model load finishes. Paint
-        // once after insertion so the first visible frame does not stay blank.
         app.renderer.render(app.stage);
 
-        // Parameter updates and animation binding are handled in requestAnimationFrame via the hook!
-        // The autonomous expression loop runs inside useLive2DExpression hook at 60fps!
-
-        // The model manifest registers this group; keep its authored idle subtle and looping.
         requestMotion(model, 'idle');
 
         setLoaded(true);
@@ -225,48 +221,45 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
     const model = modelRef.current;
     if (!model || !loaded || !appRef.current) return;
 
-    // Resize PIXI renderer dynamically
     try {
       appRef.current.renderer.resize(width, height);
     } catch (_) {}
 
     const modelW = model.internalModel.originalWidth;
     const modelH = model.internalModel.originalHeight;
-    
+
     const scaleBaseX = (width * 0.95) / modelW;
     const scaleBaseY = (height * 0.95) / modelH;
     const finalScale = Math.min(scaleBaseX, scaleBaseY) * externalScale;
 
     model.scale.set(finalScale);
-    
-    // Keep the model centered in the visible companion viewport as it resizes.
     model.position.set(width / 2 + offsetX, height / 2 + offsetY);
   }, [externalScale, loaded, width, height, offsetX, offsetY]);
 
   // Map emotions → Vivian's actual .exp3.json filenames
   const EMOTION_MAP: Record<string, string> = {
-    happy:      'idle',
-    excited:    'idle',
-    playful:    'idle',
-    shy:        '害羞',
-    embarrassed:'害羞',
-    sad:        '哭',
-    lonely:     '哭',
-    angry:      '黑脸',
-    frustrated: '黑脸',
-    annoyed:    '白眼',
-    sarcastic:  '白眼',
-    anxious:    '慌张',
-    worried:    '慌张',
-    scared:     '慌张',
-    surprised:  '慌张',
-    calm:       'idle',
-    neutral:    'idle',
+    happy:       'idle',
+    excited:     'idle',
+    playful:     'idle',
+    shy:         '害羞',
+    embarrassed: '害羞',
+    sad:         '哭',
+    lonely:      '哭',
+    angry:       '黑脸',
+    frustrated:  '黑脸',
+    annoyed:     '白眼',
+    sarcastic:   '白眼',
+    anxious:     '慌张',
+    worried:     '慌张',
+    scared:      '慌张',
+    surprised:   '慌张',
+    calm:        'idle',
+    neutral:     'idle',
     affectionate:'idle',
-    romantic:   '害羞',
-    pout:       'idle', // Handled via params
-    tongue:     'idle', // Handled via params
-    boba:       'idle', // Handled via params
+    romantic:    '害羞',
+    pout:        'idle',
+    tongue:      'idle',
+    boba:        'idle',
   };
 
   // React to thinking state and emotion → swap expressions
@@ -276,7 +269,6 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
     if (!modelRef.current) return;
     const model = modelRef.current;
 
-    // Check if the state actually changed to prevent duplicate triggers
     if (
       lastPlayedState.current.isThinking === !!isThinking &&
       lastPlayedState.current.emotion === emotion
@@ -296,13 +288,11 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
           requestMotion(model, 'idle');
         } else {
           const preset = exprName === '害羞' ? 'shy' : exprName === '哭' ? 'sad' : exprName === '黑脸' || exprName === '白眼' ? 'pouty' : 'surprised';
-          triggerExpression(preset, 0.78, 650);
+          triggerExpression(preset, 0.78, 520);
         }
       }
     } catch (_) {}
   }, [isThinking, emotion, triggerExpression]);
-
-
 
   if (error) {
     return (
@@ -320,8 +310,8 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
 
   return (
     <div
-      style={{ 
-        width, 
+      style={{
+        width,
         height,
         background: 'radial-gradient(circle at center, rgba(184,161,217,0.25) 0%, rgba(26,15,36,0) 70%)'
       }}
@@ -344,4 +334,5 @@ export const Live2DAvatar: React.FC<Live2DAvatarProps> = ({
       />
     </div>
   );
-};
+});
+Live2DAvatar.displayName = 'Live2DAvatar';
