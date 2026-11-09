@@ -73,5 +73,9 @@ bandit-report.json
 pytest-of-*/
 
 .agents/
+.codex/
+.github/agents/
+.github/hooks/
+.github/skills/
 *.salive
 .kotlin/
