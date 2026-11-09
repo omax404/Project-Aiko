@@ -32,11 +32,11 @@ export const createUiSettingsSlice: StateCreator<NeuralState, [], [], UiSettings
   layoutMode: 'cinematic',
   projectStructure: [],
   apiConfig: {
-    provider: 'OpenRouter',
-    model: 'qwen3.5:cloud',
+    provider: 'Ollama',
+    model: 'gemma4:31b-cloud',
     endpoint: 'http://127.0.0.1:11434/api/chat',
     apiKey: '',
-    baseUrl: 'https://openrouter.ai/api/v1',
+    baseUrl: 'http://127.0.0.1:11434/v1',
     ttsProvider: 'Pocket',
     ttsEnabled: true,
   },
@@ -76,30 +76,50 @@ export const createUiSettingsSlice: StateCreator<NeuralState, [], [], UiSettings
       const headers = await getAuthHeaders();
       const res = await fetch(`${getHubUrl()}/api/settings`, { headers });
       const data = await res.json();
-      set((state) => ({
-        apiConfig: {
-          ...state.apiConfig,
-          provider: data.PROVIDER || state.apiConfig.provider,
-          apiKey:
-            data.API_KEY ||
-            data.DEEPSEEK_API_KEY ||
-            data.GEMINI_API_KEY ||
-            state.apiConfig.apiKey,
-          model: data.MODEL_NAME || state.apiConfig.model,
-        },
-        themeColor: data.appearance?.theme_color || data.theme_color || state.themeColor,
-        avatarScale: data.appearance?.avatar_scale || data.avatar_scale || state.avatarScale,
-        dynamicsIntensity:
-          data.appearance?.dynamics_intensity ||
-          data.dynamics_intensity ||
-          state.dynamicsIntensity,
-        showAnimatedAssets:
-          data.appearance?.show_animated_assets !== undefined
-            ? data.appearance.show_animated_assets
-            : data.show_animated_assets !== undefined
-              ? data.show_animated_assets
-              : state.showAnimatedAssets,
-      }));
+      set((state) => {
+        const resolvedProvider =
+          data.llm?.provider ||
+          data.PROVIDER ||
+          state.apiConfig.provider ||
+          'Ollama';
+        const resolvedModel =
+          data.llm?.model ||
+          data.MODEL_NAME ||
+          state.apiConfig.model ||
+          'gemma4:31b-cloud';
+        const resolvedEndpoint =
+          data.llm?.url ||
+          data.LLM_URL ||
+          state.apiConfig.endpoint;
+        const resolvedApiKey =
+          data.llm?.api_key ||
+          data.API_KEY ||
+          data.DEEPSEEK_API_KEY ||
+          data.GEMINI_API_KEY ||
+          state.apiConfig.apiKey;
+
+        return {
+          apiConfig: {
+            ...state.apiConfig,
+            provider: resolvedProvider,
+            model: resolvedModel,
+            endpoint: resolvedEndpoint,
+            apiKey: resolvedApiKey,
+          },
+          themeColor: data.appearance?.theme_color || data.theme_color || state.themeColor,
+          avatarScale: data.appearance?.avatar_scale || data.avatar_scale || state.avatarScale,
+          dynamicsIntensity:
+            data.appearance?.dynamics_intensity ||
+            data.dynamics_intensity ||
+            state.dynamicsIntensity,
+          showAnimatedAssets:
+            data.appearance?.show_animated_assets !== undefined
+              ? data.appearance.show_animated_assets
+              : data.show_animated_assets !== undefined
+                ? data.show_animated_assets
+                : state.showAnimatedAssets,
+        };
+      });
     } catch (e) {
       console.error('Failed to fetch settings', e);
     }

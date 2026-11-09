@@ -215,29 +215,54 @@ class RAGMemorySystem:
 
         def _get_coll():
             client = chromadb.PersistentClient(path=CHROMA_PATH)
-            return client, client.get_or_create_collection(name="aiko_memory_v2", embedding_function=self.ef)
+            coll = client.get_or_create_collection(name="aiko_memory_v2", embedding_function=self.ef)
+            return client, coll
 
         try:
             # Multi-threaded init with timeout to prevent Windows hang
             import threading
-            init_res = {"success": False, "c": None, "coll": None}
+            init_res = {"success": False, "c": None, "coll": None, "err": None}
             def _task():
                 try:
                     c, coll = _get_coll()
+                    # Verify collection is readable
+                    coll.count()
                     init_res.update({"success": True, "c": c, "coll": coll})
                 except Exception as e:
+                    init_res["err"] = e
                     logger.debug(f"Failed to connect to local ChromaDB: {e}")
             
             t = threading.Thread(target=_task, daemon=True)
             t.start()
             t.join(timeout=4.0)
             
+            # Auto-healing: If ChromaDB threw a fatal compactor/corruption error, auto-heal
+            if not init_res["success"] and init_res.get("err"):
+                err_str = str(init_res["err"]).lower()
+                if "compactor" in err_str or "segment writer" in err_str or "database disk image is malformed" in err_str:
+                    logger.warning(f" [RAG] Corrupted ChromaDB detected ({init_res['err']}). Auto-recovering...")
+                    try:
+                        backup_dir = f"{CHROMA_PATH}_corrupt_{int(time.time())}"
+                        if os.path.exists(CHROMA_PATH):
+                            import shutil
+                            shutil.move(CHROMA_PATH, backup_dir)
+                            logger.info(f" [RAG] Moved corrupted DB to {backup_dir}")
+                            c, coll = _get_coll()
+                            coll.count()
+                            init_res.update({"success": True, "c": c, "coll": coll})
+                    except Exception as rec_err:
+                        logger.error(f" [RAG] Auto-recovery failed: {rec_err}")
+
             if not init_res["success"]:
-                logger.warning(" [!] [RAG] DB is LOCKED by another process. Running in Read-Only/Empty mode.")
+                logger.warning(" [!] [RAG] DB is LOCKED or unavailable. Running in Read-Only/Empty mode.")
                 return
 
             self.client, self.collection = init_res["c"], init_res["coll"]
-            logger.info(f" [OK] [RAG] Local DB Connected. Items: {self.collection.count()}")
+            try:
+                self._cached_count = self.collection.count()
+            except Exception:
+                self._cached_count = 0
+            logger.info(f" [OK] [RAG] Local DB Connected. Items: {self._cached_count}")
             self._initialized = True
         except Exception as e:
             logger.error(f" [X] [RAG] Fatal DB Error: {e}")

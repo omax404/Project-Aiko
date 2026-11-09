@@ -71,7 +71,7 @@ async function saveSettingsToBackend(settings: any): Promise<void> {
 
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, onSave, onOpenDiagnostics }) => {
   const defaultSettings = {
-    llm: { url: 'http://127.0.0.1:11434/api/chat', model: 'qwen3.5:397b-cloud' },
+    llm: { url: 'http://127.0.0.1:11434/api/chat', model: 'gemma4:31b-cloud' },
     tts: { enabled: true, voice: 'vivian', speed: 0.9 },
     persona: { custom_prompt: 'You are a highly capable AI agent designed to assist with anything the user needs. Always be polite, concise, and helpful.' },
     plugins: { discord_bot: false, discord_token: '', telegram_bot: false, telegram_token: '', twitch_bot: false, twitch_token: '', twitch_channel: '', twitch_username: '', hermes_agent: true },
@@ -564,7 +564,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, o
                         { name: 'Gemini', provider: 'Gemini', url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', model: 'gemini-1.5-flash' },
                         { name: 'DeepSeek', provider: 'DeepSeek', url: 'https://api.deepseek.com/chat/completions', model: 'deepseek-chat' },
                         { name: 'Groq', provider: 'Groq', url: 'https://api.groq.com/openai/v1/chat/completions', model: 'llama-3.3-70b-versatile' },
-                        { name: 'Ollama Local', provider: 'Ollama', url: 'http://127.0.0.1:11434/api/chat', model: 'qwen2.5:7b' },
+                        { name: 'Ollama Local', provider: 'Ollama', url: 'http://127.0.0.1:11434/api/chat', model: 'gemma4:31b-cloud' },
                       ].map((preset) => (
                         <button
                           key={preset.name}
@@ -620,7 +620,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, o
                         className="w-full bg-[var(--bg-base)] border border-white/[0.06] rounded-lg px-3 py-2 text-[13px] text-[#f0ebe3] focus:border-[var(--accent)]/50 focus:outline-none font-mono"
                         value={settings.llm.fallback_model || ''}
                         onChange={e => setSettings({...settings, llm: {...settings.llm, fallback_model: e.target.value}})}
-                        placeholder="e.g. qwen2.5:7b (local backup)"
+                        placeholder="e.g. gemma2:9b (local backup)"
                         aria-label="Fallback Model Name"
                       />
                       <p className="text-[10.5px] text-[#5a5248]">Used automatically if cloud is down</p>
