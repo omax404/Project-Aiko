@@ -27,6 +27,7 @@ interface TitleBarProps {
   showAnimatedAssets: boolean;
   onSettings: () => void;
   onToggleSidebar: () => void;
+  onOpenDiagnostics?: () => void;
 }
 
 interface HubHealthInfo {
@@ -43,7 +44,7 @@ interface HubHealthInfo {
   bridges?: Record<string, string>;
 }
 
-export function TitleBar({ sessionLabel, showAnimatedAssets, onSettings, onToggleSidebar }: TitleBarProps) {
+export function TitleBar({ sessionLabel, showAnimatedAssets, onSettings, onToggleSidebar, onOpenDiagnostics }: TitleBarProps) {
   const isTauri = !!(window as any).__TAURI__;
   const layoutMode = useNeuralStore((s) => s.layoutMode);
   const setLayoutMode = useNeuralStore((s) => s.setLayoutMode);
@@ -347,6 +348,20 @@ export function TitleBar({ sessionLabel, showAnimatedAssets, onSettings, onToggl
                   ? 'Neural Hub is not running on port 8000. Run LAUNCH_AIKO.bat to start Aiko.'
                   : 'WebSocket stream is reconnecting. Click Reconnect above if it takes more than 5 seconds.'}
               </div>
+            )}
+
+            {onOpenDiagnostics && (
+              <button
+                type="button"
+                onClick={() => {
+                  setHealthOpen(false);
+                  onOpenDiagnostics();
+                }}
+                className="w-full mt-3 py-1.5 px-3 rounded-lg bg-[var(--accent)]/15 hover:bg-[var(--accent)]/25 border border-[var(--accent)]/30 text-[11px] font-medium text-white flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Activity size={12} className="text-[var(--accent)]" />
+                Open Diagnostics & Performance
+              </button>
             )}
           </div>
         )}

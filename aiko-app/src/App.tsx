@@ -6,6 +6,7 @@ import { OnboardingWizard } from './components/OnboardingWizard';
 import { ChatBubble } from './components/ChatBubble';
 import { InputDock } from './components/InputDock';
 import { SettingsPanel } from './components/SettingsPanel';
+import { DiagnosticsScreen } from './components/DiagnosticsScreen';
 import { SkeletonLoader } from './components/SkeletonLoader';
 import { ProjectIntelligence } from './components/ProjectIntelligence';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -118,6 +119,7 @@ function App() {
   const activeSession = (sessions || []).find(s => s.id === activeSessionId);
   const sessionLabel = activeSession?.title || 'New chat';
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
   const [isProjectOpen, setIsProjectOpen] = useState(false);
   const [isPurgeConfirmOpen, setIsPurgeConfirmOpen] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -172,8 +174,14 @@ function App() {
       // Escape closes any open modal
       if (e.key === 'Escape') {
         if (isSettingsOpen) setIsSettingsOpen(false);
+        if (isDiagnosticsOpen) setIsDiagnosticsOpen(false);
         if (isProjectOpen) setIsProjectOpen(false);
         if (isPurgeConfirmOpen) setIsPurgeConfirmOpen(false);
+      }
+      // Ctrl+Shift+D toggles diagnostics
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'D' || e.key === 'd')) {
+        e.preventDefault();
+        setIsDiagnosticsOpen((prev) => !prev);
       }
       // F1 toggles sidebar
       if (e.key === 'F1') {
@@ -183,7 +191,7 @@ function App() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isSettingsOpen, isProjectOpen, isPurgeConfirmOpen, toggleSidebar]);
+  }, [isSettingsOpen, isDiagnosticsOpen, isProjectOpen, isPurgeConfirmOpen, toggleSidebar]);
 
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const uploadFile = useNeuralStore((s) => s.uploadFile);
@@ -271,6 +279,7 @@ function App() {
         showAnimatedAssets={showAnimatedAssets}
         onSettings={() => setIsSettingsOpen(true)}
         onToggleSidebar={toggleSidebar}
+        onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
       />
 
       {/* Onboarding Overlay */}
@@ -728,11 +737,16 @@ function App() {
       <SettingsPanel 
         isOpen={isSettingsOpen} 
         onClose={() => setIsSettingsOpen(false)} 
+        onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
         onSave={() => {
           // Tell Python to reload user_settings.json instantly
           const { reloadConfig } = useNeuralStore.getState();
           reloadConfig();
         }}
+      />
+      <DiagnosticsScreen
+        isOpen={isDiagnosticsOpen}
+        onClose={() => setIsDiagnosticsOpen(false)}
       />
       <ProjectIntelligence isOpen={isProjectOpen} onClose={() => setIsProjectOpen(false)} />
 

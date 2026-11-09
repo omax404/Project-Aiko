@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, X, Settings, User, Palette, Brain, Volume2, Eye, Plug, Smartphone, Moon, Plus, Trash2, Shield, RotateCcw, Download } from 'lucide-react';
+import { Save, X, Settings, User, Palette, Brain, Volume2, Eye, Plug, Smartphone, Moon, Plus, Trash2, Shield, RotateCcw, Download, Activity } from 'lucide-react';
 import { useNeuralStore, getHubUrl, getAuthHeaders, resolveHubUrl } from '../store/useNeuralStore';
 import { QRCodeSVG } from 'qrcode.react';
 import { StageBackgroundSettings } from './StageBackgroundSettings';
@@ -11,6 +11,7 @@ interface SettingsPanelProps {
   isOpen: boolean;
   onClose: () => void;
   onSave?: (settings: any) => void;
+  onOpenDiagnostics?: () => void;
 }
 
 const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI__;
@@ -68,7 +69,7 @@ async function saveSettingsToBackend(settings: any): Promise<void> {
   }
 }
 
-export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, onSave }) => {
+export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, onSave, onOpenDiagnostics }) => {
   const defaultSettings = {
     llm: { url: 'http://127.0.0.1:11434/api/chat', model: 'qwen3.5:397b-cloud' },
     tts: { enabled: true, voice: 'vivian', speed: 0.9 },
@@ -303,6 +304,21 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, o
                   {tab.label}
                 </button>
               ))}
+              {onOpenDiagnostics && (
+                <div className="mt-auto pt-2 border-t border-white/[0.06]">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onOpenDiagnostics();
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-medium text-white/90 bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20 border border-[var(--accent)]/20 transition-all text-left cursor-pointer"
+                  >
+                    <Activity size={13} className="text-[var(--accent)] shrink-0" />
+                    <span>Diagnostics & Budget</span>
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Content Area */}

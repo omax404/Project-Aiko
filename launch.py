@@ -967,6 +967,52 @@ def run_preflight_check() -> int:
         return 1
 
 
+def run_performance_budget_check() -> int:
+    """Evaluate performance budget: startup latency and memory footprint against thresholds."""
+    UI.banner("AIKO PERFORMANCE BUDGET CHECK (--budget)")
+    try:
+        from core.perf_budget import perf_tracker
+        summary = perf_tracker.get_summary()
+        current = summary["current"]
+        budget = summary["budget"]
+
+        UI.step("Evaluating Current Startup Latency")
+        s_val = current["startup_time_s"]
+        s_max = budget["startup"]["max_threshold_s"]
+        s_warn = budget["startup"]["warn_threshold_s"]
+        if current["startup_time_s"] <= s_warn:
+            UI.ok(f"Startup Latency: {s_val}s (Budget: <{s_warn}s) — OPTIMAL")
+        elif current["startup_time_s"] <= s_max:
+            UI.warn(f"Startup Latency: {s_val}s (Budget: <{s_warn}s) — ACCEPTABLE")
+        else:
+            UI.err(f"Startup Latency: {s_val}s EXCEEDS MAX BUDGET of {s_max}s!")
+
+        UI.step("Evaluating Process Memory (RSS)")
+        m_val = current["memory_rss_mb"]
+        m_max = budget["memory"]["max_threshold_mb"]
+        m_warn = budget["memory"]["warn_threshold_mb"]
+        if m_val <= m_warn:
+            UI.ok(f"Memory RSS: {m_val} MB (Budget: <{m_warn} MB) — LEAN")
+        elif m_val <= m_max:
+            UI.warn(f"Memory RSS: {m_val} MB (Budget: <{m_warn} MB) — ELEVATED")
+        else:
+            UI.err(f"Memory RSS: {m_val} MB EXCEEDS MAX BUDGET of {m_max} MB!")
+
+        avg = summary.get("averages", {})
+        UI.info(f"Historical Tracker: {avg.get('total_runs_tracked', 0)} sessions recorded (Avg startup: {avg.get('avg_startup_s', s_val)}s, Avg RSS: {avg.get('avg_memory_rss_mb', m_val)} MB)")
+
+        print()
+        if budget["passed"]:
+            UI.ok("Performance Budget: PASSED ✨")
+            return 0
+        else:
+            UI.err("Performance Budget: FAILED")
+            return 1
+    except Exception as e:
+        UI.err(f"Could not calculate performance budget: {e}")
+        return 1
+
+
 if __name__ == "__main__":
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -975,6 +1021,8 @@ if __name__ == "__main__":
         pass
     if "--check" in sys.argv:
         sys.exit(run_preflight_check())
+    if "--budget" in sys.argv:
+        sys.exit(run_performance_budget_check())
     try:
         main()
     except Exception as e:

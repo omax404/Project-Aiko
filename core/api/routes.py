@@ -1281,3 +1281,61 @@ async def handle_actions_undo(req):
     if ok:
         return web.json_response({"status": "success", "message": msg})
     return web.json_response({"error": msg}, status=400)
+
+
+# ============================================================
+# DIAGNOSTICS & PERFORMANCE BUDGET & AUTO-UPDATE
+# ============================================================
+
+async def handle_diagnostics(req):
+    """GET /api/diagnostics - Comprehensive health check for Hub, Model, Memory, Bridges with fixes."""
+    from core.diagnostics import diagnostics_engine
+    report = await diagnostics_engine.run_all_checks()
+    return web.json_response(report)
+
+
+async def handle_diagnostics_fix(req):
+    """POST /api/diagnostics/fix - 1-Click remediation for a degraded component."""
+    user = req.get("user", {})
+    if user.get("is_admin") is not True:
+        return web.json_response({"error": "Desktop administrator access required"}, status=403)
+    try:
+        data = await req.json()
+        target = str(data.get("action_command", data.get("target", ""))).strip()
+    except Exception:
+        return web.json_response({"error": "Invalid JSON"}, status=400)
+
+    from core.diagnostics import diagnostics_engine
+    res = await diagnostics_engine.apply_remediation(target)
+    return web.json_response(res)
+
+
+async def handle_perf_budget(req):
+    """GET /api/perf/budget - Startup time and memory utilization measured and tracked."""
+    from core.perf_budget import perf_tracker
+    summary = perf_tracker.get_summary()
+    return web.json_response(summary)
+
+
+async def handle_update_check(req):
+    """GET /api/system/update/check - Check for Aiko updates without terminal."""
+    from core.updater import updater
+    force = req.query.get("force", "false").lower() in ("1", "true")
+    res = await updater.check_for_updates(force=force)
+    return web.json_response(res)
+
+
+async def handle_update_apply(req):
+    """POST /api/system/update/apply - Apply or download latest release."""
+    user = req.get("user", {})
+    if user.get("is_admin") is not True:
+        return web.json_response({"error": "Desktop administrator access required"}, status=403)
+    try:
+        data = await req.json()
+        url = data.get("download_url")
+    except Exception:
+        url = None
+
+    from core.updater import updater
+    res = await updater.apply_update(download_url=url)
+    return web.json_response(res)

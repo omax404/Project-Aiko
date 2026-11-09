@@ -61,7 +61,9 @@ from core.api.routes import (
     handle_private_tts_audio, handle_email_send,
     handle_email_inbox, handle_email_settings,
     handle_background_upload, handle_background_list, handle_background_delete,
-    handle_actions_log, handle_actions_undo
+    handle_actions_log, handle_actions_undo,
+    handle_diagnostics, handle_diagnostics_fix, handle_perf_budget,
+    handle_update_check, handle_update_apply
 )
 from core.api.websocket import handle_ws
 from core.api.background import start_background_tasks, cleanup_background_tasks
@@ -349,6 +351,13 @@ async def on_startup(app):
     
     # 21. Broadcast boot event
     await broadcast_event("boot", {"status": "online", "message": "Aiko Neural Hub v2 is online"})
+    
+    # 22. Record performance budget metric
+    try:
+        from core.perf_budget import perf_tracker
+        perf_tracker.mark_hub_ready()
+    except Exception as e:
+        logger.debug(f"Perf budget tracking error: {e}")
 
 def build_hub_app() -> web.Application:
     """Build and return the aiohttp application with all routes and middleware."""
@@ -433,6 +442,13 @@ def build_hub_app() -> web.Application:
     app.router.add_delete('/api/background/{filename}', handle_background_delete)
     app.router.add_get('/api/actions/log', handle_actions_log)
     app.router.add_post('/api/actions/undo', handle_actions_undo)
+    
+    # Diagnostics, Performance Budget & Auto-Update
+    app.router.add_get('/api/diagnostics', handle_diagnostics)
+    app.router.add_post('/api/diagnostics/fix', handle_diagnostics_fix)
+    app.router.add_get('/api/perf/budget', handle_perf_budget)
+    app.router.add_get('/api/system/update/check', handle_update_check)
+    app.router.add_post('/api/system/update/apply', handle_update_apply)
     
     # TTS static audio
     app.router.add_get('/api/tts/audio/{filename}', handle_private_tts_audio)
