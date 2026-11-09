@@ -261,7 +261,7 @@ function App() {
               className="absolute inset-0 z-[150] flex flex-col items-center justify-center bg-[#0B060F]/85 backdrop-blur-xl border-2 border-dashed border-[var(--acc)] rounded-[24px] pointer-events-none"
             >
               <div className="flex flex-col items-center gap-4 p-8 rounded-3xl bg-white/[0.03] border border-white/10 shadow-2xl">
-                <Zap size={48} className="text-[var(--acc)] animate-bounce" />
+                <Zap size={48} className="text-[var(--acc)] animate-pulse" />
                 <p className="text-lg font-semibold text-[#f0ebe3] tracking-wide">
                   Drop file to analyze with Aiko
                 </p>

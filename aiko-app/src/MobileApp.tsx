@@ -254,9 +254,9 @@ export default function MobileApp() {
               background: '#3B2249', border: '1px solid rgba(184,161,217,0.2)',
               display: 'inline-flex', alignItems: 'center', gap: 8, color: '#B8A1D9'
             }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#B8A1D9', animation: 'bounce 1s infinite' }} />
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#B8A1D9', animation: 'bounce 1s infinite 0.2s' }} />
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#B8A1D9', animation: 'bounce 1s infinite 0.4s' }} />
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#B8A1D9', opacity: 0.7 }} />
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#B8A1D9', opacity: 0.85 }} />
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#B8A1D9', opacity: 1.0 }} />
           </motion.div>
         )}
 
