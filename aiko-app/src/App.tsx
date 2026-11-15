@@ -446,9 +446,9 @@ function App() {
                       <div className="mt-4 grid grid-cols-2 gap-2 w-full max-w-[320px] text-left">
                         {[
                           {
-                            badge: '📚 Study Mode',
-                            title: 'Quiz & Flashcards',
-                            prompt: 'Enter Study Mode: quiz me on my current topic with 5 active-recall questions and create concise flashcards for what I miss.',
+                            badge: '📚 Gentle Study',
+                            title: 'Teach Me Gently',
+                            prompt: 'Teach me gently without the stress: I want to break down my study topic step-by-step. Comfort before correcting, draw it out clearly with formulas and diagrams, and check in as we go.',
                           },
                           {
                             badge: '🖥️ PC Helper',
