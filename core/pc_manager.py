@@ -5,6 +5,7 @@ Allows Aiko to interact with the user's files and applications.
 
 import os
 import shutil
+import shlex
 import subprocess
 import logging
 from pathlib import Path
@@ -185,7 +186,7 @@ class PCManager:
                 if sys.platform == 'darwin':
                     subprocess.Popen(["open", "-a", cmd])
                 else:
-                    subprocess.Popen(cmd, shell=True)
+                    subprocess.Popen(shlex.split(cmd))
                 
             return f"I've launched {app_name} for you, Master! ✨"
         except (OSError, PermissionError, ValueError, TypeError, RuntimeError, AttributeError) as e:

@@ -29,7 +29,7 @@ jobs:
     - name: Check Python requirements.lock freshness
       run: |
         uv pip compile --generate-hashes --universal requirements.in -o requirements.lock.tmp
-        diff -u requirements.lock requirements.lock.tmp || (echo "ERROR: requirements.lock is stale relative to requirements.in. Run 'uv pip compile --generate-hashes --universal requirements.in -o requirements.lock'" && exit 1)
+        diff -u <(grep -v '^#' requirements.lock) <(grep -v '^#' requirements.lock.tmp) || (echo "ERROR: requirements.lock is stale relative to requirements.in. Run 'uv pip compile --generate-hashes --universal requirements.in -o requirements.lock'" && exit 1)
     - name: Check Frontend package-lock.json freshness
       working-directory: aiko-app
       run: |

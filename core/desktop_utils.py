@@ -49,8 +49,10 @@ def launch_on_desktop(command_line, desktop="WinSta0\\Default"):
     Only applicable on Windows. On other systems, this falls back to subprocess.Popen.
     """
     if sys.platform != "win32":
+        import shlex
         import subprocess
-        return subprocess.Popen(command_line, shell=True).pid
+        args = shlex.split(command_line) if isinstance(command_line, str) else command_line
+        return subprocess.Popen(args).pid
 
     import ctypes
     from ctypes import wintypes
