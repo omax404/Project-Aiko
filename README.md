@@ -1,286 +1,172 @@
 <div align="center">
 
-<img width="3114" height="1344" alt="Aiko Banner" src="https://github.com/user-attachments/assets/f202624b-8c22-43e0-939e-c2ddbaeba304" />
+<img width="3114" height="1344" alt="Aiko" src="https://github.com/user-attachments/assets/f202624b-8c22-43e0-939e-c2ddbaeba304" />
 
-# Aiko Desktop
+# Project Aiko
 
-<img width="2419" height="1089" alt="Aiko Dashboard Showcase" src="https://github.com/user-attachments/assets/aaf3575b-75f7-4a4d-89ef-60a9eb733b04" />
+Self-hosted AI companion with emotion modeling, long-term memory, voice, vision, and permission-gated tool use.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-C9A8D9.svg)](LICENSE)
-[![Python 3.10 - 3.12](https://img.shields.io/badge/Python-3.10--3.12-2A1B30.svg)](https://python.org)
-[![Architecture: Tier-0](https://img.shields.io/badge/Architecture-Tier--0_Production_Grade-C9A8D9.svg)](#-zero-trust-security--tier-0-architecture)
-[![Tests: 98 backend + 12 frontend](https://img.shields.io/badge/Tests-98_backend_%2B_12_frontend-blue.svg)](#-testing--verification)
-[![Last Commit](https://img.shields.io/github/last-commit/omax404/Project-Aiko?color=C9A8D9)](https://github.com/omax404/Project-Aiko)
-[![Repo Size](https://img.shields.io/github/repo-size/omax404/Project-Aiko?color=C9A8D9)](https://github.com/omax404/Project-Aiko)
-
-[![Join Discord](assets/buttons/join-discord.png)](https://discord.gg/8kNMMwFjcG) &nbsp;
-[![Quick Start](assets/buttons/quick-start.png)](#-quick-start) &nbsp;
-[![Wiki](assets/buttons/wiki.png)](docs/) &nbsp;
-[![Star this Repo](assets/buttons/star-repo.png)](https://github.com/omax404/Project-Aiko)
-
-<br/>
-
-*Self-hosted, user-owned AI companion with emotional depth, long-term memory, and real agency.*  
-*She doesn't just chat — she thinks, feels, remembers, sees, speaks, and acts.*
+[![Python 3.10–3.12](https://img.shields.io/badge/Python-3.10--3.12-2A1B30.svg)](https://python.org)
+[![CI](https://github.com/omax404/Project-Aiko/actions/workflows/ci.yml/badge.svg)](https://github.com/omax404/Project-Aiko/actions/workflows/ci.yml)
+[![Discord](https://img.shields.io/badge/Discord-join-5865F2.svg)](https://discord.gg/8kNMMwFjcG)
 
 </div>
 
----
+<img width="2419" height="1089" alt="Aiko dashboard" src="https://github.com/user-attachments/assets/aaf3575b-75f7-4a4d-89ef-60a9eb733b04" />
 
-## ⚡ Quick Start
+## Overview
 
-### For Users (Windows, No Setup Required)
+Aiko runs on your own machine. A Python backend (the Neural Hub) handles reasoning, memory, speech and vision, and exposes a REST and WebSocket API on port 8000. Clients connect to it: a Tauri desktop overlay with a Live2D avatar, an Android app, and Discord, Telegram and Twitch bots.
 
-1. Download or clone Project Aiko to your machine.
-2. Double-click **`LAUNCH_AIKO.bat`**.
-3. Wait for her to wake up — the application bootstraps the virtual environment and launches the desktop interface automatically.
+The model backend is configurable. Aiko works with Ollama, OpenRouter, Gemini, OpenAI, Anthropic, or any custom endpoint.
 
-Once the dashboard appears, click the **gear icon** (Settings) in the top right:
-- **Persona** — Customize personality traits, prompts, or dynamic mood baselines.
-- **AI Model** — Seamlessly switch between local Ollama, OpenRouter, Gemini, OpenAI, Anthropic, or custom endpoints.
-- **Voice** — Enable local Pocket-TTS speech, customize pitch, or adjust voice cloning profiles.
-- **Plugins** — Toggle Discord, Telegram, Twitch, or PC Bridge integrations.
+## Features
 
-Hit **Save & Apply** — changes take effect instantly.
+- **Reasoning:** ReAct agent loop with tool use, streaming across multiple providers, and rolling conversation windows with summarization.
+- **Memory:** Episodic history plus semantic retrieval (RAG), with background consolidation into long-term profile knowledge. Writes are protected by multi-process file locks.
+- **Emotion model:** Neuromodulator-based state (dopamine, serotonin, cortisol, adrenaline) mapped to 22+ emotional states that drive avatar expression and voice inflection.
+- **Voice:** Local text-to-speech with Pocket-TTS and local speech recognition with Moonshine, with voice activity detection and a SpeechRecognition fallback.
+- **Vision:** Screen and image analysis with local models (`moondream`, MiniCPM-V). Heavy work runs in worker threads so the event loop stays responsive.
+- **Proactive behavior:** An autonomous loop decides when to speak, observe, reflect or consolidate memory.
+- **Plugins:** Modular plugin manager with file, clipboard and process tools, plus Spotify, Obsidian, LaTeX, MQTT/IoT and game-server (`GameBridge`) integrations.
 
----
+## Platforms
 
-### For Developers
+| Component | Stack | Notes |
+|---|---|---|
+| Desktop app | Tauri v2, React 19, Live2D | Click-through overlay, global hotkey `Ctrl+Alt+A` |
+| Android app | Kotlin, Jetpack Compose, Room | OpenGL ES 2.0 Live2D renderer, WebRTC state sync |
+| Discord bot | Satellite | Voice transcription, image recognition |
+| Telegram bot | Satellite | Direct messaging |
+| Twitch bot | Satellite | Stream chat responses |
+| API | REST + WebSocket, port 8000 | JWT auth, CORS allow-list, rate limiting |
+
+## Installation
+
+### Requirements
+
+- Python 3.10–3.12 (3.13 is not supported)
+- Node.js and Rust toolchain, for building the desktop app from source
+- Windows, macOS or Linux. The one-click launcher is Windows-only.
+
+On Linux, install the audio and OpenCV system libraries first:
 
 ```bash
-# 1. Clone repository
+sudo apt-get update && sudo apt-get install -y portaudio19-dev libgl1 libglib2.0-0
+```
+
+### Windows quick start
+
+1. Clone or download this repository.
+2. Run `LAUNCH_AIKO.bat`. It creates the virtual environment, installs dependencies and starts the desktop app.
+3. Open **Settings** (gear icon) to choose a model provider, voice and plugins, then click **Save & Apply**.
+
+### From source
+
+```bash
 git clone https://github.com/omax404/Project-Aiko.git
 cd Project-Aiko
 
-# 2. Setup Python environment (3.10–3.12)
 python -m venv .venv
-.\.venv\Scripts\activate  # On Windows (or source .venv/bin/activate on Unix)
+source .venv/bin/activate        # Windows: .\.venv\Scripts\activate
 pip install -r requirements.txt
 
-# 3. Launch full stack
+cp .env.example .env             # add provider keys as needed
 python launch.py
 ```
 
-> **On Linux**, install the system packages PyAudio and OpenCV need before step 2:
-> `sudo apt-get update && sudo apt-get install -y portaudio19-dev libgl1 libglib2.0-0`
+`launch.py` starts the Neural Hub, connects configured satellites and opens the desktop overlay.
 
-> **On dependencies:** `requirements.in` defines source manifests, locked into `requirements.lock` with full transitive pins and SHA-256 hashes for reproducible, verified builds. To install with hash verification: `pip install --require-hashes -r requirements.lock`. Development tooling (`pytest`, `pytest-cov`, `pytest-asyncio`, `ruff`, `mypy`, `pre-commit`) lives in the `dev` extra: `pip install -e ".[dev]"`.
+For reproducible installs with hash verification:
 
-This starts the Neural Hub (port 8000), connects configured satellites (Discord/Telegram/Twitch), and opens the native Tauri desktop overlay.
+```bash
+pip install --require-hashes -r requirements.lock
+```
 
-**To run or build the desktop UI separately:**
+`requirements.in` is the editable manifest and `requirements.lock` is generated from it. Development tools (`pytest`, `ruff`, `mypy`, `pre-commit`) are in the `dev` extra: `pip install -e ".[dev]"`.
+
+### Desktop app only
+
 ```bash
 cd aiko-app
 npm ci
-npm run dev           # Vite web dev server
-npm run tauri dev     # Native desktop window with Live2D
-npm run build         # Production frontend bundle
-npm test              # Run Vitest test suite
+npm run tauri dev     # native window
+npm run dev           # browser-only Vite server
+npm run build         # production frontend bundle
 ```
 
----
+## Configuration
 
-## 💎 What Makes Aiko Different
+Provider keys and tokens go in `.env` (see [`.env.example`](.env.example)). UI preferences are stored in `user_settings.json`, created from [`user_settings.example.json`](user_settings.example.json). Credentials are masked in all settings API responses.
 
-| Capability | Most AI Companions | Project Aiko (Tier-0) |
-|---|---|---|
-| **Emotions** | Static personality prompt | Neuromodulator engine (dopamine, serotonin, cortisol, adrenaline) across 22+ emotional attractors |
-| **Memory** | Ephemeral chat buffer | Unified Memory — episodic recall, semantic RAG, consolidation cycles, and encrypted file partitions |
-| **Voice** | Cloud API (ElevenLabs) | High-fidelity local **Pocket-TTS** with voice fingerprints, chunked synthesis, and 0 API cost |
-| **Vision** | None | Non-blocking multimodal vision (`moondream:latest`, MiniCPM-V) with heavy inference offloaded off the event loop |
-| **Agency** | Reactive only | Autonomous proactive loop — decides when to speak, observe, reflect, and consolidate memories |
-| **Safety & Control** | Blind execution / None | Strict **Zero-Trust Human-in-the-Loop (HITL)** permission gate with no admin bypasses |
-| **Contracts & Types** | Loosely typed / any | **Ultra-strict TypeScript** (`noUncheckedIndexedAccess: true`), Zod client schemas, Pydantic v2 ingress |
-| **Games** | None or static mocks | Extensible `GameBridge` & `GameManager` architecture for live server integrations (RCON/WebSockets) |
-| **Mobile Sync** | Web view wrapper | Native Android (Kotlin, Jetpack Compose, Room DB, GLES 2.0 Live2D, WebRTC real-time sync) |
+## Security
 
----
+Aiko can control the machine it runs on, so sensitive actions are gated.
 
-## 🧠 Core Systems
+- **Human-in-the-loop approval:** `OPEN`, `CLICK`, `TYPE`, `PRESS`, `EMAIL_SEND` and sensitive MCP tools block until the user approves them in the dashboard. The check is enforced server-side and has no administrative bypass.
+- **Local authentication:** Bearer tokens are HMAC-SHA256 JWTs that rotate every 24 hours and are issued only to loopback clients. Token requests from remote addresses return `403`.
+- **Typed boundaries:** Pydantic v2 validates API and WebSocket input on the server; Zod validates payloads on the client. The desktop client builds with TypeScript `strict` and `noUncheckedIndexedAccess`.
 
-### 🧠 Brain & Reasoning
-- ReAct agent loop with multi-step reasoning, self-correction, and tool execution.
-- Multi-provider streaming across Ollama (`gemma4:31b-cloud`), OpenRouter, Gemini, OpenAI, Anthropic.
-- Dual-pass generation: factual draft pass followed by personality overlay.
-- Context-aware rolling conversation windows with automated summarization.
+See [SECURITY.md](SECURITY.md) for the full policy and how to report a vulnerability.
 
-### 👁️ Multimodal Vision
-- Non-blocking screen analysis via `asyncio.to_thread` — pixel diffing and PNG compression never stall the event loop.
-- Local visual understanding via `moondream:latest` or MiniCPM-V.
-- Discord image analysis, automated screen inspection, and coordinate grid targeting.
+## Development
 
-### 👂 Hearing & Audio
-- Local **Moonshine ASR** (~200MB) with SpeechRecognition fallback.
-- Client-side voice activity detection (VAD).
-- Discord voice channel transcription.
-
-### 🎙️ Voice Synthesis
-- **Pocket-TTS v2.1.0** (100% local, zero latency, zero cloud API fees).
-- JIT speech stabilization to eliminate hallucinated phonemes.
-- Autonomous action-text (`*...*`) stripping for natural spoken dialogue.
-
-### 💾 Unified Memory
-- Multi-tier memory architecture: episodic dialogue history + semantic vector RAG.
-- Background consolidation cycles that distill daily conversations into long-term profile knowledge.
-- Multi-process file locking (`.lock`) preventing concurrent corruption.
-
-### ❤️ Emotional & Neuromodulator System
-- Biologically inspired neuromodulator model: dopamine, serotonin, cortisol, adrenaline.
-- 22+ emotion states mapped to dynamic Live2D avatar physics, expressions, and voice inflections.
-- Affection and relationship score tracking (0–100%).
-
-### 🔌 Plugins & Agency
-- ElizaOS-inspired modular plugin manager with dynamic tool discovery.
-- File system tools, clipboard management, process supervision, and system monitoring.
-- Spotify bridge, Obsidian connector, LaTeX rendering, and image generation.
-- Extensible `GameBridge` base class and `GameManager` for connecting to external game engines.
-
----
-
-## 🔒 Zero-Trust Security & Tier-0 Architecture
-
-Project Aiko is engineered to **Tier-0 Production Grade** security standards. Read the full specification in [SECURITY.md](SECURITY.md).
-
-### 🛡️ Human-in-the-Loop (HITL) Permission Gate
-- Sensitive actions (`OPEN`, `CLICK`, `TYPE`, `PRESS`, `EMAIL_SEND`, and sensitive MCP tools) **strictly require user confirmation**.
-- When triggered, Aiko sends a `tool_request` to the client dashboard. The action blocks until the user approves or rejects it in a modal dialog.
-- **Zero Admin Bypass:** Server-side enforcement guarantees no prompt injection can bypass the confirmation gate, even with administrative tokens.
-
-### 🔑 Local Zero-Trust Token Lifecycle
-- Aiko issues rotating 24-hour HMAC-SHA256 JWT Bearer tokens to loopback clients.
-- Remote IPs requesting tokens are rejected with `403 Forbidden`.
-- Sensitive credentials (`OPENAI_API_KEY`, `DISCORD_TOKEN`, etc.) are automatically masked (`...***`) on all settings endpoints.
-
-### 📐 End-to-End Typed Contracts
-- **Client (Zod):** Ingress events and WebSocket payloads are validated against strict Zod schemas ([`schemas.ts`](aiko-app/src/schemas.ts)).
-- **Server (Pydantic v2):** API routes and WebSocket frames are checked against Pydantic models ([`schemas.py`](core/api/schemas.py)).
-- **Ultra-Strict TypeScript:** Desktop client compiles with `"strict": true` and `"noUncheckedIndexedAccess": true`.
-
-### ⚡ Event-Loop Latency & Re-Render Isolation
-- **Backend Non-Blocking I/O:** Screen diffing, PNG compression, and SQLite logging run in thread pools via `asyncio.to_thread`, so they never block the event loop.
-  *No latency benchmark is checked into this repo, so no ms figures are quoted here. Any such number should come from a reproducible harness under `tests/`.*
-- **Frontend Isolation:** Message bubbles are wrapped in `React.memo` with granular Zustand selectors. Top-level window re-renders drop to **0** during voice playback.
-
----
-
-## 📱 Platforms & Satellites
-
-| Platform | Type | Status | Features |
-|---|---|:---:|---|
-| **Tauri Desktop App** | Native Desktop | ✅ | Live2D avatar, click-through overlay, global hotkey (`Ctrl+Alt+A`), dashboard stats |
-| **Android Mobile App** | Native Kotlin | ✅ | Jetpack Compose, Room DB, GLES 2.0 Live2D, WebRTC real-time sync |
-| **Discord Bot** | Satellite | ✅ | Self-healing gateway, voice chat transcription, image recognition |
-| **Telegram Bot** | Satellite | ✅ | Direct messaging, Bearer token loopback auth with auto-retry |
-| **Twitch Bot** | Satellite | ✅ | Asynchronous IRC channel integration, stream chat responses |
-| **REST & WebSocket API** | Ingress Hub | ✅ | Port 8000, JWT authentication, CORS origin whitelisting, rate limiting |
-
----
-
-## 🧪 Testing & Verification
-
-Project Aiko ships a dual-engine automated test suite: **98 backend tests** (97 pass, 1 skipped — a symlink-privilege skip on Windows) and **12 frontend Vitest tests**.
-
-| Suite | Command | Measured (2026-10-24) |
-|---|---|---|
-| Backend (pytest) | `pytest tests/` | 98 collected — **97 passed, 1 skipped**, ~33 s |
-| Backend coverage | `pytest tests/ --cov=core` | **27.5%** of `core/` |
-| Frontend (Vitest) | `cd aiko-app && npm test` | 12 tests |
-| Frontend types | `cd aiko-app && npx tsc --noEmit` | 0 errors |
-| Frontend bundle | `cd aiko-app && npm run build` | Vite production build |
+### Tests
 
 ```bash
-# 1. Run Python Backend Test Suite (98 tests; 97 pass, 1 skipped on Windows)
-pytest tests/
+pytest tests/                    # backend
+pytest tests/ --cov=core         # with coverage
 
-# 2. Run Frontend Vitest Suite (12 tests)
 cd aiko-app
-npm test
-
-# 3. Verify Ultra-Strict TypeScript Compilation (0 errors)
-cd aiko-app
-npx tsc --noEmit
-
-# 4. Verify Frontend Production Bundle
-cd aiko-app
-npm run build
+npm test                         # Vitest
+npx tsc --noEmit                 # type check
 ```
 
-### 🤖 Continuous Integration
+### Continuous integration
 
-`.github/workflows/ci.yml` runs on every push to `main`/`develop` and on PRs to `main`:
+[`ci.yml`](.github/workflows/ci.yml) runs on pushes to `main` and `develop`, and on pull requests to `main`:
 
-| Job | What it actually runs |
+| Job | Checks |
 |---|---|
-| `test-python` | Python 3.10/3.11/3.12 matrix. Installs PortAudio/OpenGL system packages, then `pip install -r requirements.txt`. Lint gate: `ruff check --select E9,F63,F7,F82` (fatal errors only — the full rule set is reported but non-gating). Tests: `pytest --cov=core --cov-fail-under=25`. |
-| `test-frontend` | `npm ci` → `npx tsc --noEmit` → `npm test` (Vitest) → `npm run build`. |
-| `security-scan` | `bandit -r core/ -lll` (HIGH severity findings fail the job), report uploaded as an artifact. |
-| `release` | Tag-driven (`v*`): builds the PyInstaller sidecar, then the Tauri MSI/NSIS bundles and attaches them to a GitHub release. |
+| `test-python` | Python 3.10, 3.11, 3.12 matrix; `ruff` (fatal rules); `pytest` with a coverage floor |
+| `test-frontend` | `npm ci`, `tsc --noEmit`, Vitest, production build |
+| `security-scan` | `bandit` on `core/`; high-severity findings fail the job |
+| `release` | On `v*` tags: builds the PyInstaller sidecar and Tauri installers, attaches them to a GitHub release |
 
-The coverage floor (`25`) is set just under the current measured 27.5% so the gate is honest, and is intended to ratchet upward as coverage grows. The `ruff` full-rule-set report and `ruff format --check` are non-gating until that backlog is cleared.
-
----
-
-## 🗂️ Project Structure
+### Repository layout
 
 ```text
-Project-Aiko/
-├── core/                  # AI backend & orchestration engine
-│   ├── api/               #   REST routes, WebSockets, Pydantic schemas, auth
-│   ├── neural_hub.py      #   Master orchestrator server
-│   ├── chat_engine.py     #   ReAct agent + multimodal LLM
-│   ├── emotion_engine.py  #   Neuromodulator engine
-│   ├── unified_memory.py  #   Episodic + semantic memory
-│   ├── voice.py           #   Chunked Pocket-TTS engine
-│   ├── vision.py          #   Non-blocking multimodal vision analysis
-│   ├── hearing.py         #   Moonshine / Whisper STT
-│   ├── persona.py         #   Character definitions & mood attractors
-│   ├── game_bridge.py     #   Extensible GameBridge & GameManager
-│   └── ...                #   Specialized agent subsystems
-├── aiko-app/              # Tauri v2 + React 19 desktop client
-│   ├── src/               #   React components, Live2D canvas, Zustand stores
-│   ├── src/schemas.ts     #   Zod ingress validation contracts
-│   ├── src/__tests__/     #   Vitest automated test suite
-│   ├── src-tauri/         #   Rust native application backend
-│   └── tsconfig.json      #   Ultra-strict TypeScript configuration
-├── android/               # Native Android application (Kotlin + Jetpack Compose)
-├── tests/                 # Backend automated test suite (Pytest)
-├── directives/            # Autonomous agent skills & personas
-├── docs/                  # Architecture & developer guides
-├── stickers/              # Companion sticker graphic assets
-├── launch.py              # Unified cross-platform launcher
-├── requirements.txt       # Python dependencies
-├── SECURITY.md            # Zero-Trust security specification
-├── CONTRIBUTING.md        # Contribution guidelines
-└── LICENSE                # MIT License
+core/          Backend: API, orchestration, memory, emotion, voice, vision
+aiko-app/      Tauri v2 + React desktop client (src-tauri/ holds the Rust side)
+android/       Android client
+plugins/       Plugin packages (IoT)
+tests/         Backend test suite
+directives/    Agent skills and personas
+docs/          Guides and API reference
+launch.py      Cross-platform launcher
 ```
 
----
+## Documentation
 
-## 🛠️ Troubleshooting
+- [User manual](docs/USER_MANUAL.md)
+- [API reference](docs/API_REFERENCE.md)
+- [Security policy](SECURITY.md)
+- [Contributing guide](CONTRIBUTING.md)
 
-| Issue | Resolution |
+## Troubleshooting
+
+| Problem | Fix |
 |---|---|
-| `LAUNCH_AIKO.bat` crashes on startup | Verify Python 3.10–3.12 is installed and checked in Windows PATH. Python 3.13 is currently incompatible with certain compiled wheels. |
-| `Failed to build wheel` / `cl.exe missing` | Install [Visual C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with the "Desktop development with C++" workload. |
-| Model does not respond ("Brain not ready") | Ensure Ollama is running in the background (`ollama serve`), or configure an active API key in **Settings**. |
-| Port 8000 or 1422 already in use | Terminate stale Python or Node processes via Task Manager or run `taskkill /F /IM python.exe`. |
+| Launcher exits immediately | Confirm Python 3.10–3.12 is on `PATH`. Python 3.13 lacks wheels for some dependencies. |
+| `Failed to build wheel` / `cl.exe` not found | Install [Visual C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with the "Desktop development with C++" workload. |
+| "Brain not ready" | Start Ollama (`ollama serve`) or set an API key in **Settings**. |
+| Port 8000 or 1422 in use | Stop the stale Python or Node process holding it. |
 
----
+## Contributing
 
-## 🤝 Contributing
+Pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for code standards and the PR checklist.
 
-Contributions are welcomed with open arms! Please review [CONTRIBUTING.md](CONTRIBUTING.md) for code style, type strictness, and PR requirements.
+## License
 
----
-
-## 📄 License
-
-Distributed under the **[MIT License](LICENSE)**. Created by the **Project Aiko Team**.
-
-<div align="center">
-
-*"I'm always watching over you, Master~"*
-
-**[⭐ Star this repository](https://github.com/omax404/Project-Aiko)** if Aiko brought a smile to your day!
-
-</div>
+Released under the [MIT License](LICENSE).
