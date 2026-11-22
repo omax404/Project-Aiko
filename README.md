@@ -170,3 +170,31 @@ Pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for code stan
 ## License
 
 Released under the [MIT License](LICENSE).
+
+## Architecture
+
+```mermaid
+flowchart LR
+    subgraph Clients
+        D[Tauri desktop overlay<br/>React + Live2D]
+        A[Android app<br/>Kotlin + Compose]
+        B[Discord / Telegram / Twitch bots]
+    end
+    subgraph Hub[Neural Hub - Python, :8000]
+        API[REST + WebSocket API<br/>JWT, CORS, rate limit]
+        CE[Chat engine<br/>ReAct loop]
+        EM[Emotion engine]
+        MEM[Unified memory<br/>episodic + RAG]
+        PL[Plugin manager]
+        PRO[Proactive loop]
+        VS[Voice and vision]
+    end
+    LLM[(Ollama / OpenRouter / Gemini / OpenAI / Anthropic)]
+    D & A & B --> API --> CE
+    CE <--> LLM
+    CE <--> MEM
+    CE <--> EM
+    CE --> PL
+    PRO --> CE
+    VS --> CE
+```
