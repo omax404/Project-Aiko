@@ -25,7 +25,7 @@ The model backend is configurable. Aiko works with Ollama, OpenRouter, Gemini, O
 
 - **Reasoning:** ReAct agent loop with tool use, streaming across multiple providers, and rolling conversation windows with summarization.
 - **Memory:** Episodic history plus semantic retrieval (RAG), with background consolidation into long-term profile knowledge. Writes are protected by multi-process file locks.
-- **Emotion model:** Neuromodulator-based state (dopamine, serotonin, cortisol, adrenaline) mapped to 22+ emotional states that drive avatar expression and voice inflection.
+- **Emotion model:** Neuromodulator-based state (dopamine, serotonin, cortisol, adrenaline) mapped to 20+ emotion tags that drive avatar expression and voice inflection.
 - **Voice:** Local text-to-speech with Pocket-TTS and local speech recognition with Moonshine, with voice activity detection and a SpeechRecognition fallback.
 - **Vision:** Screen and image analysis with local models (`moondream`, MiniCPM-V). Heavy work runs in worker threads so the event loop stays responsive.
 - **Proactive behavior:** An autonomous loop decides when to speak, observe, reflect or consolidate memory.
@@ -40,7 +40,7 @@ The model backend is configurable. Aiko works with Ollama, OpenRouter, Gemini, O
 | Discord bot | Satellite | Voice transcription, image recognition |
 | Telegram bot | Satellite | Direct messaging |
 | Twitch bot | Satellite | Stream chat responses |
-| API | REST + WebSocket, port 8000 | JWT auth, CORS allow-list, rate limiting |
+| API | REST + WebSocket, port 8000 | JWT auth, CORS origin checks, rate limiting |
 
 ## Installation
 
@@ -48,7 +48,7 @@ The model backend is configurable. Aiko works with Ollama, OpenRouter, Gemini, O
 
 - Python 3.10–3.12 (3.13 is not supported)
 - Node.js and Rust toolchain, for building the desktop app from source
-- Windows, macOS or Linux. The one-click launcher is Windows-only.
+- Windows (primary target, covers the one-click launcher and release builds) or Linux (exercised in CI). macOS is untested.
 
 On Linux, install the audio and OpenCV system libraries first:
 
@@ -98,17 +98,17 @@ npm run build         # production frontend bundle
 
 ## Configuration
 
-Provider keys and tokens go in `.env` (see [`.env.example`](.env.example)). UI preferences are stored in `user_settings.json`, created from [`user_settings.example.json`](user_settings.example.json). Credentials are masked in all settings API responses.
+Provider keys and tokens go in `.env` (template: [`.env.example`](.env.example)). Optional overrides go in `user_settings.json` in the project root (template: [`user_settings.example.json`](user_settings.example.json)). Known credential keys are masked in settings API responses.
 
 ## Security
 
 Aiko can control the machine it runs on, so sensitive actions are gated.
 
-- **Human-in-the-loop approval:** `OPEN`, `CLICK`, `TYPE`, `PRESS`, `EMAIL_SEND` and sensitive MCP tools block until the user approves them in the dashboard. The check is enforced server-side and has no administrative bypass.
-- **Local authentication:** Bearer tokens are HMAC-SHA256 JWTs that rotate every 24 hours and are issued only to loopback clients. Token requests from remote addresses return `403`.
+- **Human-in-the-loop approval:** GUI actions (`OPEN`, `CLICK`, `TYPE`, `PRESS`), privacy-sensitive reads (`SCAN`, `CAMERA`, `EMAIL_INBOX`), `EMAIL_SEND` and sensitive MCP tools (file writes and deletes, process kill, command execution, clipboard writes) wait for approval from the originating client, with a 30-second timeout. Enforcement is server-side and applies to administrative tokens too.
+- **Local authentication:** Bearer tokens are HS256 JWTs that expire after at most 24 hours. The local token endpoint serves loopback clients only; remote or proxied requests are rejected with `403`.
 - **Typed boundaries:** Pydantic v2 validates API and WebSocket input on the server; Zod validates payloads on the client. The desktop client builds with TypeScript `strict` and `noUncheckedIndexedAccess`.
 
-See [SECURITY.md](SECURITY.md) for the full policy and how to report a vulnerability.
+See [SECURITY.md](SECURITY.md) for the full threat model and enforcement rules.
 
 ## Development
 
@@ -165,7 +165,7 @@ launch.py      Cross-platform launcher
 
 ## Contributing
 
-Pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for code standards and the PR checklist.
+Pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for code standards and workflow.
 
 ## License
 
