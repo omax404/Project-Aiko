@@ -30,8 +30,8 @@ jobs:
         node-version: '20'
     - name: Check Python requirements.lock freshness
       run: |
-        uv pip compile --generate-hashes --universal --python-version 3.10 requirements.in -o requirements.lock.tmp
-        diff -u <(grep -v '^#' requirements.lock) <(grep -v '^#' requirements.lock.tmp) || (echo "ERROR: requirements.lock is stale relative to requirements.in. Run 'uv pip compile --generate-hashes --universal --python-version 3.10 requirements.in -o requirements.lock'" && exit 1)
+        uv pip compile --generate-hashes --universal --python-version 3.11 requirements.in -o requirements.lock.tmp
+        diff -u <(grep -v '^#' requirements.lock) <(grep -v '^#' requirements.lock.tmp) || (echo "ERROR: requirements.lock is stale relative to requirements.in. Run 'uv pip compile --generate-hashes --universal --python-version 3.11 requirements.in -o requirements.lock'" && exit 1)
     - name: Check Frontend package-lock.json freshness
       working-directory: aiko-app
       run: |
@@ -43,7 +43,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
+        python-version: ["3.11", "3.12"]
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python
