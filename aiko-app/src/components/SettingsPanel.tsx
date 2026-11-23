@@ -6,6 +6,7 @@ import { StageBackgroundSettings } from './StageBackgroundSettings';
 import { StageAvatarSettings } from './StageAvatarSettings';
 import { MemoryViewer } from './MemoryViewer';
 import { RoutinesPanel } from './RoutinesPanel';
+import { LessonPanel } from './LessonPanel';
 
 interface SettingsPanelProps {
   isOpen: boolean;
@@ -440,6 +441,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, o
                 <div className="mt-5 flex flex-col gap-5">
                   <MemoryViewer />
                   <RoutinesPanel />
+                  <LessonPanel />
                 </div>
               )}
 

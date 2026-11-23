@@ -256,7 +256,7 @@ class FileMemoryGraph:
         now = time.time()
 
         # Create hash key for path
-        file_hash = hashlib.md5(file_path.encode()).hexdigest()[:16]
+        file_hash = hashlib.md5(file_path.encode(), usedforsecurity=False).hexdigest()[:16]
 
         link = {
             'path': file_path,
@@ -289,12 +289,12 @@ class FileMemoryGraph:
 
     def get_file_context(self, file_path: str) -> Optional[Dict]:
         """Get Aiko's understanding of a file."""
-        file_hash = hashlib.md5(file_path.encode()).hexdigest()[:16]
+        file_hash = hashlib.md5(file_path.encode(), usedforsecurity=False).hexdigest()[:16]
         return self._cache.get(file_hash)
 
     def update_summary(self, file_path: str, summary: str):
         """Update Aiko's understanding of a file."""
-        file_hash = hashlib.md5(file_path.encode()).hexdigest()[:16]
+        file_hash = hashlib.md5(file_path.encode(), usedforsecurity=False).hexdigest()[:16]
         if file_hash in self._cache:
             self._cache[file_hash]['summary'] = summary
             self._save()
@@ -811,7 +811,7 @@ class UnifiedMemoryManager:
     def add_reminder(self, user_id: str, channel_id: str, message: str, due_time: float, platform: str = "discord"):
         """Add a new reminder."""
         reminder = {
-            "id": hashlib.md5(f"{user_id}{due_time}{message}".encode()).hexdigest()[:8],
+            "id": hashlib.md5(f"{user_id}{due_time}{message}".encode(), usedforsecurity=False).hexdigest()[:8],
             "user_id": str(user_id),
             "channel_id": str(channel_id),
             "message": message,

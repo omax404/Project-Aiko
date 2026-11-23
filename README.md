@@ -7,7 +7,7 @@
 Self-hosted AI companion with emotion modeling, long-term memory, voice, vision, and permission-gated tool use.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-C9A8D9.svg)](LICENSE)
-[![Python 3.10–3.12](https://img.shields.io/badge/Python-3.10--3.12-2A1B30.svg)](https://python.org)
+[![Python 3.11–3.12](https://img.shields.io/badge/Python-3.11--3.12-2A1B30.svg)](https://python.org)
 [![CI](https://github.com/omax404/Project-Aiko/actions/workflows/ci.yml/badge.svg)](https://github.com/omax404/Project-Aiko/actions/workflows/ci.yml)
 [![Discord](https://img.shields.io/badge/Discord-join-5865F2.svg)](https://discord.gg/8kNMMwFjcG)
 
@@ -46,7 +46,7 @@ The model backend is configurable. Aiko works with Ollama, OpenRouter, Gemini, O
 
 ### Requirements
 
-- Python 3.10–3.12 (3.13 is not supported)
+- Python 3.11–3.12 (3.13 is not supported)
 - Node.js and Rust toolchain, for building the desktop app from source
 - Windows (primary target, covers the one-click launcher and release builds) or Linux (exercised in CI). macOS is untested.
 
@@ -158,7 +158,7 @@ launch.py      Cross-platform launcher
 
 | Problem | Fix |
 |---|---|
-| Launcher exits immediately | Confirm Python 3.10–3.12 is on `PATH`. Python 3.13 lacks wheels for some dependencies. |
+| Launcher exits immediately | Confirm Python 3.11–3.12 is on `PATH`. Python 3.13 lacks wheels for some dependencies. |
 | `Failed to build wheel` / `cl.exe` not found | Install [Visual C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with the "Desktop development with C++" workload. |
 | "Brain not ready" | Start Ollama (`ollama serve`) or set an API key in **Settings**. |
 | Port 8000 or 1422 in use | Stop the stale Python or Node process holding it. |
@@ -170,3 +170,31 @@ Pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for code stan
 ## License
 
 Released under the [MIT License](LICENSE).
+
+## Architecture
+
+```mermaid
+flowchart LR
+    subgraph Clients
+        D[Tauri desktop overlay<br/>React + Live2D]
+        A[Android app<br/>Kotlin + Compose]
+        B[Discord / Telegram / Twitch bots]
+    end
+    subgraph Hub[Neural Hub - Python, :8000]
+        API[REST + WebSocket API<br/>JWT, CORS, rate limit]
+        CE[Chat engine<br/>ReAct loop]
+        EM[Emotion engine]
+        MEM[Unified memory<br/>episodic + RAG]
+        PL[Plugin manager]
+        PRO[Proactive loop]
+        VS[Voice and vision]
+    end
+    LLM[(Ollama / OpenRouter / Gemini / OpenAI / Anthropic)]
+    D & A & B --> API --> CE
+    CE <--> LLM
+    CE <--> MEM
+    CE <--> EM
+    CE --> PL
+    PRO --> CE
+    VS --> CE
+```

@@ -13,7 +13,7 @@ from jinja2 import Environment, FileSystemLoader
 logger = logging.getLogger("Persona")
 
 TEMPLATE_DIR = Path(__file__).parent.parent / "data" / "personas"
-jinja_env = Environment(loader=FileSystemLoader(str(TEMPLATE_DIR)), autoescape=False)
+jinja_env = Environment(loader=FileSystemLoader(str(TEMPLATE_DIR)), autoescape=False)  # nosec B701 - renders plain-text LLM prompts, not HTML
 
 def load_system_prompt() -> str:
     """Load the base system prompt from the Jinja2 template."""
