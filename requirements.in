@@ -56,3 +56,6 @@ playwright>=1.40.0
 jinja2>=3.0.0
 # IoT plugin (generic MQTT bridge; optional transport for smart-home devices)
 paho-mqtt>=2.0.0
+# Study mode (lecture slides to lessons)
+pypdf>=4.0.0
+python-pptx>=1.0.0

@@ -70,6 +70,7 @@ from core.api.background import start_background_tasks, cleanup_background_tasks
 from core.api.broadcast import broadcast_event
 from core.api.upload_resign import handle_upload_resign
 from core.api.model_routes import handle_models
+from core.api.lesson_routes import handle_lessons_post
 from core.routines import routines, handle_routines_get, handle_routines_post
 from core.api.memory_routes import handle_memory_profile_get, handle_memory_profile_put
 from core.nanomuse_bridge import (
@@ -430,6 +431,7 @@ def build_hub_app() -> web.Application:
     app.router.add_post('/api/email/settings', handle_email_settings)
     app.router.add_post('/api/uploads/sign', handle_upload_resign)
     app.router.add_get('/api/models', handle_models)
+    app.router.add_post('/api/lessons', handle_lessons_post)
     app.router.add_get('/api/routines', handle_routines_get)
     app.router.add_post('/api/routines', handle_routines_post)
     app.router.add_get('/api/memory/profile', handle_memory_profile_get)
